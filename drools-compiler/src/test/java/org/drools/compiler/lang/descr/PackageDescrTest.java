@@ -22,11 +22,12 @@ import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 
-import org.drools.compiler.lang.api.PackageDescrBuilder;
-import org.drools.compiler.lang.api.impl.PackageDescrBuilderImpl;
+import org.drools.drl.ast.dsl.PackageDescrBuilder;
+import org.drools.drl.ast.dsl.impl.PackageDescrBuilderImpl;
+import org.drools.drl.ast.descr.PackageDescr;
 import org.junit.Test;
 
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class PackageDescrTest {
 
@@ -38,7 +39,7 @@ public class PackageDescrTest {
         OutputStream os = new ByteArrayOutputStream();
         ObjectOutput oo = new ObjectOutputStream(os);
         descr.writeExternal(oo);
-        assertNotNull(os.toString());
+        assertThat(os.toString()).isNotNull();
     }
 
 }

@@ -18,18 +18,6 @@ package org.drools.compiler.compiler;
 import java.util.List;
 import java.util.Map;
 
-import org.drools.compiler.builder.impl.KnowledgeBuilderConfigurationImpl;
-import org.drools.compiler.lang.descr.AndDescr;
-import org.drools.compiler.lang.descr.BaseDescr;
-import org.drools.compiler.lang.descr.EntryPointDescr;
-import org.drools.compiler.lang.descr.ExistsDescr;
-import org.drools.compiler.lang.descr.FunctionDescr;
-import org.drools.compiler.lang.descr.ImportDescr;
-import org.drools.compiler.lang.descr.NotDescr;
-import org.drools.compiler.lang.descr.OrDescr;
-import org.drools.compiler.lang.descr.PatternDescr;
-import org.drools.compiler.lang.descr.ProcessDescr;
-import org.drools.compiler.lang.descr.RuleDescr;
 import org.drools.compiler.rule.builder.AccumulateBuilder;
 import org.drools.compiler.rule.builder.ConsequenceBuilder;
 import org.drools.compiler.rule.builder.EnabledBuilder;
@@ -39,16 +27,27 @@ import org.drools.compiler.rule.builder.FromBuilder;
 import org.drools.compiler.rule.builder.GroupElementBuilder;
 import org.drools.compiler.rule.builder.PackageBuildContext;
 import org.drools.compiler.rule.builder.PatternBuilder;
+import org.drools.compiler.rule.builder.PatternBuilderForQuery;
 import org.drools.compiler.rule.builder.PredicateBuilder;
-import org.drools.compiler.rule.builder.QueryBuilder;
-import org.drools.compiler.rule.builder.ReturnValueBuilder;
 import org.drools.compiler.rule.builder.RuleBuildContext;
 import org.drools.compiler.rule.builder.RuleClassBuilder;
 import org.drools.compiler.rule.builder.RuleConditionBuilder;
 import org.drools.compiler.rule.builder.SalienceBuilder;
-import org.drools.core.addon.TypeResolver;
+import org.drools.util.TypeResolver;
 import org.drools.core.definitions.InternalKnowledgePackage;
 import org.drools.core.rule.JavaDialectRuntimeData;
+import org.drools.core.definitions.rule.impl.QueryImpl;
+import org.drools.drl.ast.descr.AndDescr;
+import org.drools.drl.ast.descr.BaseDescr;
+import org.drools.drl.ast.descr.EntryPointDescr;
+import org.drools.drl.ast.descr.ExistsDescr;
+import org.drools.drl.ast.descr.FunctionDescr;
+import org.drools.drl.ast.descr.ImportDescr;
+import org.drools.drl.ast.descr.NotDescr;
+import org.drools.drl.ast.descr.OrDescr;
+import org.drools.drl.ast.descr.PatternDescr;
+import org.drools.drl.ast.descr.ProcessDescr;
+import org.drools.drl.ast.descr.RuleDescr;
 import org.kie.api.io.Resource;
 import org.kie.internal.builder.KnowledgeBuilderResult;
 
@@ -64,11 +63,6 @@ public interface Dialect {
 
     String getId();
 
-    // this is needed because some dialects use other dialects
-    // to build complex expressions. Example: java dialect uses MVEL
-    // to execute complex expressions
-    String getExpressionDialectName();
-
     Map<Class<?>, EngineElementBuilder> getBuilders();
 
     TypeResolver getTypeResolver();
@@ -79,15 +73,13 @@ public interface Dialect {
 
     PatternBuilder getPatternBuilder();
 
-    QueryBuilder getQueryBuilder();
+    PatternBuilderForQuery getPatternBuilderForQuery(QueryImpl query);
 
     RuleConditionBuilder getEvalBuilder();
 
     AccumulateBuilder getAccumulateBuilder();
 
     PredicateBuilder getPredicateBuilder();
-
-    ReturnValueBuilder getReturnValueBuilder();
 
     ConsequenceBuilder getConsequenceBuilder();
 
@@ -149,15 +141,11 @@ public interface Dialect {
 
         public static final String ID = "java";
 
-        private final InternalKnowledgePackage pkg;
         private final ClassLoader rootClassLoader;
-        private final KnowledgeBuilderConfigurationImpl pkgConf;
         private final PackageRegistry packageRegistry;
 
-        DummyDialect(ClassLoader rootClassLoader, KnowledgeBuilderConfigurationImpl pkgConf, PackageRegistry pkgRegistry, InternalKnowledgePackage pkg) {
+        DummyDialect(ClassLoader rootClassLoader, PackageRegistry pkgRegistry, InternalKnowledgePackage pkg) {
             this.rootClassLoader = rootClassLoader;
-            this.pkgConf = pkgConf;
-            this.pkg = pkg;
             this.packageRegistry = pkgRegistry;
 
             JavaDialectRuntimeData data = (JavaDialectRuntimeData) pkg.getDialectRuntimeRegistry().getDialectData(ID);
@@ -165,8 +153,8 @@ public interface Dialect {
             // initialise the dialect runtime data if it doesn't already exist
             if (data == null) {
                 data = new JavaDialectRuntimeData();
-                this.pkg.getDialectRuntimeRegistry().setDialectData(ID, data);
-                data.onAdd(this.pkg.getDialectRuntimeRegistry(), rootClassLoader);
+                pkg.getDialectRuntimeRegistry().setDialectData(ID, data);
+                data.onAdd(pkg.getDialectRuntimeRegistry(), rootClassLoader);
             } else {
                 data = (JavaDialectRuntimeData) pkg.getDialectRuntimeRegistry().getDialectData(ID);
             }
@@ -232,11 +220,6 @@ public interface Dialect {
         }
 
         @Override
-        public String getExpressionDialectName() {
-            return throwExceptionForMissingMvel();
-        }
-
-        @Override
         public Map<Class<?>, EngineElementBuilder> getBuilders() {
             return throwExceptionForMissingMvel();
         }
@@ -252,7 +235,7 @@ public interface Dialect {
         }
 
         @Override
-        public QueryBuilder getQueryBuilder() {
+        public PatternBuilderForQuery getPatternBuilderForQuery(QueryImpl query) {
             return throwExceptionForMissingMvel();
         }
 
@@ -268,11 +251,6 @@ public interface Dialect {
 
         @Override
         public PredicateBuilder getPredicateBuilder() {
-            return throwExceptionForMissingMvel();
-        }
-
-        @Override
-        public ReturnValueBuilder getReturnValueBuilder() {
             return throwExceptionForMissingMvel();
         }
 

@@ -5,10 +5,11 @@
   <parent>
     <artifactId>drools-scenario-simulation</artifactId>
     <groupId>org.drools</groupId>
-    <version>7.58.0-SNAPSHOT</version>
+    <version>8.22.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
+  <name>Drools :: Scenario Simulation Backend</name>
   <artifactId>drools-scenario-simulation-backend</artifactId>
   <packaging>jar</packaging>
 
@@ -16,10 +17,6 @@
     <dependency>
       <groupId>org.drools</groupId>
       <artifactId>drools-scenario-simulation-api</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
     </dependency>
 
     <!-- KIE API dependencies -->
@@ -42,20 +39,18 @@
       <artifactId>xstream</artifactId>
     </dependency>
 
-    <!-- KIE soup -->
-    <dependency>
-      <groupId>org.kie.soup</groupId>
-      <artifactId>kie-soup-commons</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.kie.soup</groupId>
-      <artifactId>kie-soup-project-datamodel-api</artifactId>
-    </dependency>
-
     <!-- MVEL support -->
     <dependency>
       <groupId>org.drools</groupId>
       <artifactId>drools-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.drools</groupId>
+      <artifactId>drools-commands</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.drools</groupId>
+      <artifactId>drools-mvel</artifactId>
     </dependency>
     <dependency>
       <groupId>org.mvel</groupId>
@@ -78,8 +73,22 @@
 
     <!-- Test dependencies -->
     <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.assertj</groupId>
       <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
       <scope>test</scope>
     </dependency>
 
@@ -90,7 +99,7 @@
       <dependency>
         <groupId>org.kie</groupId>
         <artifactId>kie-dmn-bom</artifactId>
-        <version>${version.org.kie}</version>
+        <version>${project.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>

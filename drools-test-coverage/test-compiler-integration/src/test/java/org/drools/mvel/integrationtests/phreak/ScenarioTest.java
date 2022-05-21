@@ -15,21 +15,23 @@
 
 package org.drools.mvel.integrationtests.phreak;
 
+import java.util.Collections;
+
 import org.drools.core.RuleBaseConfiguration;
 import org.drools.core.common.InternalWorkingMemory;
 import org.drools.core.definitions.InternalKnowledgePackage;
-import org.drools.core.definitions.impl.KnowledgePackageImpl;
 import org.drools.core.definitions.rule.impl.RuleImpl;
 import org.drools.core.impl.KnowledgeBaseImpl;
-import org.drools.core.impl.StatefulKnowledgeSessionImpl;
 import org.drools.core.phreak.PhreakJoinNode;
 import org.drools.core.reteoo.BetaMemory;
+import org.drools.core.reteoo.CoreComponentFactory;
 import org.drools.core.reteoo.JoinNode;
 import org.drools.core.reteoo.LeftTupleSink;
 import org.drools.core.reteoo.NodeTypeEnums;
 import org.drools.core.reteoo.SegmentMemory;
 import org.drools.core.reteoo.builder.BuildContext;
-import org.drools.mvel.MVELDialectRuntimeData;
+import org.drools.core.rule.JavaDialectRuntimeData;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
 import org.junit.Test;
 
 import static org.drools.mvel.integrationtests.phreak.B.b;
@@ -37,7 +39,6 @@ import static org.drools.mvel.integrationtests.phreak.Pair.t;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-// TODO: EM Need to migrate this to executable model
 public class ScenarioTest {
     BuildContext          buildContext;
     JoinNode              joinNode;
@@ -62,7 +63,7 @@ public class ScenarioTest {
         
         joinNode.addTupleSink( sinkNode );
 
-        wm = ((StatefulKnowledgeSessionImpl)buildContext.getKnowledgeBase().newKieSession());
+        wm = (InternalWorkingMemory) KnowledgeBaseFactory.newKnowledgeBase(buildContext.getRuleBase()).newKieSession();
         
         bm =(BetaMemory)  wm.getNodeMemory( joinNode );
         
@@ -741,11 +742,11 @@ public class ScenarioTest {
 
         KnowledgeBaseImpl rbase = new KnowledgeBaseImpl( "ID",
                                                    conf );
-        BuildContext buildContext = new BuildContext( rbase );
+        BuildContext buildContext = new BuildContext( rbase, Collections.emptyList() );
 
         RuleImpl rule = new RuleImpl( "rule1").setPackage( "org.pkg1" );
-        InternalKnowledgePackage pkg = new KnowledgePackageImpl( "org.pkg1" );
-        pkg.getDialectRuntimeRegistry().setDialectData( "mvel", new MVELDialectRuntimeData() );
+        InternalKnowledgePackage pkg = CoreComponentFactory.get().createKnowledgePackage( "org.pkg1" );
+        pkg.getDialectRuntimeRegistry().setDialectData( "java", new JavaDialectRuntimeData() );
         pkg.addRule( rule );
         buildContext.setRule( rule );
 

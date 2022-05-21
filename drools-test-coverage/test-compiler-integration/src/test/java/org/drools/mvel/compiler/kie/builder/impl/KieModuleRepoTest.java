@@ -13,8 +13,6 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import org.appformer.maven.support.DependencyFilter;
-import org.appformer.maven.support.PomModel;
 import org.drools.compiler.kie.builder.impl.BuildContext;
 import org.drools.compiler.kie.builder.impl.InternalKieModule;
 import org.drools.compiler.kie.builder.impl.KieContainerImpl;
@@ -22,12 +20,11 @@ import org.drools.compiler.kie.builder.impl.KieModuleKieProject;
 import org.drools.compiler.kie.builder.impl.KieProject;
 import org.drools.compiler.kie.builder.impl.KieRepositoryImpl;
 import org.drools.compiler.kie.builder.impl.KieRepositoryImpl.KieModuleRepo;
-import org.drools.compiler.kproject.ReleaseIdImpl;
 import org.drools.compiler.kproject.models.KieBaseModelImpl;
 import org.drools.core.definitions.InternalKnowledgePackage;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.io.internal.InternalResource;
-import org.drools.reflective.ResourceProvider;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.util.io.InternalResource;
+import org.drools.wiring.api.ResourceProvider;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -45,9 +42,12 @@ import org.kie.internal.builder.CompositeKnowledgeBuilder;
 import org.kie.internal.builder.KnowledgeBuilder;
 import org.kie.internal.builder.KnowledgeBuilderConfiguration;
 import org.kie.internal.builder.ResourceChangeSet;
+import org.kie.util.maven.support.DependencyFilter;
+import org.kie.util.maven.support.PomModel;
+import org.kie.util.maven.support.ReleaseIdImpl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
@@ -187,8 +187,8 @@ public class KieModuleRepoTest {
         final ComparableVersion newFeatureVersion = new ComparableVersion(secondVersion);
         final KieModule newFeatureKieModule = artifactMap.get(newFeatureVersion);
 
-        assertNotNull( "Race condition occurred: normal KieModule disappeared from KieModuleRepo!", normalKieModule);
-        assertNotNull( "Race condition occurred: new feature KieModule disappeared from KieModuleRepo!", newFeatureKieModule);
+        assertThat(normalKieModule).as("Race condition occurred: normal KieModule disappeared from KieModuleRepo!").isNotNull();
+        assertThat(newFeatureKieModule).as("Race condition occurred: new feature KieModule disappeared from KieModuleRepo!").isNotNull();
     }
 
     public Runnable getStoreArtifactRunnable(final KieModuleRepo kieModuleRepo, final String groupId, final String artifactId,
@@ -252,11 +252,11 @@ public class KieModuleRepoTest {
         final String ga = releaseId.getGroupId() + ":" + releaseId.getArtifactId();
         final Map<ComparableVersion, KieModule> artifactMap = kieModuleRepo.kieModules.get(ga);
 
-        assertNotNull( "Artifact Map for GA '" + ga + "' not in KieModuleRepo!", artifactMap);
+        assertThat(artifactMap).as("Artifact Map for GA '" + ga + "' not in KieModuleRepo!").isNotNull();
 
         // never gets this far, but this is a good check
         final KieModule redeployedKieModule = artifactMap.get(new ComparableVersion(releaseId.getVersion()));
-        assertNotNull( "Redeployed module has disappeared from KieModuleRepo!", redeployedKieModule);
+        assertThat(redeployedKieModule).as("Redeployed module has disappeared from KieModuleRepo!").isNotNull();
         assertEquals( "Original module retrieved instead of redeployed module!",
                       1l, redeployKieModule.getCreationTimestamp() );
     }

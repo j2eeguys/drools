@@ -16,21 +16,23 @@ package org.drools.mvel;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 
 import org.drools.core.base.ClassFieldAccessorCache;
-import org.drools.core.base.ClassFieldAccessorStore;
+import org.drools.mvel.accessors.ClassFieldAccessorStore;
 import org.drools.core.common.DefaultFactHandle;
 import org.drools.core.common.PropagationContextFactory;
 import org.drools.core.definitions.rule.impl.RuleImpl;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
-import org.drools.core.impl.StatefulKnowledgeSessionImpl;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
 import org.drools.core.reteoo.AlphaNode;
 import org.drools.core.reteoo.MockObjectSink;
+import org.drools.core.reteoo.RuntimeComponentFactory;
 import org.drools.core.reteoo.builder.BuildContext;
-import org.drools.core.spi.AlphaNodeFieldConstraint;
-import org.drools.core.spi.PropagationContext;
+import org.drools.core.rule.constraint.AlphaNodeFieldConstraint;
+import org.drools.core.common.PropagationContext;
 import org.drools.core.test.model.DroolsTestCase;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
+import org.drools.kiesession.session.StatefulKnowledgeSessionImpl;
 import org.drools.mvel.model.Cheese;
 import org.drools.mvel.model.MockObjectSource;
 import org.junit.Assert;
@@ -68,22 +70,22 @@ public class AlphaNodeTest extends DroolsTestCase {
 
     @Test
     public void testLiteralConstraintAssertObjectWithoutMemory() throws Exception {
-        InternalKnowledgeBase kBase = (InternalKnowledgeBase) KnowledgeBaseFactory.newKnowledgeBase();
-        BuildContext buildContext = new BuildContext( kBase );
+        InternalKnowledgeBase kBase = KnowledgeBaseFactory.newKnowledgeBase();
+        BuildContext buildContext = new BuildContext( kBase, Collections.emptyList() );
         buildContext.setRule(new RuleImpl("test"));
 
         StatefulKnowledgeSessionImpl ksession = (StatefulKnowledgeSessionImpl)kBase.newKieSession();
 
         final RuleImpl rule = new RuleImpl( "test-rule" );
-        PropagationContextFactory pctxFactory = kBase.getConfiguration().getComponentFactory().getPropagationContextFactory();
+        PropagationContextFactory pctxFactory = RuntimeComponentFactory.get().getPropagationContextFactory();
         final PropagationContext context = pctxFactory.createPropagationContext(0, PropagationContext.Type.INSERTION, null, null, null);
 
-        final MockObjectSource source = new MockObjectSource( buildContext.getNextId() );
+        final MockObjectSource source = new MockObjectSource( buildContext.getNextNodeId() );
 
         AlphaNodeFieldConstraint constraint = ConstraintTestUtil.createCheeseTypeEqualsConstraint(store, "cheddar", useLambdaConstraint);
 
         // With Memory
-        final AlphaNode alphaNode = new AlphaNode( buildContext.getNextId(),
+        final AlphaNode alphaNode = new AlphaNode( buildContext.getNextNodeId(),
                                                    constraint,
                                                    source,
                                                    buildContext ); // no memory
@@ -134,21 +136,21 @@ public class AlphaNodeTest extends DroolsTestCase {
      */
     @Test
     public void testReturnValueConstraintAssertObject() throws Exception {
-        InternalKnowledgeBase kBase = (InternalKnowledgeBase) KnowledgeBaseFactory.newKnowledgeBase();
-        BuildContext buildContext = new BuildContext( kBase );
+        InternalKnowledgeBase kBase = KnowledgeBaseFactory.newKnowledgeBase();
+        BuildContext buildContext = new BuildContext( kBase, Collections.emptyList() );
         buildContext.setRule(new RuleImpl("test"));
 
         StatefulKnowledgeSessionImpl ksession = (StatefulKnowledgeSessionImpl)kBase.newKieSession();
 
         final RuleImpl rule = new RuleImpl( "test-rule" );
-        PropagationContextFactory pctxFactory = kBase.getConfiguration().getComponentFactory().getPropagationContextFactory();
+        PropagationContextFactory pctxFactory = RuntimeComponentFactory.get().getPropagationContextFactory();
         final PropagationContext context = pctxFactory.createPropagationContext(0, PropagationContext.Type.INSERTION, null, null, null);
 
-        final MockObjectSource source = new MockObjectSource( buildContext.getNextId() );
+        final MockObjectSource source = new MockObjectSource( buildContext.getNextNodeId() );
 
         AlphaNodeFieldConstraint constraint = ConstraintTestUtil.createCheeseTypeEqualsConstraint(store, "cheddar", useLambdaConstraint);
 
-        final AlphaNode alphaNode = new AlphaNode( buildContext.getNextId(),
+        final AlphaNode alphaNode = new AlphaNode( buildContext.getNextNodeId(),
                                                    constraint,
                                                    source,
                                                    buildContext );
@@ -192,21 +194,21 @@ public class AlphaNodeTest extends DroolsTestCase {
     @Test
     public void testUpdateSinkWithoutMemory() {
         // An AlphaNode should try and repropagate from its source
-        InternalKnowledgeBase kBase = (InternalKnowledgeBase) KnowledgeBaseFactory.newKnowledgeBase();
-        BuildContext buildContext = new BuildContext( kBase );
+        InternalKnowledgeBase kBase = KnowledgeBaseFactory.newKnowledgeBase();
+        BuildContext buildContext = new BuildContext( kBase, Collections.emptyList() );
         buildContext.setRule(new RuleImpl("test"));
 
         StatefulKnowledgeSessionImpl ksession = (StatefulKnowledgeSessionImpl)kBase.newKieSession();
 
         final RuleImpl rule = new RuleImpl( "test-rule" );
-        PropagationContextFactory pctxFactory = kBase.getConfiguration().getComponentFactory().getPropagationContextFactory();
+        PropagationContextFactory pctxFactory = RuntimeComponentFactory.get().getPropagationContextFactory();
         final PropagationContext context = pctxFactory.createPropagationContext(0, PropagationContext.Type.INSERTION, null, null, null);
 
-        final MockObjectSource source = new MockObjectSource( buildContext.getNextId() );
+        final MockObjectSource source = new MockObjectSource( buildContext.getNextNodeId() );
 
         AlphaNodeFieldConstraint constraint = ConstraintTestUtil.createCheeseTypeEqualsConstraint(store, "cheddar", useLambdaConstraint);
 
-        final AlphaNode alphaNode = new AlphaNode( buildContext.getNextId(),
+        final AlphaNode alphaNode = new AlphaNode( buildContext.getNextNodeId(),
                                                    constraint,
                                                    source,
                                                    buildContext ); // no memory

@@ -19,11 +19,11 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.drools.commands.runtime.FlatQueryResults;
 import org.drools.core.QueryResultsImpl;
 import org.drools.core.QueryResultsRowImpl;
 import org.drools.core.common.InternalFactHandle;
 import org.drools.core.runtime.rule.impl.FlatQueryResultRow;
-import org.drools.core.runtime.rule.impl.FlatQueryResults;
 import org.drools.mvel.CommonTestMethodBase;
 import org.drools.mvel.compiler.Cheese;
 import org.junit.Before;
@@ -36,9 +36,9 @@ import org.kie.api.runtime.rule.FactHandle;
 import org.kie.api.runtime.rule.QueryResults;
 import org.kie.api.runtime.rule.QueryResultsRow;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 public class QueryTest extends CommonTestMethodBase {
@@ -77,7 +77,7 @@ public class QueryTest extends CommonTestMethodBase {
                 FactHandle fh = row.getFactHandle(id);
                 FactHandle copyFh = copyRow.getFactHandle(id);
                 if( fh != null ) {
-                    assertNotNull( "Flat query result [" + i + "] does not contain facthandle: '" + ((InternalFactHandle) fh).getId() + "'", copyFh);
+                    assertThat(copyFh).as("Flat query result [" + i + "] does not contain facthandle: '" + ((InternalFactHandle) fh).getId() + "'").isNotNull();
                     String fhStr = fh.toExternalForm();
                     fhStr = fhStr.substring(0, fhStr.lastIndexOf(":"));
                     String copyFhStr = copyFh.toExternalForm();
@@ -96,7 +96,7 @@ public class QueryTest extends CommonTestMethodBase {
 
     @Test
     public void testQuery() throws Exception {
-        KieBase kbase = SerializationHelper.serializeObject(loadKnowledgeBase("simple_query_test.drl"));
+        KieBase kbase = loadKnowledgeBase("simple_query_test.drl");
         KieSession session = createKieSession( kbase );
 
         final Cheese stilton = new Cheese( "stinky",
@@ -121,7 +121,7 @@ public class QueryTest extends CommonTestMethodBase {
 
     @Test
     public void testQueryRemoval() throws Exception {
-        KieBase kbase = SerializationHelper.serializeObject(loadKnowledgeBase("simple_query_test.drl"));
+        KieBase kbase = loadKnowledgeBase("simple_query_test.drl");
         KieSession session = createKieSession( kbase );
 
         final Cheese stilton = new Cheese( "stinky",

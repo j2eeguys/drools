@@ -33,13 +33,15 @@ import org.drools.core.base.TraitHelper;
 import org.drools.core.common.InternalFactHandle;
 import org.drools.core.common.InternalWorkingMemoryActions;
 import org.drools.core.common.InternalWorkingMemoryEntryPoint;
-import org.drools.core.common.NamedEntryPoint;
+import org.drools.kiesession.entrypoints.NamedEntryPoint;
 import org.drools.core.common.ObjectStore;
 import org.drools.core.common.ObjectTypeConfigurationRegistry;
+import org.drools.core.common.TruthMaintenanceSystemFactory;
 import org.drools.core.definitions.InternalKnowledgePackage;
 import org.drools.core.definitions.rule.impl.RuleImpl;
 import org.drools.core.factmodel.ClassDefinition;
 import org.drools.core.factmodel.traits.CoreWrapper;
+import org.drools.core.reteoo.RuntimeComponentFactory;
 import org.drools.traits.core.factmodel.LogicalTypeInconsistencyException;
 import org.drools.core.factmodel.traits.Thing;
 import org.drools.traits.core.factmodel.TraitFactoryImpl;
@@ -49,21 +51,22 @@ import org.drools.traits.core.factmodel.TraitRegistryImpl;
 import org.drools.core.factmodel.traits.TraitType;
 import org.drools.traits.core.factmodel.TraitTypeMapImpl;
 import org.drools.core.factmodel.traits.TraitableBean;
-import org.drools.core.impl.StatefulKnowledgeSessionImpl;
+import org.drools.kiesession.session.StatefulKnowledgeSessionImpl;
 import org.drools.traits.core.metadata.Metadatable;
 import org.drools.traits.core.metadata.Modify;
 import org.drools.core.reteoo.ObjectTypeConf;
 import org.drools.core.reteoo.TerminalNode;
 import org.drools.core.rule.TypeDeclaration;
-import org.drools.core.spi.Activation;
-import org.drools.core.spi.PropagationContext;
-import org.drools.core.util.HierarchyEncoder;
+import org.drools.core.rule.consequence.Activation;
+import org.drools.core.common.PropagationContext;
+import org.drools.traits.core.factmodel.HierarchyEncoder;
 import org.drools.core.util.bitmask.BitMask;
-import org.kie.api.internal.runtime.beliefs.Mode;
+import org.drools.core.beliefsystem.Mode;
+import org.drools.traits.core.reteoo.TraitRuntimeComponentFactory;
 import org.kie.api.runtime.rule.EntryPoint;
 import org.kie.api.runtime.rule.FactHandle;
 
-import static org.drools.core.factmodel.traits.TraitUtils.supersetOrEqualset;
+import static org.drools.traits.core.base.TraitUtils.supersetOrEqualset;
 import static org.drools.core.reteoo.PropertySpecificUtil.onlyTraitBitSetMask;
 
 public class TraitHelperImpl implements Externalizable,
@@ -139,7 +142,7 @@ public class TraitHelperImpl implements Externalizable,
                 InternalFactHandle h = (InternalFactHandle) lookupFactHandle( t );
                 if ( h != null ) {
                     NamedEntryPoint nep = (NamedEntryPoint) h.getEntryPoint(workingMemory);
-                    PropagationContext propagationContext = nep.getPctxFactory().createPropagationContext( nep.getInternalWorkingMemory().getNextPropagationIdCounter(),
+                    PropagationContext propagationContext = nep.getPctxFactory().createPropagationContext( nep.getReteEvaluator().getNextPropagationIdCounter(),
                                                                                                            PropagationContext.Type.MODIFICATION,
                                                                                                            activation != null ? activation.getRule() : null,
                                                                                                            activation != null ? activation.getTuple().getTupleSink() : null,
@@ -246,7 +249,7 @@ public class TraitHelperImpl implements Externalizable,
         if ( ! inner.hasTraits() ) {
             TraitTypeMapImpl ttm = (TraitTypeMapImpl) inner._getTraitMap();
             if ( ttm != null && ttm.getStaticTypeCode() == null ) {
-                TraitRegistryImpl registry = (TraitRegistryImpl) this.workingMemory.getKnowledgeBase().getConfiguration().getComponentFactory().getTraitRegistry();
+                TraitRegistryImpl registry = (TraitRegistryImpl) ((TraitRuntimeComponentFactory) RuntimeComponentFactory.get()).getTraitRegistry(this.workingMemory.getKnowledgeBase());
                 // code that summarizes ALL the static types
                 BitSet staticCode = registry.getStaticTypeCode( inner.getClass().getName() );
                 ttm.setStaticTypeCode( staticCode );
@@ -295,7 +298,7 @@ public class TraitHelperImpl implements Externalizable,
 
             Object o = h.getObject();
             NamedEntryPoint nep = (NamedEntryPoint) h.getEntryPoint(workingMemory);
-            PropagationContext propagationContext = nep.getPctxFactory().createPropagationContext( nep.getInternalWorkingMemory().getNextPropagationIdCounter(),
+            PropagationContext propagationContext = nep.getPctxFactory().createPropagationContext( nep.getReteEvaluator().getNextPropagationIdCounter(),
                                                                                                    PropagationContext.Type.MODIFICATION,
                                                                                                    activation.getRule(),
                                                                                                    activation.getTuple().getTupleSink(),
@@ -350,7 +353,7 @@ public class TraitHelperImpl implements Externalizable,
             } else if ( core.hasTrait( trait.getName() ) ) {
                 removedTypes = core.removeTrait( trait.getName() );
             } else {
-                HierarchyEncoder hier = this.workingMemory.getKnowledgeBase().getConfiguration().getComponentFactory().getTraitRegistry().getHierarchy();
+                HierarchyEncoder hier = ((TraitRuntimeComponentFactory) RuntimeComponentFactory.get()).getTraitRegistry(this.workingMemory.getKnowledgeBase()).getHierarchy();
                 BitSet code = hier.getCode( trait.getName() );
                 removedTypes = core.removeTrait( code );
             }
@@ -361,7 +364,7 @@ public class TraitHelperImpl implements Externalizable,
                 if ( ! ((TraitType) t)._isVirtual() ) {
                     InternalFactHandle handle = (InternalFactHandle) getFactHandle( t );
                     if ( handle.getEqualityKey() != null && handle.getEqualityKey().getLogicalFactHandle() == handle ) {
-                        entryPoint.getTruthMaintenanceSystem().delete( handle );
+                        TruthMaintenanceSystemFactory.get().getOrCreateTruthMaintenanceSystem(entryPoint).delete( handle );
                     } else {
                         delete( getFactHandle( t ), activation );
                     }
@@ -615,10 +618,8 @@ public class TraitHelperImpl implements Externalizable,
             return;
         }
         // iterate to find previous equal logical insertion
-        FactHandle handle = workingMemory.getTruthMaintenanceSystem().insert( object,
-                                                                              modes,
-                                                                              activation.getRule(),
-                                                                              activation );
+        TruthMaintenanceSystemFactory.get().getOrCreateTruthMaintenanceSystem(workingMemory)
+                .insert( object, modes, activation );
 
     }
 

@@ -17,9 +17,10 @@ package org.drools.mvel.compiler.reteoo;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.Collections;
 
 import org.drools.compiler.builder.impl.KnowledgeBuilderImpl;
-import org.drools.compiler.compiler.DroolsParserException;
+import org.drools.drl.parser.DroolsParserException;
 import org.drools.core.RuleBaseConfiguration;
 import org.drools.core.definitions.InternalKnowledgePackage;
 import org.drools.core.definitions.rule.impl.RuleImpl;
@@ -53,7 +54,7 @@ public class ReteooBuilderPerformanceTest {
         long    start   = System.currentTimeMillis();
         for (ReteooBuilder reteBuilder : reteBuilders) {
             for (Rule rule : pkg.getRules())
-                reteBuilder.addRule((RuleImpl)rule);
+                reteBuilder.addRule((RuleImpl)rule, Collections.emptyList());
         }
         System.out.println("Added "+RULE_COUNT+" rules to each ReteBuilder's in "+
                            format(System.currentTimeMillis()-start));

@@ -22,11 +22,10 @@ import java.util.PriorityQueue;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.drools.core.conflict.PhreakConflictResolver;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.marshalling.impl.MarshallerReaderContext;
+import org.drools.core.impl.RuleBase;
+import org.drools.core.marshalling.MarshallerReaderContext;
 import org.drools.core.phreak.PropagationEntry;
-import org.drools.core.spi.Activation;
-import org.drools.core.spi.PropagationContext;
+import org.drools.core.rule.consequence.Activation;
 import org.drools.core.util.ArrayQueue;
 import org.drools.core.util.BinaryHeapQueue;
 import org.drools.core.util.Queue;
@@ -53,7 +52,7 @@ public class AgendaGroupQueueImpl
     private          long               activatedForRecency;
     private          long               clearedForRecency;
 
-    private InternalWorkingMemory workingMemory;
+    private ReteEvaluator reteEvaluator;
     private boolean               autoDeactivate = true;
     private Map<Object, String>     nodeInstances  = new ConcurrentHashMap<>();
 
@@ -62,10 +61,8 @@ public class AgendaGroupQueueImpl
     private Activation            lastRemoved;
     private final boolean         sequential;
 
-    private static final Activation visited = new VisitedAgendaGroup();
-
     public AgendaGroupQueueImpl(final String name,
-                                final InternalKnowledgeBase kBase) {
+                                final RuleBase kBase) {
         this.name = name;
         this.sequential = kBase.getConfiguration().isSequential();
 
@@ -75,7 +72,7 @@ public class AgendaGroupQueueImpl
     @Override
     public void visited() {
         if (sequential) {
-            lastRemoved = visited;
+            lastRemoved = VisitedAgendaGroup.INSTANCE;
         }
     }
 
@@ -86,18 +83,14 @@ public class AgendaGroupQueueImpl
         return this.name;
     }
 
-    public void setWorkingMemory(InternalWorkingMemory workingMemory) {
-        this.workingMemory = workingMemory;
+    public void setReteEvaluator(ReteEvaluator reteEvaluator) {
+        this.reteEvaluator = reteEvaluator;
         // workingMemory can be null during deserialization
-        if (workingMemory != null && workingMemory.getSessionConfiguration().isDirectFiring()) {
+        if (reteEvaluator != null && reteEvaluator.getSessionConfiguration().isDirectFiring()) {
             this.priorityQueue = new ArrayQueue();
         } else {
             this.priorityQueue = new BinaryHeapQueue(new PhreakConflictResolver());
         }
-    }
-
-    public InternalWorkingMemory getWorkingMemory() {
-        return workingMemory;
     }
 
     @Override
@@ -111,7 +104,7 @@ public class AgendaGroupQueueImpl
     }
 
     public void clear() {
-        workingMemory.addPropagation( new ClearAction( this.name ) );
+        reteEvaluator.addPropagation( new ClearAction( this.name ) );
     }
 
     public class ClearAction extends PropagationEntry.AbstractPropagationEntry {
@@ -123,13 +116,13 @@ public class AgendaGroupQueueImpl
         }
 
         @Override
-        public void execute( InternalWorkingMemory wm ) {
-            wm.getAgenda().clearAndCancelAgendaGroup(this.name);
+        public void execute( ReteEvaluator reteEvaluator ) {
+            ((InternalAgenda) reteEvaluator.getActivationsManager()).clearAndCancelAgendaGroup(this.name);
         }
     }
 
     public void setFocus() {
-        workingMemory.addPropagation( new SetFocusAction( this.name ) );
+        reteEvaluator.addPropagation( new SetFocusAction( this.name ) );
     }
 
     public class SetFocusAction extends PropagationEntry.AbstractPropagationEntry {
@@ -141,8 +134,8 @@ public class AgendaGroupQueueImpl
         }
 
         @Override
-        public void execute( InternalWorkingMemory wm ) {
-            wm.getAgenda().setFocus(this.name);
+        public void execute( ReteEvaluator reteEvaluator ) {
+            ((InternalAgenda) reteEvaluator.getActivationsManager()).setFocus(this.name);
         }
 
         @Override
@@ -170,7 +163,7 @@ public class AgendaGroupQueueImpl
     public void add(final Activation activation) {
         if ( lastRemoved != null ) {
             // this will only be set if sequential. Do not add Match's that are higher in salience + load order than the lastRemoved (fired)
-            if ( lastRemoved == activation || lastRemoved  == visited || PhreakConflictResolver.doCompare( lastRemoved, activation ) < 0 ) {
+            if ( lastRemoved == activation || lastRemoved == VisitedAgendaGroup.INSTANCE || PhreakConflictResolver.doCompare( lastRemoved, activation ) < 0 ) {
                 return;
             }
         }
@@ -287,7 +280,7 @@ public class AgendaGroupQueueImpl
             this.ruleFlowGroup = (InternalRuleFlowGroup) context.getWorkingMemory().getAgenda().getRuleFlowGroup( context.readUTF() );
         }
 
-        public void execute(InternalWorkingMemory workingMemory) {
+        public void execute(ReteEvaluator reteEvaluator) {
             // check whether ruleflow group is still empty first
             if ( this.ruleFlowGroup.isEmpty() ) {
                 // deactivate ruleflow group

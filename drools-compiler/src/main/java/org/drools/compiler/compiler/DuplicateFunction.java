@@ -15,7 +15,7 @@
 */
 package org.drools.compiler.compiler;
 
-import org.drools.compiler.lang.descr.FunctionDescr;
+import org.drools.drl.ast.descr.FunctionDescr;
 import org.drools.core.rule.Function;
 import org.kie.internal.builder.KnowledgeBuilderConfiguration;
 
@@ -53,7 +53,7 @@ public class DuplicateFunction extends ConfigurableSeverityResult {
     }
 
     @Override
-    String getOptionKey() {
+    protected String getOptionKey() {
         return KEY;
     }
 

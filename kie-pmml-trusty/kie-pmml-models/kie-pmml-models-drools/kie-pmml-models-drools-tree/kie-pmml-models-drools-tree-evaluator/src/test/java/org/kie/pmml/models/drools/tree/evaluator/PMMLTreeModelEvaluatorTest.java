@@ -21,7 +21,6 @@ import java.util.Map;
 import org.dmg.pmml.PMML;
 import org.dmg.pmml.tree.TreeModel;
 import org.drools.compiler.builder.impl.KnowledgeBuilderImpl;
-import org.drools.compiler.kproject.ReleaseIdImpl;
 import org.drools.modelcompiler.ExecutableModelProject;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -33,24 +32,23 @@ import org.kie.internal.utils.KieHelper;
 import org.kie.pmml.api.enums.PMML_MODEL;
 import org.kie.pmml.api.enums.ResultCode;
 import org.kie.pmml.api.runtime.PMMLContext;
-import org.kie.pmml.compiler.testutils.TestUtils;
+import org.kie.pmml.compiler.api.dto.CommonCompilationDTO;
+import org.kie.pmml.compiler.api.testutils.TestUtils;
 import org.kie.pmml.evaluator.core.PMMLContextImpl;
 import org.kie.pmml.evaluator.core.utils.PMMLRequestDataBuilder;
 import org.kie.pmml.models.drools.tree.compiler.executor.TreeModelImplementationProvider;
 import org.kie.pmml.models.drools.tree.evaluator.implementations.HasKnowledgeBuilderMock;
 import org.kie.pmml.models.drools.tree.model.KiePMMLTreeModel;
+import org.kie.util.maven.support.ReleaseIdImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.kie.pmml.commons.Constants.PACKAGE_NAME;
 
 public class PMMLTreeModelEvaluatorTest {
 
     private static final String SOURCE_1 = "TreeSample.pmml";
-    private static final String PACKAGE_NAME = "PACKAGE_NAME";
     private static final Logger logger = LoggerFactory.getLogger(PMMLTreeModelEvaluatorTest.class);
     private static final String modelName = "golfing";
     private static final ReleaseId RELEASE_ID = new ReleaseIdImpl("org", "test", "1.0.0");
@@ -76,25 +74,27 @@ public class PMMLTreeModelEvaluatorTest {
     public static void setUp() throws Exception {
         evaluator = new PMMLTreeModelEvaluator();
         final PMML pmml = TestUtils.loadFromFile(SOURCE_1);
-        assertNotNull(pmml);
-        assertEquals(1, pmml.getModels().size());
-        assertTrue(pmml.getModels().get(0) instanceof TreeModel);
+        assertThat(pmml).isNotNull();
+        assertThat(pmml.getModels()).hasSize(1);
+        assertThat(pmml.getModels().get(0)).isInstanceOf(TreeModel.class);
         KnowledgeBuilderImpl knowledgeBuilder = new KnowledgeBuilderImpl();
-        kiePMMLModel = provider.getKiePMMLModel(PACKAGE_NAME,
-                                                pmml.getDataDictionary(),
-                                                pmml.getTransformationDictionary(),
-                                                (TreeModel) pmml.getModels().get(0),
-                                                new HasKnowledgeBuilderMock(knowledgeBuilder));
+        final CommonCompilationDTO<TreeModel> compilationDTO =
+                CommonCompilationDTO.fromGeneratedPackageNameAndFields(PACKAGE_NAME,
+                                                                       pmml,
+                                                                       (TreeModel) pmml.getModels().get(0),
+                                                                       new HasKnowledgeBuilderMock(knowledgeBuilder));
+
+        kiePMMLModel = provider.getKiePMMLModel(compilationDTO);
         kieBase = new KieHelper()
                 .addContent(knowledgeBuilder.getPackageDescrs(kiePMMLModel.getKModulePackageName()).get(0))
                 .setReleaseId(RELEASE_ID)
-                .build( ExecutableModelProject.class );
-        assertNotNull(kieBase);
+                .build(ExecutableModelProject.class);
+        assertThat(kieBase).isNotNull();
     }
 
     @Test
     public void getPMMLModelType() {
-        assertEquals(PMML_MODEL.TREE_MODEL, evaluator.getPMMLModelType());
+        assertThat(evaluator.getPMMLModelType()).isEqualTo(PMML_MODEL.TREE_MODEL);
     }
 
     @Test
@@ -185,19 +185,19 @@ public class PMMLTreeModelEvaluatorTest {
 
     private void commonEvaluate(PMMLContext pmmlContext, String expectedScore) {
         PMML4Result retrieved = evaluator.evaluate(kieBase, kiePMMLModel, pmmlContext);
-        assertNotNull(retrieved);
+        assertThat(retrieved).isNotNull();
         logger.trace(retrieved.toString());
-        assertEquals(TARGET_FIELD, retrieved.getResultObjectName());
+        assertThat(retrieved.getResultObjectName()).isEqualTo(TARGET_FIELD);
         final Map<String, Object> resultVariables = retrieved.getResultVariables();
-        assertNotNull(resultVariables);
+        assertThat(resultVariables).isNotNull();
         if (expectedScore != null) {
-            assertEquals(ResultCode.OK.getName(), retrieved.getResultCode());
-            assertFalse(resultVariables.isEmpty());
-            assertTrue(resultVariables.containsKey(TARGET_FIELD));
-            assertEquals(expectedScore, resultVariables.get(TARGET_FIELD));
+            assertThat(retrieved.getResultCode()).isEqualTo(ResultCode.OK.getName());
+            assertThat(resultVariables).isNotEmpty();
+            assertThat(resultVariables).containsKey(TARGET_FIELD);
+            assertThat(resultVariables.get(TARGET_FIELD)).isEqualTo(expectedScore);
         } else {
-            assertEquals(ResultCode.FAIL.getName(), retrieved.getResultCode());
-            assertFalse(resultVariables.containsKey(TARGET_FIELD));
+        	assertThat(retrieved.getResultCode()).isEqualTo(ResultCode.FAIL.getName());
+        	assertThat(resultVariables).doesNotContainKey(TARGET_FIELD);
         }
     }
 

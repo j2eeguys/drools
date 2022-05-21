@@ -41,13 +41,14 @@ import org.drools.mvel.parser.ast.expr.OOPathChunk;
 import org.drools.mvel.parser.ast.expr.OOPathExpr;
 import org.drools.mvel.parser.printer.PrintUtil;
 
-import static org.drools.core.util.ClassUtils.extractGenericType;
+import static org.drools.util.ClassUtils.extractGenericType;
 import static org.drools.modelcompiler.builder.generator.DrlxParseUtil.THIS_PLACEHOLDER;
 import static org.drools.modelcompiler.builder.generator.DrlxParseUtil.generateLambdaWithoutParameters;
 import static org.drools.modelcompiler.builder.generator.DrlxParseUtil.prepend;
 import static org.drools.modelcompiler.builder.generator.DslMethodNames.FROM_CALL;
 import static org.drools.modelcompiler.builder.generator.DslMethodNames.PATTERN_CALL;
 import static org.drools.modelcompiler.builder.generator.DslMethodNames.REACTIVE_FROM_CALL;
+import static org.drools.modelcompiler.builder.generator.DslMethodNames.createDslTopLevelMethod;
 import static org.kie.internal.ruleunit.RuleUnitUtil.isDataSource;
 
 public class OOPathExprGenerator {
@@ -75,7 +76,7 @@ public class OOPathExprGenerator {
             OOPathChunk chunk = chunks.get(i);
             if (chunk.isPassive()) {
                 if (passive) {
-                    context.addCompilationError(new InvalidExpressionErrorResult("Invalid oopath expression '" + ooPathExpr + "': It is not possible to have 2 non-reactive parts in the same oopath"));
+                    context.addCompilationError(new InvalidExpressionErrorResult("Invalid oopath expression '" + PrintUtil.printNode(ooPathExpr) + "': It is not possible to have 2 non-reactive parts in the same oopath"));
                     break;
                 }
                 passive = true;
@@ -83,7 +84,7 @@ public class OOPathExprGenerator {
 
             final String fieldName = chunk.getField().toString();
 
-            final TypedExpression callExpr = DrlxParseUtil.nameExprToMethodCallExpr(fieldName, previousClass, null);
+            final TypedExpression callExpr = DrlxParseUtil.nameExprToMethodCallExpr(fieldName, previousClass, null, context);
             if (callExpr == null) {
                 context.addCompilationError( new InvalidExpressionErrorResult( "Unknown field " + fieldName + " on " + previousClass ) );
                 break;
@@ -119,7 +120,7 @@ public class OOPathExprGenerator {
     }
 
     private MethodCallExpr createFromExpr(String previousBind, Expression accessorLambda, boolean passive) {
-        final MethodCallExpr reactiveFrom = new MethodCallExpr(null, passive ? FROM_CALL : REACTIVE_FROM_CALL);
+        final MethodCallExpr reactiveFrom = createDslTopLevelMethod(passive ? FROM_CALL : REACTIVE_FROM_CALL);
         reactiveFrom.addArgument(context.getVarExpr(previousBind));
         reactiveFrom.addArgument(accessorLambda);
         return reactiveFrom;
@@ -148,7 +149,7 @@ public class OOPathExprGenerator {
         } else {
             Class<?> finalFieldType = fieldType;
             final List<DrlxParseResult> conditionParseResult = conditions.stream().map((DrlxExpression c) ->
-                    new ConstraintParser(context, packageModel).drlxParse(finalFieldType, bindingId, PrintUtil.printConstraint(c))
+                    ConstraintParser.defaultConstraintParser(context, packageModel).drlxParse(finalFieldType, bindingId, PrintUtil.printNode(c))
             ).collect(Collectors.toList());
             toPatternExpr(bindingId, conditionParseResult, patternParseResult, fieldType);
         }
@@ -177,7 +178,7 @@ public class OOPathExprGenerator {
     }
 
     private void toPatternExpr(String bindingId, List<DrlxParseResult> list, DrlxParseSuccess patternParseResult, Class<?> fieldType) {
-        MethodCallExpr patternExpr = new MethodCallExpr( null, PATTERN_CALL );
+        MethodCallExpr patternExpr = createDslTopLevelMethod(PATTERN_CALL);
         patternExpr.addArgument( context.getVar( bindingId ) );
 
         SingleDrlxParseSuccess oopathConstraint = null;

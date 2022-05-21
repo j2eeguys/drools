@@ -23,8 +23,9 @@ import org.drools.core.RuleBaseConfiguration;
 import org.drools.core.reteoo.BetaMemory;
 import org.drools.core.reteoo.builder.BuildContext;
 import org.drools.core.rule.ContextEntry;
-import org.drools.core.spi.BetaNodeFieldConstraint;
-import org.drools.core.spi.Tuple;
+import org.drools.core.rule.constraint.BetaNodeFieldConstraint;
+import org.drools.core.base.ObjectType;
+import org.drools.core.reteoo.Tuple;
 import org.drools.core.util.bitmask.BitMask;
 
 public interface BetaConstraints
@@ -34,12 +35,12 @@ public interface BetaConstraints
     ContextEntry[] createContext();
 
     void updateFromTuple(ContextEntry[] context,
-                         InternalWorkingMemory workingMemory,
+                         ReteEvaluator reteEvaluator,
                          Tuple tuple);
 
     void updateFromFactHandle(ContextEntry[] context,
-                                     InternalWorkingMemory workingMemory,
-                                     InternalFactHandle handle);
+                              ReteEvaluator reteEvaluator,
+                              InternalFactHandle handle);
 
     boolean isAllowedCachedLeft(ContextEntry[] context,
                                 InternalFactHandle handle);
@@ -64,7 +65,7 @@ public interface BetaConstraints
 
     void resetFactHandle(final ContextEntry[] context);
 
-    BitMask getListenedPropertyMask(Class modifiedClass, List<String> settableProperties);
+    BitMask getListenedPropertyMask(ObjectType modifiedType, List<String> settableProperties);
 
     void init(BuildContext context, short betaNodeType);
     void initIndexes(int depth, short betaNodeType, RuleBaseConfiguration config);

@@ -43,8 +43,8 @@ import org.kie.api.io.Resource;
 import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 
 /**
  * This is a sample class to launch a rule.
@@ -60,8 +60,7 @@ public class KieCompilationCacheTest {
 
     @Parameterized.Parameters(name = "KieBase type={0}")
     public static Collection<Object[]> getParameters() {
-     // TODO: EM failed with some tests. File JIRAs
-        return TestParametersUtil.getKieBaseCloudConfigurations(false);
+        return TestParametersUtil.getKieBaseCloudConfigurations(true);
     }
 
     @Test
@@ -86,7 +85,7 @@ public class KieCompilationCacheTest {
         
         MemoryFileSystem mfs = MemoryFileSystem.readFromJar( jar );
         File file = mfs.getFile( KieBuilderImpl.getCompilationCachePath( releaseId, "KBase1") );
-        assertNotNull( file );
+        assertThat(file).isNotNull();
 
         Resource jarRes = ks.getResources().newByteArrayResource( jar );
         KieModule km = ks.getRepository().addKieModule( jarRes );
@@ -145,9 +144,9 @@ public class KieCompilationCacheTest {
         
         MemoryFileSystem mfs = MemoryFileSystem.readFromJar( jar );
         File file = mfs.getFile( KieBuilderImpl.getCompilationCachePath( releaseId, "KBase1") );
-        assertNotNull( file );
+        assertThat(file).isNotNull();
         file = mfs.getFile( KieBuilderImpl.getCompilationCachePath( releaseId, "KBase2") );
-        assertNotNull( file );
+        assertThat(file).isNotNull();
 
         Resource jarRes = ks.getResources().newByteArrayResource( jar );
         KieModule km = ks.getRepository().addKieModule( jarRes );
@@ -204,7 +203,7 @@ public class KieCompilationCacheTest {
         
         MemoryFileSystem mfs = MemoryFileSystem.readFromJar( jar );
         File file = mfs.getFile( KieBuilderImpl.getCompilationCachePath( releaseId, "KBase1") );
-        assertNotNull( file );
+        assertThat(file).isNotNull();
 
         Resource jarRes = ks.getResources().newByteArrayResource( jar );
         KieModule km = ks.getRepository().addKieModule( jarRes );

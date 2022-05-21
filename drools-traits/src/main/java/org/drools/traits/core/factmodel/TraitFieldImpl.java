@@ -17,7 +17,7 @@
 package org.drools.traits.core.factmodel;
 
 import org.drools.core.WorkingMemory;
-import org.drools.core.common.DefaultAgenda;
+import org.drools.kiesession.agenda.DefaultAgenda;
 import org.drools.core.definitions.InternalKnowledgePackage;
 import org.drools.core.factmodel.traits.Trait;
 import org.drools.core.factmodel.traits.TraitField;
@@ -25,7 +25,7 @@ import org.drools.core.factmodel.traits.TraitType;
 import org.drools.core.factmodel.traits.Traitable;
 import org.drools.core.factmodel.traits.TraitableBean;
 import org.drools.core.rule.TypeDeclaration;
-import org.drools.core.spi.KnowledgeHelper;
+import org.drools.core.rule.consequence.KnowledgeHelper;
 
 import java.io.Externalizable;
 import java.io.IOException;

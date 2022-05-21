@@ -17,31 +17,33 @@ package org.kie.memorycompiler.resources;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.drools.util.PortablePath;
+
 public class MemoryResourceStore implements ResourceStore {
 
-    private final Map<String, byte[]> resources = new HashMap<>();
+    private final Map<PortablePath, byte[]> resources = new HashMap<>();
 
     @Override
-    public void write( String pResourceName, byte[] pResourceData ) {
-        resources.put( pResourceName, pResourceData );
+    public void write(PortablePath resourcePath, byte[] pResourceData ) {
+        resources.put( resourcePath, pResourceData );
     }
 
     @Override
-    public void write( String pResourceName, byte[] pResourceData, boolean createFolder ) {
-        resources.put( pResourceName, pResourceData );
+    public void write(PortablePath resourcePath, byte[] pResourceData, boolean createFolder ) {
+        resources.put( resourcePath, pResourceData );
     }
 
     @Override
-    public byte[] read( String pResourceName ) {
-        return resources.get( pResourceName );
+    public byte[] read( PortablePath resourcePath ) {
+        return resources.get( resourcePath );
     }
 
     @Override
-    public void remove( String pResourceName ) {
-        resources.remove( pResourceName );
+    public void remove( PortablePath resourcePath ) {
+        resources.remove( resourcePath );
     }
 
-    public Map<String, byte[]> getResources() {
+    public Map<PortablePath, byte[]> getResources() {
         return resources;
     }
 }

@@ -36,6 +36,7 @@ import org.drools.impact.analysis.graph.Graph;
 import org.drools.impact.analysis.graph.Link;
 import org.drools.impact.analysis.graph.Node;
 import org.drools.impact.analysis.graph.ReactivityType;
+import org.drools.util.PortablePath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,14 +48,14 @@ public class GraphImageGenerator {
 
     private static final Logger logger = LoggerFactory.getLogger(GraphImageGenerator.class);
 
-    private static final String DEFAULT_OUTPUT_DIR = "target" + File.separator + "graph-output";
+    private static final PortablePath DEFAULT_OUTPUT_DIR = PortablePath.of("target/graph-output");
 
     private String graphName;
     private int width = 0; // when 0, auto-sized
     private int height = 0; // when 0, auto-sized
     private int totalMemory = 1000000000; // 1GB by default
     private int cmdLineEngineTimeout = 600; // 10 minutes by default
-    private String outputDir = DEFAULT_OUTPUT_DIR;
+    private PortablePath outputDir = DEFAULT_OUTPUT_DIR;
 
     private Rank.RankDir rankDir = Rank.RankDir.LEFT_TO_RIGHT; // LEFT_TO_RIGHT gives a better view when you have a large number of nodes
     private double sep = 1; // interval between levels
@@ -83,11 +84,11 @@ public class GraphImageGenerator {
     }
 
     public String getOutputDir() {
-        return outputDir;
+        return outputDir.asString();
     }
 
     public void setOutputDir(String outputDir) {
-        this.outputDir = outputDir;
+        this.outputDir = PortablePath.of(outputDir);
     }
 
     public int getWidth() {
@@ -141,8 +142,15 @@ public class GraphImageGenerator {
                 node = node.with(Color.RED, Style.FILLED);
             } else if (n.getStatus() == Node.Status.IMPACTED) {
                 node = node.with(Color.YELLOW, Style.FILLED);
+            } else if (n.getStatus() == Node.Status.TARGET) {
+                node = node.with(Color.ORANGE, Style.FILLED);
+            } else if (n.getStatus() == Node.Status.IMPACTING) {
+                node = node.with(Color.LIGHTBLUE, Style.FILLED);
             }
             for (Link l : n.getOutgoingLinks()) {
+                if (!nodeList.contains(l.getTarget())) {
+                    continue; // a sub map may have a link to a node which doesn't exist in the sub map
+                }
                 Style<ForNodeLink> style;
                 if (l.getReactivityType() == ReactivityType.POSITIVE) {
                     style = Style.SOLID;
@@ -163,7 +171,7 @@ public class GraphImageGenerator {
         guru.nidi.graphviz.model.Graph graph = convertGraph(g);
 
         try {
-            String filePath = outputDir + File.separator + graphName + ".dot";
+            String filePath = outputDir.asString() + "/" + graphName + ".dot";
             Graphviz.fromGraph(graph).totalMemory(totalMemory).width(width).height(height).render(Format.DOT).toFile(new File(filePath));
             logger.info("--- Graph dot format is generated to " + filePath);
         } catch (IOException e) {
@@ -175,7 +183,7 @@ public class GraphImageGenerator {
         guru.nidi.graphviz.model.Graph graph = convertGraph(g);
 
         try {
-            String filePath = outputDir + File.separator + graphName + ".png";
+            String filePath = outputDir.asString() + "/" + graphName + ".png";
             Graphviz.fromGraph(graph).totalMemory(totalMemory).width(width).height(height).render(Format.PNG).toFile(new File(filePath));
             logger.info("--- Graph png image is generated to " + filePath);
         } catch (IOException e) {
@@ -187,7 +195,7 @@ public class GraphImageGenerator {
         guru.nidi.graphviz.model.Graph graph = convertGraph(g);
 
         try {
-            String filePath = outputDir + File.separator + graphName + ".svg";
+            String filePath = outputDir.asString() + "/" + graphName + ".svg";
             Graphviz.fromGraph(graph).totalMemory(totalMemory).width(width).height(height).render(Format.SVG).toFile(new File(filePath));
             logger.info("--- Graph svg image is generated to " + filePath);
         } catch (IOException e) {

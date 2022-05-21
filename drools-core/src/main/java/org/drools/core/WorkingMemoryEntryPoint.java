@@ -17,17 +17,16 @@
 package org.drools.core;
 
 
-import org.drools.core.common.InternalWorkingMemory;
 import org.drools.core.common.ObjectStore;
 import org.drools.core.common.ObjectTypeConfigurationRegistry;
-import org.drools.core.common.TruthMaintenanceSystem;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.definitions.rule.impl.RuleImpl;
-import org.drools.core.impl.InternalKnowledgeBase;
+import org.drools.core.impl.RuleBase;
 import org.drools.core.reteoo.EntryPointNode;
 import org.drools.core.reteoo.TerminalNode;
 import org.drools.core.rule.EntryPointId;
-import org.drools.core.spi.Activation;
-import org.drools.core.spi.FactHandleFactory;
+import org.drools.core.rule.consequence.Activation;
+import org.drools.core.rule.accessor.FactHandleFactory;
 import org.drools.core.util.bitmask.BitMask;
 import org.kie.api.runtime.rule.EntryPoint;
 import org.kie.api.runtime.rule.FactHandle;
@@ -54,8 +53,6 @@ public interface WorkingMemoryEntryPoint extends EntryPoint {
     FactHandle insert(Object object,
                       boolean dynamic);
 
-    WorkingMemoryEntryPoint getWorkingMemoryEntryPoint(String name);
-    
     /**
      * Internal method called by the engine when the session is being disposed, so that the entry point
      * can proceed with the necessary clean ups.
@@ -64,7 +61,7 @@ public interface WorkingMemoryEntryPoint extends EntryPoint {
 
     ObjectTypeConfigurationRegistry getObjectTypeConfigurationRegistry();
 
-    InternalKnowledgeBase getKnowledgeBase();
+    RuleBase getKnowledgeBase();
 
     void delete(FactHandle factHandle,
                 RuleImpl rule,
@@ -81,12 +78,8 @@ public interface WorkingMemoryEntryPoint extends EntryPoint {
                 Class<?> modifiedClass,
                 Activation activation);
 
-    TruthMaintenanceSystem getTruthMaintenanceSystem();
-
     EntryPointId getEntryPoint();
-    InternalWorkingMemory getInternalWorkingMemory();
-
-    FactHandle getFactHandleByIdentity(Object object);
+    ReteEvaluator getReteEvaluator();
 
     void reset();
 

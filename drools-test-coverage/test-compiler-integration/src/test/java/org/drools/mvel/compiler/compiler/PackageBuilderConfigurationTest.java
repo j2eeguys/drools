@@ -29,16 +29,6 @@ import org.drools.compiler.compiler.DialectCompiletimeRegistry;
 import org.drools.compiler.compiler.DialectConfiguration;
 import org.drools.compiler.compiler.DuplicateFunction;
 import org.drools.compiler.compiler.PackageRegistry;
-import org.drools.compiler.lang.descr.AndDescr;
-import org.drools.compiler.lang.descr.AttributeDescr;
-import org.drools.compiler.lang.descr.BaseDescr;
-import org.drools.compiler.lang.descr.EvalDescr;
-import org.drools.compiler.lang.descr.FunctionDescr;
-import org.drools.compiler.lang.descr.FunctionImportDescr;
-import org.drools.compiler.lang.descr.ImportDescr;
-import org.drools.compiler.lang.descr.PackageDescr;
-import org.drools.compiler.lang.descr.ProcessDescr;
-import org.drools.compiler.lang.descr.RuleDescr;
 import org.drools.compiler.rule.builder.AccumulateBuilder;
 import org.drools.compiler.rule.builder.ConsequenceBuilder;
 import org.drools.compiler.rule.builder.EnabledBuilder;
@@ -47,19 +37,29 @@ import org.drools.compiler.rule.builder.FromBuilder;
 import org.drools.compiler.rule.builder.GroupElementBuilder;
 import org.drools.compiler.rule.builder.PackageBuildContext;
 import org.drools.compiler.rule.builder.PatternBuilder;
+import org.drools.compiler.rule.builder.PatternBuilderForQuery;
 import org.drools.compiler.rule.builder.PredicateBuilder;
-import org.drools.compiler.rule.builder.QueryBuilder;
-import org.drools.compiler.rule.builder.ReturnValueBuilder;
 import org.drools.compiler.rule.builder.RuleBuildContext;
 import org.drools.compiler.rule.builder.RuleClassBuilder;
 import org.drools.compiler.rule.builder.RuleConditionBuilder;
 import org.drools.compiler.rule.builder.SalienceBuilder;
-import org.drools.core.addon.TypeResolver;
+import org.drools.util.TypeResolver;
 import org.drools.core.definitions.InternalKnowledgePackage;
-import org.drools.core.definitions.impl.KnowledgePackageImpl;
 import org.drools.core.definitions.rule.impl.RuleImpl;
+import org.drools.core.reteoo.CoreComponentFactory;
 import org.drools.core.rule.Pattern;
+import org.drools.core.definitions.rule.impl.QueryImpl;
 import org.drools.core.rule.RuleConditionElement;
+import org.drools.drl.ast.descr.AndDescr;
+import org.drools.drl.ast.descr.AttributeDescr;
+import org.drools.drl.ast.descr.BaseDescr;
+import org.drools.drl.ast.descr.EvalDescr;
+import org.drools.drl.ast.descr.FunctionDescr;
+import org.drools.drl.ast.descr.FunctionImportDescr;
+import org.drools.drl.ast.descr.ImportDescr;
+import org.drools.drl.ast.descr.PackageDescr;
+import org.drools.drl.ast.descr.ProcessDescr;
+import org.drools.drl.ast.descr.RuleDescr;
 import org.drools.mvel.java.JavaForMvelDialectConfiguration;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -72,9 +72,9 @@ import org.kie.internal.builder.ResultSeverity;
 import org.kie.internal.builder.conf.DefaultDialectOption;
 import org.kie.internal.builder.conf.KBuilderSeverityOption;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
@@ -171,7 +171,7 @@ public class PackageBuilderConfigurationTest {
 
     @Test
     public void testMockDialect() {
-        InternalKnowledgePackage pkg = new KnowledgePackageImpl("org.pkg1");
+        InternalKnowledgePackage pkg = CoreComponentFactory.get().createKnowledgePackage("org.pkg1");
 
         KnowledgeBuilderConfigurationImpl cfg1 = new KnowledgeBuilderConfigurationImpl();
         MockDialectConfiguration mockConf = new MockDialectConfiguration();
@@ -219,7 +219,7 @@ public class PackageBuilderConfigurationTest {
                      ruleDescr.getConsequence());
         assertTrue(mockDialect2.isCompileAll());
 
-        assertNotNull(pkg.getRule("test rule"));
+        assertThat(pkg.getRule("test rule")).isNotNull();
 
         // make sure there were no other general errors.
         assertFalse(builder.hasErrors());
@@ -346,10 +346,6 @@ public class PackageBuilderConfigurationTest {
             return new MockEvalBuilder();
         }
 
-        public String getExpressionDialectName() {
-            return null;
-        }
-
         public FromBuilder getFromBuilder() {
             return null;
         }
@@ -362,7 +358,7 @@ public class PackageBuilderConfigurationTest {
             return null;
         }
 
-        public QueryBuilder getQueryBuilder() {
+        public PatternBuilderForQuery getPatternBuilderForQuery(QueryImpl query) {
             return null;
         }
 
@@ -371,10 +367,6 @@ public class PackageBuilderConfigurationTest {
         }
 
         public void clearResults() {
-        }
-
-        public ReturnValueBuilder getReturnValueBuilder() {
-            return null;
         }
 
         public RuleClassBuilder getRuleClassBuilder() {

@@ -25,7 +25,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.drools.compiler.lang.descr.AnnotationDescr;
+import org.drools.drl.ast.descr.AnnotationDescr;
 import org.drools.modelcompiler.builder.generator.declaredtype.api.AnnotationDefinition;
 import org.drools.modelcompiler.builder.generator.declaredtype.api.TypeResolver;
 import org.kie.api.definition.type.Duration;
@@ -51,7 +51,7 @@ public class DescrAnnotationDefinition implements AnnotationDefinition {
         annotationMapping.put("expires", Expires.class);
         annotationMapping.put("timestamp", Timestamp.class);
         annotationMapping.put("key", Key.class);
-        annotationMapping.put("Position", Position.class);
+        annotationMapping.put("position", Position.class);
     }
 
     private String name;
@@ -71,11 +71,11 @@ public class DescrAnnotationDefinition implements AnnotationDefinition {
     }
 
     public static DescrAnnotationDefinition fromDescr(TypeResolver typeResolver, AnnotationDescr ann) {
-        Optional<Class<?>> optAnnotationClass = Optional.ofNullable(annotationMapping.get(ann.getName()));
+        Optional<Class<?>> optAnnotationClass = Optional.ofNullable(annotationMapping.get(ann.getName().toLowerCase()));
 
         optAnnotationClass = optAnnotationClass.isPresent() ?
                 optAnnotationClass :
-                typeResolver.resolveType(ann.getName());
+                typeResolver.resolveType(ann.getFullyQualifiedName() != null ? ann.getFullyQualifiedName() : ann.getName());
 
         return optAnnotationClass.map(annotationClass -> {
             Map<String, String> values = transformedAnnotationValues(annotationClass, ann.getValueMap());

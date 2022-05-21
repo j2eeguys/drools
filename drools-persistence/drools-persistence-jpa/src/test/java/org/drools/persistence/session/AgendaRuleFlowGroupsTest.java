@@ -21,12 +21,13 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import org.drools.core.command.impl.CommandBasedStatefulKnowledgeSession;
+import org.drools.commands.impl.CommandBasedStatefulKnowledgeSessionImpl;
 import org.drools.core.common.InternalAgenda;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
-import org.drools.core.io.impl.ClassPathResource;
+import org.drools.core.common.InternalAgendaGroup;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
 import org.drools.persistence.util.DroolsPersistenceUtil;
+import org.drools.util.io.ClassPathResource;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -81,9 +82,9 @@ public class AgendaRuleFlowGroupsTest {
     @Test	
 	public void testRuleFlowGroupOnly() throws Exception {
 		
-		CommandBasedStatefulKnowledgeSession ksession = createSession(-1, "ruleflow-groups.drl");
-		
-		org.drools.core.spi.AgendaGroup[] groups = ((InternalAgenda)stripSession(ksession).getAgenda()).getAgendaGroups();
+		CommandBasedStatefulKnowledgeSessionImpl ksession = createSession(-1, "ruleflow-groups.drl");
+
+        InternalAgendaGroup[] groups = ((InternalAgenda)stripSession(ksession).getAgenda()).getAgendaGroupsManager().getAgendaGroups();
 		// only main is available
 		assertEquals(1, groups.length);
 		assertEquals("MAIN", groups[0].getName());
@@ -97,7 +98,7 @@ public class AgendaRuleFlowGroupsTest {
 		ksession.dispose();        
         ksession = createSession(id, "ruleflow-groups.drl");
         
-        groups = ((InternalAgenda)stripSession(ksession).getAgenda()).getAgendaGroups();
+        groups = ((InternalAgenda)stripSession(ksession).getAgenda()).getAgendaGroupsManager().getAgendaGroups();
         // main and rule flow is now on the agenda
         assertEquals(2, groups.length);
         assertEquals("MAIN", groups[0].getName());
@@ -107,9 +108,9 @@ public class AgendaRuleFlowGroupsTest {
     @Test   
     public void testAgendaGroupOnly() throws Exception {
         
-        CommandBasedStatefulKnowledgeSession ksession = createSession(-1, "agenda-groups.drl");
-        
-        org.drools.core.spi.AgendaGroup[] groups = ((InternalAgenda)stripSession(ksession).getAgenda()).getAgendaGroups();
+        CommandBasedStatefulKnowledgeSessionImpl ksession = createSession(-1, "agenda-groups.drl");
+
+        InternalAgendaGroup[] groups = ((InternalAgenda)stripSession(ksession).getAgenda()).getAgendaGroupsManager().getAgendaGroups();
         // only main is available
         assertEquals(1, groups.length);
         assertEquals("MAIN", groups[0].getName());
@@ -123,7 +124,7 @@ public class AgendaRuleFlowGroupsTest {
         ksession.dispose();        
         ksession = createSession(id, "agenda-groups.drl");
         
-        groups = ((InternalAgenda)stripSession(ksession).getAgenda()).getAgendaGroups();
+        groups = ((InternalAgenda)stripSession(ksession).getAgenda()).getAgendaGroupsManager().getAgendaGroups();
         // main and agenda group is now on the agenda
         assertEquals(2, groups.length);
         assertEquals("MAIN", groups[0].getName());
@@ -134,9 +135,9 @@ public class AgendaRuleFlowGroupsTest {
     @Test   
     public void testAgendaGroupAndRuleFlowGroup() throws Exception {
         
-        CommandBasedStatefulKnowledgeSession ksession = createSession(-1, "agenda-groups.drl", "ruleflow-groups.drl");
-        
-        org.drools.core.spi.AgendaGroup[] groups = ((InternalAgenda)stripSession(ksession).getAgenda()).getAgendaGroups();
+        CommandBasedStatefulKnowledgeSessionImpl ksession = createSession(-1, "agenda-groups.drl", "ruleflow-groups.drl");
+
+        InternalAgendaGroup[] groups = ((InternalAgenda)stripSession(ksession).getAgenda()).getAgendaGroupsManager().getAgendaGroups();
         // only main is available
         assertEquals(1, groups.length);
         assertEquals("MAIN", groups[0].getName());
@@ -151,7 +152,7 @@ public class AgendaRuleFlowGroupsTest {
         ksession.dispose();        
         ksession = createSession(id, "agenda-groups.drl", "ruleflow-groups.drl");
         
-        groups = ((InternalAgenda)stripSession(ksession).getAgenda()).getAgendaGroups();
+        groups = ((InternalAgenda)stripSession(ksession).getAgenda()).getAgendaGroupsManager().getAgendaGroups();
         // main and agenda group is now on the agenda
         assertEquals(3, groups.length);
         assertEquals("MAIN", groups[0].getName());
@@ -161,15 +162,15 @@ public class AgendaRuleFlowGroupsTest {
     }
     
     private KieSession stripSession(KieSession ksession) {
-        if (ksession instanceof CommandBasedStatefulKnowledgeSession) {
-            return ((RegistryContext)((CommandBasedStatefulKnowledgeSession) ksession).
+        if (ksession instanceof CommandBasedStatefulKnowledgeSessionImpl) {
+            return ((RegistryContext)((CommandBasedStatefulKnowledgeSessionImpl) ksession).
                     getRunner().createContext()).lookup( KieSession.class );
         }
         
         return ksession;
     }
 	
-	private CommandBasedStatefulKnowledgeSession createSession(long id, String...rules) {
+	private CommandBasedStatefulKnowledgeSessionImpl createSession(long id, String...rules) {
 		
 		KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
 		for (String rule : rules) {
@@ -188,9 +189,9 @@ public class AgendaRuleFlowGroupsTest {
             env.set(EnvironmentName.USE_PESSIMISTIC_LOCKING, true);
         }
         if (id == -1) {
-            return (CommandBasedStatefulKnowledgeSession) JPAKnowledgeService.newStatefulKnowledgeSession( kbase, null, env );
+            return (CommandBasedStatefulKnowledgeSessionImpl) JPAKnowledgeService.newStatefulKnowledgeSession( kbase, null, env );
 	    }  else {
-	        return (CommandBasedStatefulKnowledgeSession) JPAKnowledgeService.loadStatefulKnowledgeSession( id, kbase, null, env );
+	        return (CommandBasedStatefulKnowledgeSessionImpl) JPAKnowledgeService.loadStatefulKnowledgeSession( id, kbase, null, env );
 	    }
 	}
 	

@@ -28,10 +28,10 @@ import org.drools.compiler.kie.builder.impl.KieContainerImpl;
 import org.drools.compiler.kie.builder.impl.KieProject;
 import org.drools.compiler.kie.builder.impl.ResultsImpl;
 import org.drools.mvel.compiler.Message;
-import org.drools.reflective.classloader.ProjectClassLoader;
 import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
 import org.drools.testcoverage.common.util.KieUtil;
 import org.drools.testcoverage.common.util.TestParametersUtil;
+import org.drools.wiring.api.classloader.ProjectClassLoader;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -53,8 +53,8 @@ import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.conf.ClockTypeOption;
 import org.kie.internal.io.ResourceFactory;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -108,8 +108,8 @@ public class KieHelloWorldTest {
 
         assertSame( kieProject.getClassLoader(), kcontainer.getClassLoader() );
 
-        ProjectClassLoader pcl = (( ProjectClassLoader ) kieProject.getClassLoader());
-        assertNotNull( pcl.getStore().get("org/Person.class") );
+        ProjectClassLoader pcl = ((ProjectClassLoader) kieProject.getClassLoader());
+        assertThat(pcl.getStore().get("org/Person.class")).isNotNull();
     }
 
     @Test
@@ -206,7 +206,7 @@ public class KieHelloWorldTest {
 
         KieSession ksession = ks.newKieContainer(ks.getRepository().getDefaultReleaseId()).newKieSession();
         FactType factType = ksession.getKieBase().getFactType("org.drools.mvel.integrationtests", "CancelFact");
-        assertNotNull(factType);
+        assertThat(factType).isNotNull();
         ksession.insert(factType.newInstance());
 
         int count = ksession.fireAllRules();
@@ -619,7 +619,7 @@ public class KieHelloWorldTest {
 
         final KieFileSystem fs = kieServices.newKieFileSystem();
 
-        fs.write( ResourceFactory.newUrlResource("file:/tmp/t%20tt/one.drl"));
+        fs.write( ResourceFactory.newFileResource("/tmp/t tt/one.drl"));
 
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromKieFileSystem(kieBaseTestConfiguration, fs, false);
         KieModule kieModule = kieBuilder.getKieModule();

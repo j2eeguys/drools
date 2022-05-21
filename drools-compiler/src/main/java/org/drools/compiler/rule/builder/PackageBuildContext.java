@@ -24,12 +24,13 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.drools.compiler.builder.DroolsAssemblerContext;
 import org.drools.compiler.builder.impl.KnowledgeBuilderConfigurationImpl;
+import org.drools.compiler.builder.impl.TypeDeclarationContext;
 import org.drools.compiler.compiler.DescrBuildError;
 import org.drools.compiler.compiler.Dialect;
 import org.drools.compiler.compiler.DialectCompiletimeRegistry;
-import org.drools.compiler.compiler.DroolsError;
+import org.drools.drl.parser.DroolsError;
 import org.drools.compiler.compiler.DroolsWarning;
-import org.drools.compiler.lang.descr.BaseDescr;
+import org.drools.drl.ast.descr.BaseDescr;
 import org.drools.core.definitions.InternalKnowledgePackage;
 import org.drools.core.rule.Dialectable;
 
@@ -41,7 +42,7 @@ public class PackageBuildContext {
     // current package
     private InternalKnowledgePackage    pkg;
 
-    private DroolsAssemblerContext kBuilder;
+    private TypeDeclarationContext      kBuilder;
 
     // the contianer descr
     private BaseDescr                   parentDescr;
@@ -78,7 +79,7 @@ public class PackageBuildContext {
     /**
      * Default constructor
      */
-    public void init(final DroolsAssemblerContext kBuilder,
+    public void initContext(final TypeDeclarationContext kBuilder,
                      final InternalKnowledgePackage pkg,
                      final BaseDescr parentDescr,
                      final DialectCompiletimeRegistry dialectRegistry,
@@ -101,7 +102,28 @@ public class PackageBuildContext {
         }
     }
 
-    private boolean isStrictMode( DialectCompiletimeRegistry dialectRegistry ) {
+    /**
+     *
+     * Maintained only for retro-compat with external code. It assumes the {@link DroolsAssemblerContext} is also
+     * a {@link TypeDeclarationContext}, which is generally only true when the instance is a {@link org.drools.compiler.builder.impl.KnowledgeBuilderImpl}.
+     *
+     * @deprecated use {@link #initContext(TypeDeclarationContext, InternalKnowledgePackage, BaseDescr, DialectCompiletimeRegistry, Dialect, Dialectable)}
+     *
+     * @throws ClassCastException
+     */
+    @Deprecated
+    public void init(final DroolsAssemblerContext kBuilder,
+                     final InternalKnowledgePackage pkg,
+                     final BaseDescr parentDescr,
+                     final DialectCompiletimeRegistry dialectRegistry,
+                     final Dialect defaultDialect,
+                     final Dialectable component) {
+        // this cast still breaks encapsulation https://issues.redhat.com/browse/DROOLS-6887
+        initContext((TypeDeclarationContext) kBuilder, pkg, parentDescr, dialectRegistry, defaultDialect, component);
+    }
+
+
+        private boolean isStrictMode( DialectCompiletimeRegistry dialectRegistry ) {
         return dialectRegistry.getDialect( "mvel" ) == null || dialectRegistry.getDialect( "mvel" ).isStrictMode();
     }
 
@@ -125,7 +147,7 @@ public class PackageBuildContext {
     }
 
     public Dialect getDialect(String dialectName) {
-        return (Dialect) this.dialectRegistry.getDialect( dialectName );
+        return this.dialectRegistry.getDialect( dialectName );
     }
 
     public DialectCompiletimeRegistry getDialectRegistry() {
@@ -220,7 +242,7 @@ public class PackageBuildContext {
         return this.kBuilder.getBuilderConfiguration();
     }
     
-    public DroolsAssemblerContext getKnowledgeBuilder() {
+    public TypeDeclarationContext getKnowledgeBuilder() {
         return this.kBuilder;
     }
 

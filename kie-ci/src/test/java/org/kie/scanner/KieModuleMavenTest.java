@@ -23,8 +23,6 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 
-import org.appformer.maven.integration.MavenRepository;
-import org.appformer.maven.support.DependencyFilter;
 import org.drools.compiler.compiler.io.memory.MemoryFileSystem;
 import org.drools.compiler.kie.builder.impl.InternalKieModule;
 import org.drools.compiler.kie.builder.impl.KieContainerImpl;
@@ -47,13 +45,15 @@ import org.kie.api.definition.rule.Rule;
 import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;
 import org.kie.internal.utils.KieTypeResolver;
+import org.kie.maven.integration.MavenRepository;
+import org.kie.util.maven.support.DependencyFilter;
 
-import static org.appformer.maven.integration.MavenRepository.getMavenRepository;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.drools.core.util.DroolsAssert.assertEnumerationSize;
 import static org.drools.core.util.DroolsAssert.assertUrlEnumerationContainsMatch;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.kie.maven.integration.MavenRepository.getMavenRepository;
 
 public class KieModuleMavenTest extends AbstractKieCiTest {
 
@@ -83,7 +83,7 @@ public class KieModuleMavenTest extends AbstractKieCiTest {
 
         KieContainer kieContainer = ks.newKieContainer(releaseId);
         KieBaseModel kbaseModel = ((KieContainerImpl) kieContainer).getKieProject().getDefaultKieBaseModel();
-        assertNotNull("Default kbase was not found", kbaseModel);
+        assertThat(kbaseModel).as("Default kbase was not found").isNotNull();
         String kbaseName = kbaseModel.getName();
         assertEquals("KBase1", kbaseName);
 
@@ -120,7 +120,7 @@ public class KieModuleMavenTest extends AbstractKieCiTest {
 
         KieContainer kieContainer = ks.newKieContainer(releaseId);
         KieBaseModel kbaseModel = ((KieContainerImpl) kieContainer).getKieProject().getDefaultKieBaseModel();
-        assertNotNull("Default kbase was not found", kbaseModel);
+        assertThat(kbaseModel).as("Default kbase was not found").isNotNull();
         String kbaseName = kbaseModel.getName();
         assertEquals("KBase1", kbaseName);
     }
@@ -165,7 +165,7 @@ public class KieModuleMavenTest extends AbstractKieCiTest {
         Collection<ReleaseId> dependencies = ((InternalKieModule)((KieContainerImpl) kieContainer)
                 .getKieModuleForKBase( "KBase1" ))
                 .getJarDependencies( DependencyFilter.TAKE_ALL_FILTER );
-        assertNotNull(dependencies);
+        assertThat(dependencies).isNotNull();
         assertEquals(5, dependencies.size());
         
         ClassLoader kieContainerCL = kieContainer.getClassLoader();
@@ -194,7 +194,7 @@ public class KieModuleMavenTest extends AbstractKieCiTest {
         mfs.write("META-INF/maven/" + pojoID.getGroupId() + "/" + pojoID.getArtifactId() + "/pom.xml", pomContent);
         mfs.write("META-INF/maven/" + pojoID.getGroupId() + "/" + pojoID.getArtifactId() + "/pom.properties", generatePomProperties(pojoID).getBytes());
         byte[] pojojar = mfs.writeAsBytes();
-        MavenRepository.getMavenRepository().installArtifact(pojoID, pojojar, pomContent);
+        getMavenRepository().installArtifact(pojoID, pojojar, pomContent);
 
         // Create and deploy a kjar that depends on the previous pojo jar
         String kjarNS = "org.kie.test1";
@@ -204,7 +204,7 @@ public class KieModuleMavenTest extends AbstractKieCiTest {
         byte[] rkjar = createKJar(ks, kjarID, pom, rule);
 
         KieModule kmodule = deployJar(ks, rkjar);
-        assertNotNull(kmodule);
+        assertThat(kmodule).isNotNull();
 
         KieContainer kContainer = ks.newKieContainer(kjarID);
 
@@ -236,9 +236,9 @@ public class KieModuleMavenTest extends AbstractKieCiTest {
 
         KieContainer kContainer = ks.newKieContainer(releaseId);
         KieBase kbase = kContainer.getKieBase();
-        assertNotNull(kbase);
+        assertThat(kbase).isNotNull();
         Collection<KiePackage> packages = kbase.getKiePackages();
-        assertNotNull(packages);
+        assertThat(packages).isNotNull();
         assertEquals(1, packages.size());
         Collection<Rule> rules = packages.iterator().next().getRules();
         assertEquals(2, rules.size());
@@ -253,9 +253,9 @@ public class KieModuleMavenTest extends AbstractKieCiTest {
 
         KieContainer kContainer2 = ks.newKieContainer(releaseId);
         KieBase kbase2 = kContainer2.getKieBase();
-        assertNotNull(kbase2);
+        assertThat(kbase2).isNotNull();
         Collection<KiePackage> packages2 = kbase2.getKiePackages();
-        assertNotNull(packages2);
+        assertThat(packages2).isNotNull();
         assertEquals(1, packages2.size());
         Collection<Rule> rules2 = packages2.iterator().next().getRules();
         assertEquals(4, rules2.size());
@@ -290,7 +290,7 @@ public class KieModuleMavenTest extends AbstractKieCiTest {
 
         KieContainer kieContainer = ks.newKieContainer(releaseId);
         KieBaseModel kbaseModel = ((KieContainerImpl) kieContainer).getKieProject().getDefaultKieBaseModel();
-        assertNotNull("Default kbase was not found", kbaseModel);
+        assertThat(kbaseModel).as("Default kbase was not found").isNotNull();
         String kbaseName = kbaseModel.getName();
         assertEquals("KBase1", kbaseName);
     }
@@ -321,7 +321,7 @@ public class KieModuleMavenTest extends AbstractKieCiTest {
 
         KieContainer kieContainer = ks.newKieContainer(releaseId);
         KieBase kieBase = kieContainer.getKieBase("KBase1");
-        assertNotNull(kieBase);
+        assertThat(kieBase).isNotNull();
 
         assertEquals("There must be one package built", 1, kieBase.getKiePackages().size());
 

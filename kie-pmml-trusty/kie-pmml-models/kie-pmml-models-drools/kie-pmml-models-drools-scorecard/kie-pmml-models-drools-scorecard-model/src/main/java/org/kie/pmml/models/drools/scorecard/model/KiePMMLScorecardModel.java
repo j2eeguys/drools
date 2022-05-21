@@ -16,9 +16,7 @@
 package org.kie.pmml.models.drools.scorecard.model;
 
 import java.util.List;
-import java.util.Map;
 
-import org.kie.api.pmml.PMML4Result;
 import org.kie.pmml.api.enums.MINING_FUNCTION;
 import org.kie.pmml.api.enums.PMML_MODEL;
 import org.kie.pmml.commons.model.KiePMMLExtension;
@@ -27,12 +25,14 @@ import org.kie.pmml.models.drools.commons.model.KiePMMLDroolsModel;
 public class KiePMMLScorecardModel extends KiePMMLDroolsModel {
 
     public static final PMML_MODEL PMML_MODEL_TYPE = PMML_MODEL.SCORECARD_MODEL;
+    private static final long serialVersionUID = 3726828657243287195L;
 
     protected KiePMMLScorecardModel(String modelName, List<KiePMMLExtension> extensions) {
         super(modelName, extensions);
     }
 
-    public static Builder builder(String name, List<KiePMMLExtension> extensions, MINING_FUNCTION miningFunction) {
+    public static Builder builder(String name, List<KiePMMLExtension> extensions,
+                                  MINING_FUNCTION miningFunction) {
         return new Builder(name, extensions, miningFunction);
     }
 
@@ -40,15 +40,10 @@ public class KiePMMLScorecardModel extends KiePMMLDroolsModel {
         return PMML_MODEL_TYPE;
     }
 
-    @Override
-    public Object evaluate(final Object knowledgeBase, Map<String, Object> requestData) {
-        final PMML4Result toReturn = (PMML4Result) super.evaluate(knowledgeBase, requestData);
-        return toReturn;
-    }
-
     public static class Builder extends KiePMMLDroolsModel.Builder<KiePMMLScorecardModel> {
 
-        private Builder(String name, List<KiePMMLExtension> extensions, MINING_FUNCTION miningFunction) {
+        private Builder(String name, List<KiePMMLExtension> extensions,
+                        MINING_FUNCTION miningFunction) {
             super("Scorecard-", PMML_MODEL_TYPE, miningFunction, () -> new KiePMMLScorecardModel(name, extensions));
         }
     }

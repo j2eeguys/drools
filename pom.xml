@@ -1,37 +1,59 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>org.kie</groupId>
-    <artifactId>kie-parent</artifactId>
-    <version>7.58.0-SNAPSHOT</version>
-    <!-- relativePath causes out-of-date problems on hudson secondary nodes -->
-    <!--<relativePath>../droolsjbpm-build-bootstrap/pom.xml</relativePath>-->
+    <groupId>org.jboss</groupId>
+    <artifactId>jboss-parent</artifactId>
+    <!-- Keep in sync with jboss-parent version in kie-user-bom-parent/pom.xml -->
+    <version>36</version>
   </parent>
 
-  <groupId>org.drools</groupId>
-  <artifactId>drools</artifactId>
+  <groupId>org.kie</groupId>
+  <artifactId>drools-parent</artifactId>
   <packaging>pom</packaging>
+  <version>8.22.0-SNAPSHOT</version>
 
-  <name>Drools Multiproject</name>
+  <name>Drools :: Parent</name>
   <description>
-    Drools Expert is the rule engine and Drools Fusion does complex event processing (CEP).
+    The repo contains all code related to Drools project.
   </description>
-
-  <properties>
-    <surefire.forkCount>1</surefire.forkCount>
-    <alphanetworkCompilerEnabled>false</alphanetworkCompilerEnabled>
-  </properties>
+  <url>http://www.drools.org</url>
+  <inceptionYear>2001</inceptionYear>
+  <organization>
+    <name>JBoss by Red Hat</name>
+    <url>http://www.jboss.org/</url>
+  </organization>
+  <licenses>
+    <license>
+      <name>The Apache Software License, Version 2.0</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
 
   <repositories>
+    <repository>
+      <!-- Duplicating the Maven Central repository here (as it is already coming from Super POM) makes the build much faster,
+           as the Maven Central is now treated as the first (default) repository (because it is before the JBoss.org one).
+           Artifacts with release (fixed) versions are being downloaded primarily from there. Without the central being the
+           first repository the JBoss.org Nexus would be contacted first and since it is quite slow it slows down the build.
+           We use JBoss.org repo only to download our SNAPSHOTs. -->
+      <id>central</id>
+      <name>Central Repository</name>
+      <url>https://repo.maven.apache.org/maven2</url>
+      <layout>default</layout>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
     <!-- Bootstrap repository to locate the parent pom when the parent pom has not been build locally. -->
+    <!-- Conventions are described in http://community.jboss.org/wiki/MavenGettingStarted-Developers -->
     <repository>
       <id>jboss-public-repository-group</id>
       <name>JBoss Public Repository Group</name>
       <url>https://repository.jboss.org/nexus/content/groups/public/</url>
-      <layout>default</layout>
       <releases>
         <enabled>true</enabled>
         <updatePolicy>never</updatePolicy>
@@ -43,42 +65,119 @@
     </repository>
   </repositories>
 
+  <pluginRepositories>
+    <pluginRepository>
+      <!-- Duplicating the Maven Central repository here (as it is already coming from Super POM) makes the build much faster,
+           as the Maven Central is now treated as the first (default) repository (because it is before the JBoss.org one).
+           Artifacts with release (fixed) versions are being downloaded primarily from there. Without the central being the
+           first repository the JBoss.org Nexus would be contacted first and since it is quite slow it slows down the build.
+           We use JBoss.org repo only to download our SNAPSHOTs. -->
+      <id>central</id>
+      <name>Central Repository</name>
+      <url>https://repo.maven.apache.org/maven2</url>
+      <layout>default</layout>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </pluginRepository>
+    <pluginRepository>
+      <id>jboss-public-repository-group</id>
+      <name>JBoss Public Repository Group</name>
+      <url>https://repository.jboss.org/nexus/content/groups/public/</url>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </pluginRepository>
+  </pluginRepositories>
+
   <scm>
     <connection>scm:git:https://github.com:kiegroup/drools.git</connection>
     <developerConnection>scm:git:git@github.com:kiegroup/drools.git</developerConnection>
     <url>https://github.com/kiegroup/drools</url>
   </scm>
 
+  <ciManagement>
+    <system>jenkins</system>
+    <url>https://jenkins-kieci.rhcloud.com</url>
+  </ciManagement>
+  <issueManagement>
+    <system>jira</system>
+    <url>https://issues.jboss.org/browse/DROOLS</url>
+  </issueManagement>
+  <developers>
+    <developer>
+      <name>All developers are listed on the team website</name>
+      <url>http://www.drools.org/community/team.html</url>
+    </developer>
+  </developers>
+  <contributors>
+    <contributor>
+      <name>All contributors are listed on the team website</name>
+      <url>http://www.drools.org/community/team.html</url>
+    </contributor>
+  </contributors>
+  <mailingLists>
+    <mailingList>
+      <name>setup</name>
+      <subscribe>https://groups.google.com/forum/#!forum/drools-setup</subscribe>
+      <unsubscribe>https://groups.google.com/forum/#!forum/drools-setup</unsubscribe>
+      <otherArchives>
+        <!-- Very old (and long deprecated) user mailing list -->
+        <otherArchive>http://drools.46999.n3.nabble.com/Drools-User-forum-f47000.html</otherArchive>
+      </otherArchives>
+    </mailingList>
+    <mailingList>
+      <name>usage</name>
+      <subscribe>https://groups.google.com/forum/#!forum/drools-usage</subscribe>
+      <unsubscribe>https://groups.google.com/forum/#!forum/drools-usage</unsubscribe>
+    </mailingList>
+    <mailingList>
+      <name>development</name>
+      <subscribe>https://groups.google.com/forum/#!forum/drools-development</subscribe>
+      <unsubscribe>https://groups.google.com/forum/#!forum/drools-development</unsubscribe>
+    </mailingList>
+  </mailingLists>
+
   <modules>
+    <module>bom</module>
+    <module>build-parent</module>
+    <module>kie-api</module>
+    <module>kie-internal</module>
+    <module>kie-archetypes</module>
+    <module>kie-util</module>
     <module>kie-memory-compiler</module>
-    <module>drools-core-reflective</module>
-    <module>drools-core-dynamic</module>
+    <module>drools-ruleunits</module>
+    <module>drools-wiring</module>
     <module>kie-test-util</module>
+    <module>drools-util</module>
     <module>drools-core</module>
+    <module>drools-commands</module>
+    <module>drools-kiesession</module>
     <module>drools-ecj</module>
+    <module>drools-drl-ast</module>
+    <module>drools-drl-parser</module>
+    <module>drools-drl-extensions</module>
     <module>drools-compiler</module>
     <module>drools-mvel</module>
+    <module>drools-xml-support</module>
     <module>drools-legacy-test-util</module>
-    <module>drools-serialization-protobuf</module>
+    <module>drools-tms</module>
     <module>drools-beliefs</module>
+    <module>drools-serialization-protobuf</module>
     <module>drools-traits</module>
-    <module>drools-ruleunit</module>
-    <module>drools-cdi</module>
     <module>drools-verifier</module>
     <module>drools-persistence</module>
     <module>drools-templates</module>
     <module>drools-decisiontables</module>
     <module>drools-examples</module>
     <module>kie-ci</module>
-    <module>kie-ci-osgi</module>
     <module>drools-model</module>
     <module>kie-dmn</module>
-    <module>kie-pmml</module>
     <module>kie-pmml-trusty</module>
-    <module>drools-scorecards</module>
     <module>drools-examples-api</module>
-    <module>drools-examples-cdi</module>
-    <module>drools-workbench-models</module>
     <module>drools-test-coverage</module>
     <module>drools-scenario-simulation</module>
     <module>drools-metric</module>
@@ -87,45 +186,9 @@
     <module>drools-engine-classic</module>
     <module>drools-impact-analysis</module>
     <module>drools-retediagram</module>
+    <module>kie-maven-plugin</module>
+    <module>drools-drl-quarkus-extension</module>
   </modules>
-
-  <dependencyManagement>
-    <!-- Important: Do not add any additional dependency versions here!
-         The dependency management should only import drools-bom and kie-third-party-bom to get the proper versions
-         it needs. Any additional 3rd party dependency versions need to go directly into kie-third-party-bom. -->
-    <dependencies>
-      <dependency>
-        <groupId>org.drools</groupId>
-        <artifactId>drools-bom</artifactId>
-        <version>${version.org.kie}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.kie.soup</groupId>
-        <artifactId>kie-soup-bom</artifactId>
-        <version>${version.org.kie}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
-
-  <build>
-    <pluginManagement>
-      <plugins>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-surefire-plugin</artifactId>
-          <configuration>
-            <forkCount>${surefire.forkCount}</forkCount>
-            <reuseForks>true</reuseForks>
-            <runOrder>hourly</runOrder>
-          </configuration>
-        </plugin>
-      </plugins>
-    </pluginManagement>
-  </build>
 
   <profiles>
     <profile>
@@ -139,41 +202,7 @@
         <module>drools-distribution</module>
       </modules>
     </profile>
-
-    <profile>
-      <id>run-code-coverage</id>
-      <properties>
-        <jacoco.excludes>*Lexer</jacoco.excludes>
-
-        <!-- jacoco.exec.file is defined in kie-parent -->
-        <!--suppress UnresolvedMavenProperty -->
-        <jacoco.agent.line>-javaagent:${settings.localRepository}/org/jacoco/org.jacoco.agent/${version.jacoco.plugin}/org.jacoco.agent-${version.jacoco.plugin}-runtime.jar=destfile=${jacoco.exec.file},append=true,excludes=${jacoco.excludes}</jacoco.agent.line>
-        <surefire.argLine>
-          -Dfile.encoding=${project.build.sourceEncoding}
-          ${jacoco.agent.line}
-        </surefire.argLine>
-      </properties>
-      <build>
-        <pluginManagement>
-          <plugins>
-            <plugin>
-              <artifactId>maven-surefire-plugin</artifactId>
-              <configuration>
-                <argLine>${surefire.argLine}</argLine>
-              </configuration>
-              <dependencies>
-                <dependency>
-                  <groupId>org.jacoco</groupId>
-                  <artifactId>org.jacoco.agent</artifactId>
-                  <version>${version.jacoco.plugin}</version>
-                  <classifier>runtime</classifier>
-                </dependency>
-              </dependencies>
-            </plugin>
-          </plugins>
-        </pluginManagement>
-      </build>
-    </profile>
   </profiles>
 
 </project>
+

@@ -29,43 +29,36 @@ import org.drools.compiler.builder.impl.KnowledgeBuilderConfigurationImpl;
 import org.drools.compiler.builder.impl.KnowledgeBuilderImpl;
 import org.drools.compiler.compiler.Dialect;
 import org.drools.compiler.compiler.DialectCompiletimeRegistry;
-import org.drools.compiler.compiler.DroolsParserException;
+import org.drools.drl.parser.DroolsParserException;
 import org.drools.compiler.compiler.DuplicateFunction;
 import org.drools.compiler.compiler.DuplicateRule;
-import org.drools.compiler.compiler.ParserError;
-import org.drools.compiler.lang.descr.AndDescr;
-import org.drools.compiler.lang.descr.BaseDescr;
-import org.drools.compiler.lang.descr.BehaviorDescr;
-import org.drools.compiler.lang.descr.BindingDescr;
-import org.drools.compiler.lang.descr.ConditionalElementDescr;
-import org.drools.compiler.lang.descr.EvalDescr;
-import org.drools.compiler.lang.descr.ExistsDescr;
-import org.drools.compiler.lang.descr.ExprConstraintDescr;
-import org.drools.compiler.lang.descr.FieldConstraintDescr;
-import org.drools.compiler.lang.descr.GlobalDescr;
-import org.drools.compiler.lang.descr.LiteralRestrictionDescr;
-import org.drools.compiler.lang.descr.NotDescr;
-import org.drools.compiler.lang.descr.OrDescr;
-import org.drools.compiler.lang.descr.PackageDescr;
-import org.drools.compiler.lang.descr.PatternDescr;
-import org.drools.compiler.lang.descr.RuleDescr;
-import org.drools.compiler.lang.descr.TypeDeclarationDescr;
-import org.drools.compiler.lang.descr.TypeFieldDescr;
+import org.drools.drl.parser.ParserError;
+import org.drools.drl.ast.descr.AndDescr;
+import org.drools.drl.ast.descr.BaseDescr;
+import org.drools.drl.ast.descr.BehaviorDescr;
+import org.drools.drl.ast.descr.BindingDescr;
+import org.drools.drl.ast.descr.ConditionalElementDescr;
+import org.drools.drl.ast.descr.EvalDescr;
+import org.drools.drl.ast.descr.ExistsDescr;
+import org.drools.drl.ast.descr.ExprConstraintDescr;
+import org.drools.drl.ast.descr.FieldConstraintDescr;
+import org.drools.drl.ast.descr.GlobalDescr;
+import org.drools.drl.ast.descr.LiteralRestrictionDescr;
+import org.drools.drl.ast.descr.NotDescr;
+import org.drools.drl.ast.descr.OrDescr;
+import org.drools.drl.ast.descr.PackageDescr;
+import org.drools.drl.ast.descr.PatternDescr;
+import org.drools.drl.ast.descr.RuleDescr;
+import org.drools.drl.ast.descr.TypeDeclarationDescr;
+import org.drools.drl.ast.descr.TypeFieldDescr;
 import org.drools.core.base.ClassObjectType;
-import org.drools.core.base.DefaultKnowledgeHelper;
-import org.drools.core.beliefsystem.ModedAssertion;
-import org.drools.core.beliefsystem.simple.SimpleMode;
 import org.drools.core.common.ActivationGroupNode;
 import org.drools.core.common.ActivationNode;
 import org.drools.core.common.InternalAgendaGroup;
 import org.drools.core.common.InternalFactHandle;
 import org.drools.core.common.InternalRuleFlowGroup;
-import org.drools.core.common.LogicalDependency;
 import org.drools.core.definitions.InternalKnowledgePackage;
 import org.drools.core.definitions.rule.impl.RuleImpl;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
-import org.drools.core.impl.StatefulKnowledgeSessionImpl;
 import org.drools.core.reteoo.LeftTupleImpl;
 import org.drools.core.reteoo.RuleTerminalNode;
 import org.drools.core.reteoo.builder.BuildContext;
@@ -78,15 +71,17 @@ import org.drools.core.rule.Pattern;
 import org.drools.core.rule.PredicateConstraint;
 import org.drools.core.rule.SlidingTimeWindow;
 import org.drools.core.rule.TypeDeclaration;
-import org.drools.core.spi.Activation;
-import org.drools.core.spi.CompiledInvoker;
-import org.drools.core.spi.Consequence;
-import org.drools.core.spi.Constraint;
-import org.drools.core.spi.PropagationContext;
+import org.drools.core.rule.consequence.Activation;
+import org.drools.core.rule.accessor.CompiledInvoker;
+import org.drools.core.rule.consequence.Consequence;
+import org.drools.core.rule.constraint.Constraint;
+import org.drools.core.common.PropagationContext;
 import org.drools.core.test.model.DroolsTestCase;
-import org.drools.core.util.LinkedList;
-import org.drools.core.util.LinkedListNode;
 import org.drools.ecj.EclipseJavaCompiler;
+import org.drools.kiesession.consequence.DefaultKnowledgeHelper;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
+import org.drools.kiesession.session.StatefulKnowledgeSessionImpl;
 import org.drools.mvel.MockBetaNode;
 import org.drools.mvel.compiler.Cheese;
 import org.drools.mvel.compiler.Primitives;
@@ -105,9 +100,9 @@ import org.kie.api.runtime.rule.FactHandle;
 import org.kie.memorycompiler.JavaCompiler;
 import org.kie.memorycompiler.jdknative.NativeJavaCompiler;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -196,13 +191,13 @@ public class KnowledgeBuilderTest extends DroolsTestCase {
                                  map );
 
         final LeftTupleImpl tuple = new MockTuple( new HashMap() );
-        tuple.setLeftTupleSink( new RuleTerminalNode(1, new MockBetaNode(), rule,rule.getLhs(), 0,new BuildContext(kBase) )  );
+        tuple.setLeftTupleSink( new RuleTerminalNode(1, new MockBetaNode(), rule,rule.getLhs(), 0,new BuildContext(kBase, Collections.emptyList()) )  );
         final Activation activation = new MockActivation( rule,
                                                           0,
                                                           rule.getLhs(),
                                                           tuple );
 
-        DefaultKnowledgeHelper knowledgeHelper = new org.drools.core.base.DefaultKnowledgeHelper( ((StatefulKnowledgeSessionImpl)workingMemory) );
+        DefaultKnowledgeHelper knowledgeHelper = new DefaultKnowledgeHelper( ((StatefulKnowledgeSessionImpl)workingMemory) );
         knowledgeHelper.setActivation( activation );
 
         rule.getConsequence().evaluate( knowledgeHelper,
@@ -223,7 +218,7 @@ public class KnowledgeBuilderTest extends DroolsTestCase {
 
         rule = pkg.getRule( "rule-1" );
 
-        knowledgeHelper = new org.drools.core.base.DefaultKnowledgeHelper( ((StatefulKnowledgeSessionImpl)workingMemory) );
+        knowledgeHelper = new DefaultKnowledgeHelper( ((StatefulKnowledgeSessionImpl)workingMemory) );
         knowledgeHelper.setActivation( activation );
 
         rule.getConsequence().evaluate( knowledgeHelper,
@@ -250,7 +245,7 @@ public class KnowledgeBuilderTest extends DroolsTestCase {
         ruleDescr.setConsequence( "map.put(\"value\", new Integer(1) );" );
         //check that packageDescr is serializable
         final PackageDescr back = (PackageDescr) SerializationHelper.serializeObject( packageDescr );
-        assertNotNull( back );
+        assertThat(back).isNotNull();
         assertEquals( "p1",
                       back.getName() );
 
@@ -264,7 +259,7 @@ public class KnowledgeBuilderTest extends DroolsTestCase {
         InternalKnowledgePackage newPkg = SerializationHelper.serializeObject( pkg );
         final RuleImpl newRule = newPkg.getRule( "rule-1" );
 
-        InternalKnowledgeBase kBase = (InternalKnowledgeBase)KnowledgeBaseFactory.newKnowledgeBase();
+        InternalKnowledgeBase kBase = KnowledgeBaseFactory.newKnowledgeBase();;
 
         // It's been serialised so we have to simulate the re-wiring process
         newPkg.getDialectRuntimeRegistry().onAdd( kBase.getRootClassLoader() );
@@ -279,13 +274,13 @@ public class KnowledgeBuilderTest extends DroolsTestCase {
                                  map );
 
         final LeftTupleImpl tuple = new MockTuple( new HashMap() );
-        tuple.setLeftTupleSink( new RuleTerminalNode(1, new MockBetaNode(), newRule,newRule.getLhs(), 0, new BuildContext(kBase) )  );
+        tuple.setLeftTupleSink( new RuleTerminalNode(1, new MockBetaNode(), newRule,newRule.getLhs(), 0, new BuildContext(kBase, Collections.emptyList()) )  );
         final Activation activation = new MockActivation( newRule,
                                                           0,
                                                           newRule.getLhs(),
                                                           tuple );
 
-        final DefaultKnowledgeHelper knowledgeHelper = new org.drools.core.base.DefaultKnowledgeHelper( ((StatefulKnowledgeSessionImpl)workingMemory) );
+        final DefaultKnowledgeHelper knowledgeHelper = new DefaultKnowledgeHelper( ((StatefulKnowledgeSessionImpl)workingMemory) );
         knowledgeHelper.setActivation( activation );
 
         newRule.getConsequence().evaluate( knowledgeHelper,
@@ -302,13 +297,13 @@ public class KnowledgeBuilderTest extends DroolsTestCase {
             builder.addPackage( new PackageDescr( null ) );
             fail( "should have errored here." );
         } catch ( final RuntimeException e ) {
-            assertNotNull( e.getMessage() );
+            assertThat(e.getMessage()).isNotNull();
         }
         try {
             builder.addPackage( new PackageDescr( "" ) );
             fail( "should have errored here." );
         } catch ( final RuntimeException e ) {
-            assertNotNull( e.getMessage() );
+            assertThat(e.getMessage()).isNotNull();
         }
 
         builder.addPackageFromDrl( new StringReader( "package foo" ) );
@@ -1076,7 +1071,7 @@ public class KnowledgeBuilderTest extends DroolsTestCase {
         InternalKnowledgePackage bp = builder.getPackage(pkgDescr.getName());
 
         Class newBean = bp.getPackageClassLoader().loadClass( "org.drools.mvel.compiler.test.NewBean" );
-        assertNotNull( newBean );
+        assertThat(newBean).isNotNull();
     }
 
     @Test
@@ -1098,12 +1093,12 @@ public class KnowledgeBuilderTest extends DroolsTestCase {
         InternalKnowledgePackage bp = builder.getPackage(pkgDescr.getName());
 
         final FactType factType = bp.getFactType("org.drools.mvel.compiler.test.TypeWithFieldMeta");
-        assertNotNull( factType );
+        assertThat(factType).isNotNull();
         final FactField field = factType.getField( "field" );
-        assertNotNull( field );
+        assertThat(field).isNotNull();
 
         final Map<String, Object> fieldMetaData = field.getMetaData();
-        assertNotNull("No field-level custom metadata got compiled", fieldMetaData);
+        assertThat(fieldMetaData).as("No field-level custom metadata got compiled").isNotNull();
         assertTrue("Field metadata does not include expected value", fieldMetaData.containsKey("custom"));
     }
 
@@ -1279,7 +1274,7 @@ public class KnowledgeBuilderTest extends DroolsTestCase {
 
         InternalKnowledgePackage pkg = builder.getPackageRegistry().get( "p1" ).getPackage();
         final RuleImpl rule = pkg.getRule( "rule-1" );
-        assertNotNull( rule );
+        assertThat(rule).isNotNull();
 
         final Pattern pattern = (Pattern) rule.getLhs().getChildren().get( 0 );
         assertEquals( StockTick.class.getName(),
@@ -1335,9 +1330,8 @@ public class KnowledgeBuilderTest extends DroolsTestCase {
                       fieldsBean2.get( 2 ).getType() );
     }
 
-    class MockActivation<T extends ModedAssertion<T>>
-        implements
-        Activation<T> {
+    class MockActivation implements Activation {
+
         private RuleImpl               rule;
         private int                salience;
         private final GroupElement subrule;
@@ -1378,13 +1372,6 @@ public class KnowledgeBuilderTest extends DroolsTestCase {
         }
 
         public void remove() {
-        }
-
-        public void addLogicalDependency( final LogicalDependency<T> node ) {
-        }
-
-        public LinkedList<LogicalDependency<T>> getLogicalDependencies() {
-            return null;
         }
 
         public boolean isQueued() {
@@ -1443,20 +1430,6 @@ public class KnowledgeBuilderTest extends DroolsTestCase {
             return false;
         }
         
-        public void addBlocked(LogicalDependency node) {
-        }
-
-        public LinkedList getBlocked() {
-            return null;
-        }
-
-        public void addBlocked(LinkedListNode node) {
-        }
-
-        public LinkedList getBlockers() {
-            return null;
-        }
-
         public boolean isMatched() {
             return false;
         }
@@ -1471,16 +1444,6 @@ public class KnowledgeBuilderTest extends DroolsTestCase {
 
         public boolean isRuleAgendaItem() {
             return false;
-        }
-
-        @Override
-        public void setBlocked(LinkedList<LogicalDependency<SimpleMode>> justified) {
-
-        }
-
-        @Override
-        public void setLogicalDependencies(LinkedList<LogicalDependency<T>> justified) {
-
         }
 
         @Override

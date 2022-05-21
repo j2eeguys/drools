@@ -29,6 +29,7 @@ import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import org.dmg.pmml.DataDictionary;
 import org.dmg.pmml.DerivedField;
+import org.dmg.pmml.Field;
 import org.dmg.pmml.scorecard.Attribute;
 import org.dmg.pmml.scorecard.Characteristic;
 import org.kie.pmml.api.exceptions.KiePMMLException;
@@ -37,6 +38,7 @@ import org.kie.pmml.compiler.commons.utils.JavaParserUtils;
 import static org.kie.pmml.commons.Constants.MISSING_BODY_TEMPLATE;
 import static org.kie.pmml.commons.Constants.MISSING_VARIABLE_INITIALIZER_TEMPLATE;
 import static org.kie.pmml.commons.Constants.MISSING_VARIABLE_IN_BODY;
+import static org.kie.pmml.commons.Constants.VARIABLE_NAME_TEMPLATE;
 import static org.kie.pmml.compiler.commons.utils.CommonCodegenUtils.getArraysAsListInvocationMethodCall;
 import static org.kie.pmml.compiler.commons.utils.CommonCodegenUtils.getChainedMethodCallExprFrom;
 import static org.kie.pmml.compiler.commons.utils.CommonCodegenUtils.getExpressionForObject;
@@ -69,8 +71,7 @@ public class KiePMMLCharacteristicFactory {
 
     static BlockStmt getCharacteristicVariableDeclaration(final String variableName,
                                                           final Characteristic characteristic,
-                                                          final List<DerivedField> derivedFields,
-                                                          final DataDictionary dataDictionary) {
+                                                          final List<Field<?>> fields) {
         final MethodDeclaration methodDeclaration =
                 CHARACTERISTIC_TEMPLATE.getMethodsByName(GETKIEPMMLCHARACTERISTIC).get(0).clone();
         final BlockStmt characteristicBody =
@@ -82,8 +83,8 @@ public class KiePMMLCharacteristicFactory {
         int counter = 0;
         NodeList<Expression> arguments = new NodeList<>();
         for (Attribute attribute : characteristic.getAttributes()) {
-            String attributeVariableName = String.format("%s_%s", variableName, counter);
-            BlockStmt toAdd = getAttributeVariableDeclaration(attributeVariableName, attribute, derivedFields, dataDictionary);
+            String attributeVariableName = String.format(VARIABLE_NAME_TEMPLATE, variableName, counter);
+            BlockStmt toAdd = getAttributeVariableDeclaration(attributeVariableName, attribute, fields);
             toAdd.getStatements().forEach(toReturn::addStatement);
             arguments.add(new NameExpr(attributeVariableName));
             counter++;

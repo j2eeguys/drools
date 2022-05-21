@@ -34,9 +34,9 @@ import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.type.Type;
 import org.drools.compiler.compiler.Dialect;
 import org.drools.compiler.compiler.DialectCompiletimeRegistry;
-import org.drools.compiler.lang.descr.AccumulateDescr;
-import org.drools.compiler.lang.descr.PatternDescr;
-import org.drools.compiler.lang.descr.RuleDescr;
+import org.drools.drl.ast.descr.AccumulateDescr;
+import org.drools.drl.ast.descr.PatternDescr;
+import org.drools.drl.ast.descr.RuleDescr;
 import org.drools.compiler.rule.builder.JavaRuleClassBuilder;
 import org.drools.compiler.rule.builder.PatternBuilder;
 import org.drools.compiler.rule.builder.RuleBuildContext;
@@ -46,8 +46,8 @@ import org.drools.core.rule.Accumulate;
 import org.drools.core.rule.Declaration;
 import org.drools.core.rule.Pattern;
 import org.drools.core.rule.RuleConditionElement;
-import org.drools.core.spi.DeclarationScopeResolver;
-import org.drools.core.util.StringUtils;
+import org.drools.core.rule.accessor.DeclarationScopeResolver;
+import org.drools.util.StringUtils;
 import org.drools.modelcompiler.builder.GeneratedClassWithPackage;
 import org.drools.modelcompiler.builder.PackageModel;
 import org.drools.modelcompiler.builder.generator.RuleContext;
@@ -58,6 +58,7 @@ import static com.github.javaparser.ast.NodeList.nodeList;
 import static org.drools.modelcompiler.builder.generator.DslMethodNames.ACC_FUNCTION_CALL;
 import static org.drools.modelcompiler.builder.generator.DslMethodNames.ACC_WITH_EXTERNAL_DECLRS_CALL;
 import static org.drools.modelcompiler.builder.generator.DslMethodNames.BIND_AS_CALL;
+import static org.drools.modelcompiler.builder.generator.DslMethodNames.createDslTopLevelMethod;
 
 public class LegacyAccumulate {
 
@@ -115,7 +116,7 @@ public class LegacyAccumulate {
         String typeWithPackage = String.format("%s.%s", packageName, generatedClassName);
 
         Expression accExpr = new MethodReferenceExpr(new NameExpr( typeWithPackage ), new NodeList<Type>(), "new");
-        MethodCallExpr accFunctionCall = new MethodCallExpr(null, ACC_FUNCTION_CALL, nodeList(accExpr));
+        MethodCallExpr accFunctionCall = createDslTopLevelMethod(ACC_FUNCTION_CALL, nodeList(accExpr));
 
         if (accumulate.getRequiredDeclarations().length > 0) {
             accFunctionCall = new MethodCallExpr(accFunctionCall, ACC_WITH_EXTERNAL_DECLRS_CALL);

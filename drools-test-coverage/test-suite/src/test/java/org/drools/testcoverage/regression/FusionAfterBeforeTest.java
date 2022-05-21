@@ -20,9 +20,8 @@ import java.util.Collection;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
-import org.assertj.core.api.Assertions;
-import org.kie.api.time.SessionPseudoClock;
-import org.drools.core.impl.KnowledgeBaseFactory;
+
+import org.drools.core.impl.RuleBaseFactory;
 import org.drools.testcoverage.common.listener.TrackingAgendaEventListener;
 import org.drools.testcoverage.common.model.Event;
 import org.drools.testcoverage.common.model.EventA;
@@ -45,7 +44,10 @@ import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.KieSessionConfiguration;
 import org.kie.api.runtime.conf.ClockTypeOption;
 import org.kie.api.runtime.rule.EntryPoint;
+import org.kie.api.time.SessionPseudoClock;
 import org.kie.internal.utils.KieHelper;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test to verify BRMS-582 (use of 'after' and 'before' operators ends with NPE)
@@ -72,7 +74,7 @@ public class FusionAfterBeforeTest {
         final KieBase kieBase = KieBaseUtil.getKieBaseFromKieModuleFromResources(TestConstants.PACKAGE_REGRESSION,
                                                                                  kieBaseTestConfiguration, drlResource);
 
-        final KieSessionConfiguration ksconf = KnowledgeBaseFactory.newKnowledgeSessionConfiguration();
+        final KieSessionConfiguration ksconf = RuleBaseFactory.newKnowledgeSessionConfiguration();
         ksconf.setOption(ClockTypeOption.PSEUDO);
 
         final KieSession ksession = kieBase.newKieSession(ksconf, null);
@@ -94,17 +96,17 @@ public class FusionAfterBeforeTest {
             ksession.dispose();
         }
 
-        Assertions.assertThat(listener.isRuleFired("AfterMessageEvent")).as("Rule 'AfterMessageEvent' was no fired!").isTrue();
-        Assertions.assertThat(listener.isRuleFired("BeforeMessageEvent")).as("Rule 'BeforeMessageEvent' was no fired!").isTrue();
+        assertThat(listener.isRuleFired("AfterMessageEvent")).as("Rule 'AfterMessageEvent' was no fired!").isTrue();
+        assertThat(listener.isRuleFired("BeforeMessageEvent")).as("Rule 'BeforeMessageEvent' was no fired!").isTrue();
 
         // each rules should be fired 2 times
         int firedCount = 2;
         int actuallyFired = listener.ruleFiredCount("AfterMessageEvent");
-        Assertions.assertThat(firedCount).as("Rule 'AfterMessageEvent' should be fired 2 times, but was fired "
+        assertThat(firedCount).as("Rule 'AfterMessageEvent' should be fired 2 times, but was fired "
         + firedCount + " time(s)!").isEqualTo(actuallyFired);
 
         firedCount = listener.ruleFiredCount("BeforeMessageEvent");
-        Assertions.assertThat(firedCount).as("Rule 'BeforeMessageEvent' should be fired 2 times, but was fired "
+        assertThat(firedCount).as("Rule 'BeforeMessageEvent' should be fired 2 times, but was fired "
         + firedCount + " time(s)!").isEqualTo(actuallyFired);
     }
 
@@ -126,12 +128,12 @@ public class FusionAfterBeforeTest {
         events.addAll(getEvents(EventA.class, 64 / 2, 2, 100, 0));
         events.addAll(getEvents(EventB.class, 64 / 2, 5, 100, 0));
 
-        final KieSessionConfiguration sessionConf = KnowledgeBaseFactory.newKnowledgeSessionConfiguration();
+        final KieSessionConfiguration sessionConf = RuleBaseFactory.newKnowledgeSessionConfiguration();
         sessionConf.setOption(ClockTypeOption.PSEUDO);
         final KieSession kieSession =
                 new KieHelper().addContent(drlBuilder.toString(), ResourceType.DRL).build(kieBaseTestConfiguration.getKieBaseConfiguration()).newKieSession(sessionConf, null);
 
-        Assertions.assertThat(insertEventsAndFire(kieSession, events)).isEqualTo(2048);
+        assertThat(insertEventsAndFire(kieSession, events)).isEqualTo(2048);
     }
 
     private <T extends Event> SortedSet<T> getEvents(final Class<T> eventClass, final int eventsCount,

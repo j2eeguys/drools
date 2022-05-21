@@ -16,7 +16,8 @@
 
 package org.drools.compiler.compiler;
 
-import org.drools.compiler.lang.descr.FunctionDescr;
+import org.drools.drl.ast.descr.FunctionDescr;
+import org.drools.drl.parser.DroolsError;
 import org.kie.internal.jci.CompilationProblem;
 
 public class FunctionError extends DroolsError {

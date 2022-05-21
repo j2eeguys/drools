@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.drools.core.event.DefaultAgendaEventListener;
 import org.drools.impact.analysis.graph.Graph;
 import org.drools.impact.analysis.graph.Link;
 import org.drools.impact.analysis.graph.Node;
@@ -32,6 +33,7 @@ import org.junit.rules.TestName;
 import org.kie.api.KieServices;
 import org.kie.api.builder.KieFileSystem;
 import org.kie.api.builder.ReleaseId;
+import org.kie.api.event.rule.AfterMatchFiredEvent;
 import org.kie.api.io.KieResources;
 import org.kie.api.io.Resource;
 import org.kie.api.runtime.KieSession;
@@ -51,19 +53,23 @@ public class AbstractGraphTest {
         return testName.getMethodName();
     }
 
+    // Keep this method for test convenience
     protected void generatePng(Graph graph) {
         generatePng(graph, "");
     }
 
+    // Keep this method for test convenience
     protected void generateSvg(Graph graph) {
         generateSvg(graph, "");
     }
 
+    // Keep this method for test convenience
     protected void generatePng(Graph graph, String suffix) {
         GraphImageGenerator generator = new GraphImageGenerator(getTestMethodName() + suffix);
         generator.generatePng(graph);
     }
 
+    // Keep this method for test convenience
     protected void generateSvg(Graph graph, String suffix) {
         GraphImageGenerator generator = new GraphImageGenerator(getTestMethodName() + suffix);
         generator.generateSvg(graph);
@@ -71,6 +77,7 @@ public class AbstractGraphTest {
 
     /**
      * Assert that there are exact links with the types between source node and target node.
+     * If no expectedTypes, it means there is no link
      */
     protected void assertLink(Graph graph, String sourceFqdn, String targetFqdn, ReactivityType... expectedTypes) {
         Node source = graph.getNodeMap().get(sourceFqdn);
@@ -89,6 +96,17 @@ public class AbstractGraphTest {
      */
     protected void runRule(String drl, Object... facts) {
         final KieSession ksession = RuleExecutionHelper.getKieSession(drl);
+        runRule(ksession, facts);
+    }
+
+    protected void runRule(final KieSession ksession, Object... facts) {
+        ksession.addEventListener(new DefaultAgendaEventListener() {
+
+            @Override
+            public void afterMatchFired(AfterMatchFiredEvent event) {
+                logger.info(event.getMatch().getRule().getName() + " : fired");
+            }
+        });
         for (Object fact : facts) {
             ksession.insert(fact);
         }
@@ -97,14 +115,15 @@ public class AbstractGraphTest {
         ksession.dispose();
     }
 
+    protected void runRuleWithGlobal(String drl, String globalName, Object global, Object... facts) {
+        final KieSession ksession = RuleExecutionHelper.getKieSession(drl);
+        ksession.setGlobal(globalName, global);
+        runRule(ksession, facts);
+    }
+
     protected void runRule(KieFileSystem kfs, Object... facts) {
         final KieSession ksession = RuleExecutionHelper.getKieSession(kfs);
-        for (Object fact : facts) {
-            ksession.insert(fact);
-        }
-        int fired = ksession.fireAllRules(100);
-        logger.info("fired = " + fired);
-        ksession.dispose();
+        runRule(ksession, facts);
     }
 
     protected KieFileSystem createKieFileSystemWithClassPathResourceNames(ReleaseId releaseId, Class<?> classForClassLoader, String... resourceNames) throws IOException {

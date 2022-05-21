@@ -28,12 +28,12 @@ import java.util.Properties;
 
 import org.drools.core.base.CoreComponentsBuilder;
 import org.drools.core.common.AgendaGroupFactory;
-import org.drools.core.reteoo.KieComponentFactory;
+import org.drools.core.reteoo.RuntimeComponentFactory;
 import org.drools.core.runtime.rule.impl.DefaultConsequenceExceptionHandler;
-import org.drools.core.spi.ConflictResolver;
+import org.drools.core.rule.consequence.ConflictResolver;
 import org.drools.core.util.ConfFileUtils;
-import org.drools.core.util.StringUtils;
-import org.drools.reflective.classloader.ProjectClassLoader;
+import org.drools.util.StringUtils;
+import org.drools.wiring.api.classloader.ProjectClassLoader;
 import org.kie.api.KieBaseConfiguration;
 import org.kie.api.conf.BetaRangeIndexOption;
 import org.kie.api.conf.DeclarativeAgendaOption;
@@ -48,7 +48,6 @@ import org.kie.api.conf.SequentialOption;
 import org.kie.api.conf.SessionsPoolOption;
 import org.kie.api.conf.SingleValueKieBaseOption;
 import org.kie.api.runtime.rule.ConsequenceExceptionHandler;
-import org.kie.internal.builder.conf.ClassLoaderCacheOption;
 import org.kie.internal.conf.AlphaRangeIndexThresholdOption;
 import org.kie.internal.conf.AlphaThresholdOption;
 import org.kie.internal.conf.CompositeKeyDepthOption;
@@ -67,7 +66,6 @@ import org.kie.internal.utils.ChainedProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.drools.core.reteoo.KieComponentFactory.createKieComponentFactory;
 import static org.drools.core.util.Drools.isJmxAvailable;
 import static org.drools.core.util.MemoryUtil.hasPermGen;
 
@@ -149,7 +147,6 @@ public class RuleBaseConfiguration
     private AssertBehaviour assertBehaviour;
     private String          consequenceExceptionHandler;
     private String          ruleBaseUpdateHandler;
-    private boolean         classLoaderCacheEnabled;
     private boolean         mutabilityEnabled;
 
     private boolean declarativeAgenda;
@@ -175,8 +172,6 @@ public class RuleBaseConfiguration
     private boolean                   advancedProcessRuleIntegration;
 
     private transient ClassLoader classLoader;
-
-    private KieComponentFactory componentFactory;
 
     private int sessionPoolSize;
 
@@ -216,9 +211,7 @@ public class RuleBaseConfiguration
         out.writeBoolean(multithread);
         out.writeInt(maxThreads);
         out.writeObject(eventProcessingMode);
-        out.writeBoolean(classLoaderCacheEnabled);
         out.writeBoolean(declarativeAgenda);
-        out.writeObject(componentFactory);
         out.writeInt(sessionPoolSize);
         out.writeBoolean(mutabilityEnabled);
     }
@@ -250,9 +243,7 @@ public class RuleBaseConfiguration
         multithread = in.readBoolean();
         maxThreads = in.readInt();
         eventProcessingMode = (EventProcessingOption) in.readObject();
-        classLoaderCacheEnabled = in.readBoolean();
         declarativeAgenda = in.readBoolean();
-        componentFactory = (KieComponentFactory) in.readObject();
         sessionPoolSize = in.readInt();
         mutabilityEnabled = in.readBoolean();
     }
@@ -348,8 +339,6 @@ public class RuleBaseConfiguration
             setEventProcessingMode( EventProcessingOption.determineEventProcessingMode( StringUtils.isEmpty( value ) ? "cloud" : value));
         } else if ( name.equals( MBeansOption.PROPERTY_NAME ) ) {
             setMBeansEnabled( MBeansOption.isEnabled(value));
-        } else if ( name.equals( ClassLoaderCacheOption.PROPERTY_NAME ) ) {
-            setClassLoaderCacheEnabled( StringUtils.isEmpty( value ) ? true : Boolean.valueOf(value));
         } else if ( name.equals( KieBaseMutabilityOption.PROPERTY_NAME ) ) {
             setMutabilityEnabled( StringUtils.isEmpty( value ) ? true : KieBaseMutabilityOption.determineMutability(value) == KieBaseMutabilityOption.ALLOWED );
         }
@@ -407,8 +396,6 @@ public class RuleBaseConfiguration
             return getEventProcessingMode().getMode();
         } else if ( name.equals( MBeansOption.PROPERTY_NAME ) ) {
             return isMBeansEnabled() ? "enabled" : "disabled";
-        } else if ( name.equals( ClassLoaderCacheOption.PROPERTY_NAME ) ) {
-            return Boolean.toString( isClassLoaderCacheEnabled() );
         } else if ( name.equals( KieBaseMutabilityOption.PROPERTY_NAME ) ) {
             return isMutabilityEnabled() ? "ALLOWED" : "DISABLED";
         }
@@ -439,8 +426,6 @@ public class RuleBaseConfiguration
     }
     
     private void init(Properties properties) {
-        this.componentFactory = createKieComponentFactory();
-
         this.immutable = false;
 
         this.chainedProperties = ChainedProperties.getChainedProperties( this.classLoader );
@@ -500,9 +485,6 @@ public class RuleBaseConfiguration
         setMBeansEnabled( MBeansOption.isEnabled( this.chainedProperties.getProperty( MBeansOption.PROPERTY_NAME,
                                                                                       "disabled" ) ) );
 
-        setClassLoaderCacheEnabled( Boolean.valueOf( this.chainedProperties.getProperty( ClassLoaderCacheOption.PROPERTY_NAME,
-                                                                                         "true" ) ) );
-        
         setDeclarativeAgendaEnabled( Boolean.valueOf( this.chainedProperties.getProperty( DeclarativeAgendaOption.PROPERTY_NAME,
                                                                                           "false" ) ) );
 
@@ -721,7 +703,7 @@ public class RuleBaseConfiguration
     }
 
     public AgendaGroupFactory getAgendaGroupFactory() {
-        return getComponentFactory().getAgendaGroupFactory();
+        return RuntimeComponentFactory.get().getAgendaGroupFactory();
     }
 
     public SequentialAgenda getSequentialAgenda() {
@@ -784,15 +766,6 @@ public class RuleBaseConfiguration
         return this.maxThreads;
     }
 
-    public boolean isClassLoaderCacheEnabled() {
-        return this.classLoaderCacheEnabled;
-    }
-
-    public void setClassLoaderCacheEnabled(final boolean classLoaderCacheEnabled) {
-        checkCanChange(); // throws an exception if a change isn't possible;
-        this.classLoaderCacheEnabled = classLoaderCacheEnabled;
-    }
-    
     public boolean isDeclarativeAgenda() {
         return this.declarativeAgenda;
     }
@@ -862,7 +835,7 @@ public class RuleBaseConfiguration
     
     public void addActivationListener(String name, ActivationListenerFactory factory) {
         if ( this.activationListeners == null ) {
-            this.activationListeners = new HashMap<String, ActivationListenerFactory>();
+            this.activationListeners = new HashMap<>();
         }
         this.activationListeners.put( name, factory );
     }
@@ -886,35 +859,12 @@ public class RuleBaseConfiguration
         throw new IllegalArgumentException( "ActivationListenerFactory not found for '" + name + "'" );
     }
 
-    private boolean determineShadowProxy(String userValue) {
-        if ( this.isSequential() ) {
-            // sequential never needs shadowing, so always override
-            return false;
-        }
-
-        if ( userValue != null ) {
-            return Boolean.valueOf( userValue ).booleanValue();
-        } else {
-            return true;
-        }
-    }
-
     public ClassLoader getClassLoader() {
         return this.classLoader;
     }
 
     public void setClassLoader(ClassLoader classLoader) {
-        this.classLoader = ProjectClassLoader.getClassLoader( classLoader,
-                                                              getClass(),
-                                                              isClassLoaderCacheEnabled());
-    }
-
-    public KieComponentFactory getComponentFactory() {
-        return componentFactory;
-    }
-
-    public void setComponentFactory(KieComponentFactory componentFactory) {
-        this.componentFactory = componentFactory;
+        this.classLoader = ProjectClassLoader.getClassLoader( classLoader, getClass() );
     }
 
     /**
@@ -1009,72 +959,6 @@ public class RuleBaseConfiguration
 
         public String toString() {
             return "AssertBehaviour : " + ((this.value == 0) ? "identity" : "equality");
-        }
-    }
-
-    public static class LogicalOverride
-            implements
-            Externalizable {
-        private static final long serialVersionUID = 510l;
-
-        public static final LogicalOverride PRESERVE = new LogicalOverride(0);
-        public static final LogicalOverride DISCARD  = new LogicalOverride(1);
-
-        private int value;
-
-        public void readExternal(ObjectInput in) throws IOException,
-                ClassNotFoundException {
-            value = in.readInt();
-        }
-
-        public void writeExternal(ObjectOutput out) throws IOException {
-            out.writeInt(value);
-        }
-
-        public LogicalOverride() {
-
-        }
-
-        private LogicalOverride(final int value) {
-            this.value = value;
-        }
-
-        public static LogicalOverride determineLogicalOverride(final String value) {
-            if ("PRESERVE".equalsIgnoreCase(value)) {
-                return PRESERVE;
-            } else if ("DISCARD".equalsIgnoreCase(value)) {
-                return DISCARD;
-            } else {
-                throw new IllegalArgumentException("Illegal enum value '" + value + "' for LogicalOverride");
-            }
-        }
-
-        private Object readResolve() throws java.io.ObjectStreamException {
-            switch (this.value) {
-                case 0:
-                    return PRESERVE;
-                case 1:
-                    return DISCARD;
-                default:
-                    throw new IllegalArgumentException("Illegal enum value '" + this.value + "' for LogicalOverride");
-            }
-        }
-
-        public boolean equals(Object obj) {
-            if (obj == this) {
-                return true;
-            } else if (obj instanceof LogicalOverride) {
-                return value == ((LogicalOverride) obj).value;
-            }
-            return false;
-        }
-
-        public String toExternalForm() {
-            return (this.value == 0) ? "preserve" : "discard";
-        }
-
-        public String toString() {
-            return "LogicalOverride : " + ((this.value == 0) ? "preserve" : "discard");
         }
     }
 
@@ -1186,8 +1070,6 @@ public class RuleBaseConfiguration
             return (T) (this.multithread ? MultithreadEvaluationOption.YES : MultithreadEvaluationOption.NO);
         } else if (MBeansOption.class.equals(option)) {
             return (T) (this.isMBeansEnabled() ? MBeansOption.ENABLED : MBeansOption.DISABLED);
-        } else if (ClassLoaderCacheOption.class.equals(option)) {
-            return (T) (this.isClassLoaderCacheEnabled() ? ClassLoaderCacheOption.ENABLED : ClassLoaderCacheOption.DISABLED);
         } else if (DeclarativeAgendaOption.class.equals(option)) {
             return (T) (this.isDeclarativeAgenda() ? DeclarativeAgendaOption.ENABLED : DeclarativeAgendaOption.DISABLED);
         } else if (KieBaseMutabilityOption.class.equals(option)) {
@@ -1240,12 +1122,10 @@ public class RuleBaseConfiguration
             setMultithreadEvaluation( ( (MultithreadEvaluationOption) option ).isMultithreadEvaluation());
         } else if (option instanceof MBeansOption) {
             setMBeansEnabled( ( (MBeansOption) option ).isEnabled());
-        } else if (option instanceof ClassLoaderCacheOption) {
-            setClassLoaderCacheEnabled( ( (ClassLoaderCacheOption) option ).isClassLoaderCacheEnabled());
         } else if (option instanceof DeclarativeAgendaOption) {
             setDeclarativeAgendaEnabled(((DeclarativeAgendaOption) option).isDeclarativeAgendaEnabled());
         } else if (option instanceof KieBaseMutabilityOption) {
-            setMutabilityEnabled(((KieBaseMutabilityOption) option) == KieBaseMutabilityOption.ALLOWED);
+            setMutabilityEnabled(option == KieBaseMutabilityOption.ALLOWED);
         }
 
     }

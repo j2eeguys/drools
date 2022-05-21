@@ -22,7 +22,6 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.drools.compiler.kie.builder.impl.InternalKieModule;
-import org.junit.Assert;
 import org.kie.api.KieServices;
 import org.kie.api.builder.KieBuilder;
 import org.kie.api.builder.KieFileSystem;
@@ -30,8 +29,6 @@ import org.kie.api.builder.KieModule;
 import org.kie.api.builder.Message;
 import org.kie.api.builder.ReleaseId;
 import org.kie.api.builder.Results;
-import org.kie.api.internal.utils.ServiceDiscoveryImpl;
-import org.kie.api.internal.utils.ServiceRegistry;
 import org.kie.api.io.Resource;
 import org.kie.api.runtime.KieContainer;
 import org.kie.dmn.api.core.DMNMessage;
@@ -50,8 +47,7 @@ import org.kie.internal.builder.InternalKieBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * A type-check safe runtime creation helper.
@@ -65,7 +61,7 @@ public final class DMNRuntimeUtil {
         final KieContainer kieContainer = KieHelper.getKieContainer(
         ks.newReleaseId("org.kie", "dmn-test-"+UUID.randomUUID(), "1.0"));
         final DMNRuntime runtime = typeSafeGetKieRuntime(kieContainer);
-        Assert.assertNotNull(runtime);
+        assertThat(runtime).isNotNull();
         return runtime;
     }
 
@@ -76,7 +72,7 @@ public final class DMNRuntimeUtil {
                 ks.getResources().newClassPathResource(resourceName, testClass));
 
         final DMNRuntime runtime = typeSafeGetKieRuntime(kieContainer);
-        Assert.assertNotNull(runtime);
+        assertThat(runtime).isNotNull();
         return runtime;
     }
     
@@ -92,15 +88,8 @@ public final class DMNRuntimeUtil {
                                                    .filter(DMNMessage.class::isInstance)
                                                    .map(DMNMessage.class::cast)
                                                    .collect(Collectors.toList());
-        assertThat(dmnMessages.isEmpty(), is(false));
+        assertThat(dmnMessages).isNotEmpty();;
         return dmnMessages;
-    }
-
-    public static void resetServices() {
-        final ServiceDiscoveryImpl serviceDiscovery = ServiceDiscoveryImpl.getInstance();
-        serviceDiscovery.reset();
-        final ServiceRegistry.Impl instance = (ServiceRegistry.Impl)ServiceRegistry.getInstance();
-        instance.reload();
     }
 
     public static DMNRuntime createRuntimeWithAdditionalResources(final String resourceName, final Class testClass, final String... additionalResources) {
@@ -116,7 +105,7 @@ public final class DMNRuntimeUtil {
                 totalResources.toArray(new Resource[] {}));
 
         final DMNRuntime runtime = typeSafeGetKieRuntime(kieContainer);
-        Assert.assertNotNull(runtime);
+        assertThat(runtime).isNotNull();
         return runtime;
     }
 

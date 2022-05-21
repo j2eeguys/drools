@@ -20,7 +20,7 @@ import java.util.List;
 
 import org.drools.core.base.ClassObjectType;
 import org.drools.core.common.InternalWorkingMemory;
-import org.drools.core.impl.KnowledgeBaseImpl;
+import org.drools.core.impl.RuleBase;
 import org.drools.core.reteoo.BetaMemory;
 import org.drools.core.reteoo.ConditionalBranchNode;
 import org.drools.core.reteoo.InitialFactImpl;
@@ -59,8 +59,7 @@ public class SegmentCreationTest {
 
     @Parameterized.Parameters(name = "KieBase type={0}")
     public static Collection<Object[]> getParameters() {
-     // TODO: EM failed with some tests. File JIRAs
-        return TestParametersUtil.getKieBaseCloudConfigurations(false);
+        return TestParametersUtil.getKieBaseCloudConfigurations(true);
     }
     
     @Test
@@ -522,7 +521,7 @@ public class SegmentCreationTest {
     }      
 
     public ObjectTypeNode getObjectTypeNode(KieBase kbase, Class<?> nodeClass) {
-        List<ObjectTypeNode> nodes = ((KnowledgeBaseImpl)kbase).getRete().getObjectTypeNodes();
+        List<ObjectTypeNode> nodes = ((RuleBase)kbase).getRete().getObjectTypeNodes();
         for ( ObjectTypeNode n : nodes ) {
             if ( ((ClassObjectType)n.getObjectType()).getClassType() == nodeClass ) {
                 return n;

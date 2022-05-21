@@ -28,33 +28,33 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.drools.compiler.builder.impl.KnowledgeBuilderConfigurationImpl;
-import org.kie.memorycompiler.resources.MemoryResourceReader;
 import org.drools.compiler.compiler.AnalysisResult;
 import org.drools.compiler.compiler.BoundIdentifiers;
 import org.drools.compiler.compiler.DescrBuildError;
 import org.drools.compiler.compiler.Dialect;
 import org.drools.compiler.compiler.ImportError;
 import org.drools.compiler.compiler.PackageRegistry;
-import org.drools.compiler.lang.descr.AccumulateDescr;
-import org.drools.compiler.lang.descr.AndDescr;
-import org.drools.compiler.lang.descr.BaseDescr;
-import org.drools.compiler.lang.descr.CollectDescr;
-import org.drools.compiler.lang.descr.ConditionalBranchDescr;
-import org.drools.compiler.lang.descr.EntryPointDescr;
-import org.drools.compiler.lang.descr.EvalDescr;
-import org.drools.compiler.lang.descr.ExistsDescr;
-import org.drools.compiler.lang.descr.ForallDescr;
-import org.drools.compiler.lang.descr.FromDescr;
-import org.drools.compiler.lang.descr.FunctionDescr;
-import org.drools.compiler.lang.descr.ImportDescr;
-import org.drools.compiler.lang.descr.NamedConsequenceDescr;
-import org.drools.compiler.lang.descr.NotDescr;
-import org.drools.compiler.lang.descr.OrDescr;
-import org.drools.compiler.lang.descr.PatternDescr;
-import org.drools.compiler.lang.descr.ProcessDescr;
-import org.drools.compiler.lang.descr.QueryDescr;
-import org.drools.compiler.lang.descr.RuleDescr;
-import org.drools.compiler.lang.descr.WindowReferenceDescr;
+import org.drools.drl.ast.descr.AccumulateDescr;
+import org.drools.drl.ast.descr.AndDescr;
+import org.drools.drl.ast.descr.BaseDescr;
+import org.drools.drl.ast.descr.CollectDescr;
+import org.drools.drl.ast.descr.ConditionalBranchDescr;
+import org.drools.drl.ast.descr.EntryPointDescr;
+import org.drools.drl.ast.descr.EvalDescr;
+import org.drools.drl.ast.descr.ExistsDescr;
+import org.drools.drl.ast.descr.ForallDescr;
+import org.drools.drl.ast.descr.FromDescr;
+import org.drools.drl.ast.descr.FunctionDescr;
+import org.drools.drl.ast.descr.ImportDescr;
+import org.drools.drl.ast.descr.NamedConsequenceDescr;
+import org.drools.drl.ast.descr.NotDescr;
+import org.drools.drl.ast.descr.OrDescr;
+import org.drools.drl.ast.descr.PatternDescr;
+import org.drools.drl.ast.descr.ProcessDescr;
+import org.drools.drl.ast.descr.QueryDescr;
+import org.drools.drl.ast.descr.RuleDescr;
+import org.drools.drl.ast.descr.WindowReferenceDescr;
+import org.drools.compiler.rule.builder.PatternBuilderForAbductiveQuery;
 import org.drools.compiler.rule.builder.AccumulateBuilder;
 import org.drools.compiler.rule.builder.CollectBuilder;
 import org.drools.compiler.rule.builder.ConditionalBranchBuilder;
@@ -69,33 +69,34 @@ import org.drools.compiler.rule.builder.NamedConsequenceBuilder;
 import org.drools.compiler.rule.builder.PackageBuildContext;
 import org.drools.compiler.rule.builder.PatternBuilder;
 import org.drools.compiler.rule.builder.PredicateBuilder;
-import org.drools.compiler.rule.builder.QueryBuilder;
-import org.drools.compiler.rule.builder.ReturnValueBuilder;
+import org.drools.compiler.rule.builder.PatternBuilderForQuery;
 import org.drools.compiler.rule.builder.RuleBuildContext;
 import org.drools.compiler.rule.builder.RuleClassBuilder;
 import org.drools.compiler.rule.builder.RuleConditionBuilder;
 import org.drools.compiler.rule.builder.SalienceBuilder;
 import org.drools.compiler.rule.builder.WindowReferenceBuilder;
 import org.drools.compiler.rule.builder.dialect.DialectUtil;
-import org.drools.mvel.java.JavaFunctionBuilder;
-import org.drools.core.addon.TypeResolver;
-import org.drools.core.base.EvaluatorWrapper;
+import org.drools.util.TypeResolver;
+import org.drools.compiler.rule.builder.EvaluatorWrapper;
 import org.drools.core.common.InternalWorkingMemory;
 import org.drools.core.definitions.InternalKnowledgePackage;
 import org.drools.core.rule.Declaration;
 import org.drools.core.rule.LineMappings;
-import org.drools.core.spi.KnowledgeHelper;
-import org.drools.core.util.StringUtils;
+import org.drools.core.definitions.rule.impl.QueryImpl;
+import org.drools.core.rule.consequence.KnowledgeHelper;
+import org.drools.util.StringUtils;
 import org.drools.mvel.MVELDialectRuntimeData;
 import org.drools.mvel.asm.AsmUtil;
 import org.drools.mvel.expr.MVELCompilationUnit;
+import org.drools.mvel.java.JavaFunctionBuilder;
 import org.kie.api.definition.rule.Rule;
 import org.kie.api.io.Resource;
 import org.kie.internal.builder.KnowledgeBuilderResult;
+import org.kie.memorycompiler.resources.MemoryResourceReader;
 import org.mvel2.MVEL;
 import org.mvel2.optimizers.OptimizerFactory;
 
-import static org.drools.core.rule.constraint.EvaluatorHelper.WM_ARGUMENT;
+import static org.drools.compiler.lang.DescrDumper.WM_ARGUMENT;
 
 public class MVELDialect
         implements
@@ -104,15 +105,13 @@ public class MVELDialect
 
     private String id = "mvel";
 
-    private final static String EXPRESSION_DIALECT_NAME = "MVEL";
-
     protected static final PatternBuilder PATTERN_BUILDER = new PatternBuilder();
-    protected static final QueryBuilder QUERY_BUILDER = new QueryBuilder();
+    protected static final PatternBuilderForQuery QUERY_BUILDER = new PatternBuilderForQuery();
+    protected static final PatternBuilderForQuery ABDUCTIVE_QUERY_BUILDER = new PatternBuilderForAbductiveQuery();
     protected static final MVELAccumulateBuilder ACCUMULATE_BUILDER = new MVELAccumulateBuilder();
     protected static final SalienceBuilder SALIENCE_BUILDER = new MVELSalienceBuilder();
     protected static final EnabledBuilder ENABLED_BUILDER = new MVELEnabledBuilder();
     protected static final MVELEvalBuilder EVAL_BUILDER = new MVELEvalBuilder();
-    protected static final MVELReturnValueBuilder RETURN_VALUE_BUILDER = new MVELReturnValueBuilder();
     protected static final MVELConsequenceBuilder CONSEQUENCE_BUILDER = new MVELConsequenceBuilder();
 
     protected static final MVELFromBuilder FROM_BUILDER = new MVELFromBuilder();
@@ -337,10 +336,6 @@ public class MVELDialect
         processDescr.setClassName(StringUtils.ucFirst(processDescrClassName));
     }
 
-    public String getExpressionDialectName() {
-        return EXPRESSION_DIALECT_NAME;
-    }
-
     public void addRule(RuleBuildContext context) {
         // MVEL: Compiler change
         final RuleDescr ruleDescr = context.getRuleDescr();
@@ -452,10 +447,10 @@ public class MVELDialect
 
     private Class<?> loadImportedClass(String className) {
         try {
-            return pkg.getTypeResolver().resolveType(className);
+            return this.packageRegistry.getPackageClassLoader().loadClass(className);
         } catch (ClassNotFoundException e) { }
         try {
-            return this.packageRegistry.getPackageClassLoader().loadClass(className);
+            return pkg.getTypeResolver().resolveType(className);
         } catch (ClassNotFoundException e) { }
         return null;
     }
@@ -592,7 +587,7 @@ public class MVELDialect
         for (String op : analysis.getBoundIdentifiers().getOperators().keySet()) {
             strList.add(op);
             ids.add(op);
-            resolvedInputs.put(op, context.getConfiguration().getComponentFactory().getExpressionProcessor().getEvaluatorWrapperClass());
+            resolvedInputs.put(op, EvaluatorWrapper.class);
         }
         EvaluatorWrapper[] operators = new EvaluatorWrapper[strList.size()];
         for (int i = 0; i < operators.length; i++) {
@@ -681,8 +676,8 @@ public class MVELDialect
         return PATTERN_BUILDER;
     }
 
-    public QueryBuilder getQueryBuilder() {
-        return QUERY_BUILDER;
+    public PatternBuilderForQuery getPatternBuilderForQuery(QueryImpl query) {
+        return query.isAbductive() ? ABDUCTIVE_QUERY_BUILDER : QUERY_BUILDER;
     }
 
     public AccumulateBuilder getAccumulateBuilder() {
@@ -723,10 +718,6 @@ public class MVELDialect
 
     public void clearResults() {
         this.results.clear();
-    }
-
-    public ReturnValueBuilder getReturnValueBuilder() {
-        return RETURN_VALUE_BUILDER;
     }
 
     public RuleClassBuilder getRuleClassBuilder() {

@@ -7,11 +7,11 @@
   <parent>
     <groupId>org.drools</groupId>
     <artifactId>drools-model</artifactId>
-    <version>7.58.0-SNAPSHOT</version>
+    <version>8.22.0-SNAPSHOT</version>
   </parent>
 
+  <name>Drools :: Model :: Compiler</name>
   <artifactId>drools-model-compiler</artifactId>
-  <packaging>bundle</packaging><!-- bundle = jar + OSGi metadata -->
 
   <properties>
     <java.module.name>org.drools.modelcompiler</java.module.name>
@@ -45,12 +45,16 @@
       <artifactId>kie-internal</artifactId>
     </dependency>
     <dependency>
+      <groupId>org.kie</groupId>
+      <artifactId>kie-util-maven-support</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.drools</groupId>
       <artifactId>drools-canonical-model</artifactId>
     </dependency>
     <dependency>
       <groupId>org.drools</groupId>
-      <artifactId>drools-core-reflective</artifactId>
+      <artifactId>drools-wiring-api</artifactId>
     </dependency>
     <dependency>
       <groupId>org.drools</groupId>
@@ -59,6 +63,11 @@
     <dependency>
       <groupId>org.drools</groupId>
       <artifactId>drools-compiler</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.drools</groupId>
+      <artifactId>drools-xml-support</artifactId>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
@@ -93,18 +102,13 @@
     </dependency>
     <dependency>
       <groupId>org.drools</groupId>
-      <artifactId>drools-ruleunit</artifactId>
+      <artifactId>drools-tms</artifactId>
       <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.hamcrest</groupId>
-      <artifactId>hamcrest-library</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -121,17 +125,6 @@
 
   <build>
     <plugins>
-      <plugin>
-        <groupId>org.apache.felix</groupId>
-        <artifactId>maven-bundle-plugin</artifactId>
-        <configuration>
-          <instructions>
-            <Export-Package>
-              org.drools.modelcompiler.*
-            </Export-Package>
-          </instructions>
-        </configuration>
-      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>

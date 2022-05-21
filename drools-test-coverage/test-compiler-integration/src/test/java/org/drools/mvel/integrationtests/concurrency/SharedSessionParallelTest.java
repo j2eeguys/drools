@@ -24,16 +24,20 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 
-import org.assertj.core.api.Assertions;
 import org.drools.mvel.integrationtests.facts.BeanA;
 import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
 import org.drools.testcoverage.common.util.TestParametersUtil;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.kie.api.runtime.KieSession;
+import org.kie.test.testcategory.TurtleTestCategory;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 @RunWith(Parameterized.class)
+@Category(TurtleTestCategory.class)
 public class SharedSessionParallelTest extends AbstractConcurrentTest {
 
     @Parameterized.Parameters(name = "Enforced jitting={0}, KieBase type={1}")
@@ -62,7 +66,7 @@ public class SharedSessionParallelTest extends AbstractConcurrentTest {
         super(enforcedJitting, false, false, false, kieBaseTestConfiguration);
     }
 
-    @Test(timeout = 60000)
+    @Test(timeout = 120000)
     public void testNoExceptions() throws InterruptedException {
         final String drl = "rule R1 when String() then end";
 
@@ -127,9 +131,9 @@ public class SharedSessionParallelTest extends AbstractConcurrentTest {
         parallelTest(threadCount, exec);
         kieSession.dispose();
 
-        Assertions.assertThat(list).hasSize(threadCount);
+        assertThat(list).hasSize(threadCount);
         for (int i = 0; i < threadCount; i++) {
-            Assertions.assertThat(list).contains("" + i);
+            assertThat(list).contains("" + i);
         }
     }
 
@@ -187,10 +191,10 @@ public class SharedSessionParallelTest extends AbstractConcurrentTest {
 
         parallelTest(threadCount, exec);
         kieSession.dispose();
-        Assertions.assertThat(list).contains("" + 0);
-        Assertions.assertThat(list).doesNotContain("" + 1);
+        assertThat(list).contains("" + 0);
+        assertThat(list).doesNotContain("" + 1);
         final int expectedListSize = ((threadCount - 1) / 2) + 1;
-        Assertions.assertThat(list).hasSize(expectedListSize);
+        assertThat(list).hasSize(expectedListSize);
     }
 
     @Test(timeout = 40000)
@@ -361,11 +365,11 @@ public class SharedSessionParallelTest extends AbstractConcurrentTest {
         final int list2ExpectedSize = threadCount / 2 * objectCount;
         for (int i = 0; i < threadCount; i++) {
             if (i % 2 == 1) {
-                Assertions.assertThat(list2).contains("" + i);
+                assertThat(list2).contains("" + i);
             }
         }
-        Assertions.assertThat(list).hasSize(listExpectedSize);
-        Assertions.assertThat(list2).hasSize(list2ExpectedSize);
+        assertThat(list).hasSize(listExpectedSize);
+        assertThat(list2).hasSize(list2ExpectedSize);
     }
 
     @Test(timeout = 40000)
@@ -405,7 +409,7 @@ public class SharedSessionParallelTest extends AbstractConcurrentTest {
         parallelTest(threadCount, exec);
         kieSession.dispose();
         checkList(seed, list);
-        Assertions.assertThat(bean).hasFieldOrPropertyWithValue("seed", 0);
+        assertThat(bean).hasFieldOrPropertyWithValue("seed", 0);
     }
 
     @Test(timeout = 40000)
@@ -445,7 +449,7 @@ public class SharedSessionParallelTest extends AbstractConcurrentTest {
 
         checkList(0, seed, list, seed * threadCount);
         for (final BeanA bean : beans) {
-            Assertions.assertThat(bean).hasFieldOrPropertyWithValue("seed", 0);
+            assertThat(bean).hasFieldOrPropertyWithValue("seed", 0);
         }
     }
 
@@ -490,9 +494,9 @@ public class SharedSessionParallelTest extends AbstractConcurrentTest {
     }
 
     private void checkList(final int start, final int end, final List list, final int expectedSize) {
-        Assertions.assertThat(list).hasSize(expectedSize);
+        assertThat(list).hasSize(expectedSize);
         for (int i = start; i < end; i++) {
-            Assertions.assertThat(list).contains("" + i);
+            assertThat(list).contains("" + i);
         }
     }
 }

@@ -16,15 +16,14 @@ package org.drools.mvel.asm;
 
 import java.util.List;
 
-import org.drools.core.WorkingMemory;
 import org.drools.core.common.InternalFactHandle;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.reteoo.LeftTuple;
 import org.drools.core.rule.Declaration;
-import org.drools.core.rule.builder.dialect.asm.ReturnValueStub;
-import org.drools.core.spi.CompiledInvoker;
-import org.drools.core.spi.FieldValue;
-import org.drools.core.spi.ReturnValueExpression;
-import org.drools.core.spi.Tuple;
+import org.drools.core.rule.accessor.CompiledInvoker;
+import org.drools.core.rule.accessor.FieldValue;
+import org.drools.core.rule.accessor.ReturnValueExpression;
+import org.drools.core.reteoo.Tuple;
 import org.drools.mvel.asm.GeneratorHelper.DeclarationMatcher;
 import org.mvel2.asm.MethodVisitor;
 
@@ -43,7 +42,7 @@ public class ReturnValueGenerator {
                                 final Tuple tuple,
                                 final Declaration[] previousDeclarations,
                                 final Declaration[] localDeclarations,
-                                final WorkingMemory workingMemory) {
+                                final ReteEvaluator reteEvaluator) {
 
         final String[] globals = stub.getGlobals();
         final String[] globalTypes = stub.getGlobalTypes();
@@ -51,7 +50,7 @@ public class ReturnValueGenerator {
         // Sort declarations based on their offset, so it can ascend the tuple's parents stack only once
         final List<DeclarationMatcher> declarationMatchers = matchDeclarationsToTuple(previousDeclarations);
 
-        final ClassGenerator generator = createInvokerClassGenerator(stub, workingMemory)
+        final ClassGenerator generator = createInvokerClassGenerator(stub, reteEvaluator)
                 .setInterfaces(ReturnValueExpression.class, CompiledInvoker.class);
 
         generator.addMethod(ACC_PUBLIC, "createContext", generator.methodDescr(Object.class), new ClassGenerator.MethodBody() {
@@ -60,7 +59,7 @@ public class ReturnValueGenerator {
                 mv.visitInsn(ARETURN);
             }
         }).addMethod(ACC_PUBLIC, "replaceDeclaration", generator.methodDescr(null, Declaration.class, Declaration.class)
-        ).addMethod(ACC_PUBLIC, "evaluate", generator.methodDescr(FieldValue.class, Object.class, Tuple.class, Declaration[].class, Declaration[].class, WorkingMemory.class, Object.class), new String[]{"java/lang/Exception"}, new GeneratorHelper.EvaluateMethod() {
+        ).addMethod(ACC_PUBLIC, "evaluate", generator.methodDescr(FieldValue.class, Object.class, Tuple.class, Declaration[].class, Declaration[].class, ReteEvaluator.class, Object.class), new String[]{"java/lang/Exception"}, new GeneratorHelper.EvaluateMethod() {
             public void body(MethodVisitor mv) {
                 objAstorePos = 9;
 

@@ -29,6 +29,7 @@ import org.kie.pmml.api.enums.MINING_FUNCTION;
 import org.kie.pmml.api.enums.PMML_MODEL;
 import org.kie.pmml.api.enums.ResultCode;
 import org.kie.pmml.api.exceptions.KiePMMLException;
+import org.kie.pmml.api.runtime.PMMLContext;
 import org.kie.pmml.commons.model.IsDrools;
 import org.kie.pmml.commons.model.KiePMMLExtension;
 import org.kie.pmml.commons.model.KiePMMLModel;
@@ -38,7 +39,6 @@ import org.kie.pmml.models.drools.utils.KiePMMLSessionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.kie.pmml.commons.utils.KiePMMLModelUtils.getSanitizedPackageName;
 import static org.kie.pmml.models.drools.utils.KiePMMLAgendaListenerUtils.getAgendaEventListener;
 
 /**
@@ -49,6 +49,9 @@ public abstract class KiePMMLDroolsModel extends KiePMMLModel implements IsDrool
     private static final Logger logger = LoggerFactory.getLogger(KiePMMLDroolsModel.class);
 
     private static final AgendaEventListener agendaEventListener = getAgendaEventListener(logger);
+    private static final long serialVersionUID = 5471400949048174357L;
+
+    protected String kModulePackageName;
 
     /**
      * Map between the original field name and the generated type.
@@ -65,7 +68,8 @@ public abstract class KiePMMLDroolsModel extends KiePMMLModel implements IsDrool
     }
 
     @Override
-    public Object evaluate(final Object knowledgeBase, Map<String, Object> requestData) {
+    public Object evaluate(final Object knowledgeBase, final Map<String, Object> requestData,
+                           final PMMLContext context) {
         logger.trace("evaluate {} {}", knowledgeBase, requestData);
         if (!(knowledgeBase instanceof KieBase)) {
             throw new KiePMMLException(String.format("Expecting KieBase, received %s",
@@ -73,11 +77,12 @@ public abstract class KiePMMLDroolsModel extends KiePMMLModel implements IsDrool
         }
         final PMML4Result toReturn = getPMML4Result(targetField);
         String fullClassName = this.getClass().getName();
-        String packageName =  fullClassName.contains(".") ? fullClassName.substring(0, fullClassName.lastIndexOf('.')) : "";
+        String packageName = fullClassName.contains(".") ?
+                fullClassName.substring(0, fullClassName.lastIndexOf('.')) : "";
         KiePMMLSessionUtils.Builder builder = KiePMMLSessionUtils.builder((KieBase) knowledgeBase, name, packageName,
                                                                           toReturn)
                 .withObjectsInSession(requestData, fieldTypeMap)
-                .withOutputFieldsMap(outputFieldsMap);
+                .withOutputFieldsMap(context.getOutputFieldsMap());
         if (logger.isDebugEnabled()) {
             builder = builder.withAgendaEventListener(agendaEventListener);
         }
@@ -88,7 +93,7 @@ public abstract class KiePMMLDroolsModel extends KiePMMLModel implements IsDrool
 
     @Override
     public String getKModulePackageName() {
-        return getSanitizedPackageName(name);
+        return kModulePackageName;
     }
 
     @Override
@@ -99,8 +104,6 @@ public abstract class KiePMMLDroolsModel extends KiePMMLModel implements IsDrool
                 .add("pmmlMODEL=" + pmmlMODEL)
                 .add("miningFunction=" + miningFunction)
                 .add("targetField='" + targetField + "'")
-                .add("outputFieldsMap=" + outputFieldsMap)
-                .add("missingValueReplacementMap=" + missingValueReplacementMap)
                 .add("name='" + name + "'")
                 .add("extensions=" + extensions)
                 .add("id='" + id + "'")
@@ -144,9 +147,5 @@ public abstract class KiePMMLDroolsModel extends KiePMMLModel implements IsDrool
             return this;
         }
 
-        public Builder<T> withOutputFields(List<KiePMMLOutputField> outputFields) {
-            toBuild.kiePMMLOutputFields = outputFields;
-            return this;
-        }
     }
 }

@@ -4,13 +4,15 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>org.drools</groupId>
-    <artifactId>drools</artifactId>
-    <version>7.58.0-SNAPSHOT</version>
+    <groupId>org.kie</groupId>
+    <artifactId>drools-build-parent</artifactId>
+    <version>8.22.0-SNAPSHOT</version>
+    <relativePath>../build-parent/pom.xml</relativePath>
   </parent>
 
+  <groupId>org.drools</groupId>
   <artifactId>drools-examples-api</artifactId>
-  <name>Drools API examples</name>
+  <name>Drools :: API examples</name>
 
   <packaging>pom</packaging>
 
@@ -19,7 +21,7 @@
       <dependency>
         <groupId>org.drools</groupId>
         <artifactId>kiebase-inclusion</artifactId>
-        <version>${version.org.kie}</version>
+        <version>${project.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -36,7 +38,6 @@
     <module>kiecontainer-from-kierepo</module>
     <module>multiple-kbases</module>
     <module>reactive-kiesession</module>
-    <module>ruleunit</module>
   </modules>
 
 

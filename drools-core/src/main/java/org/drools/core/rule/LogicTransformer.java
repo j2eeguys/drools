@@ -26,9 +26,9 @@ import java.util.Stack;
 import org.drools.core.base.ClassObjectType;
 import org.drools.core.base.extractors.ArrayElementReader;
 import org.drools.core.base.extractors.SelfReferenceClassFieldReader;
-import org.drools.core.spi.Constraint;
-import org.drools.core.spi.DataProvider;
-import org.drools.core.spi.DeclarationScopeResolver;
+import org.drools.core.rule.constraint.Constraint;
+import org.drools.core.rule.accessor.DataProvider;
+import org.drools.core.rule.accessor.DeclarationScopeResolver;
 
 /**
  * LogicTransformation is reponsible for removing redundant nodes and move Or
@@ -381,7 +381,7 @@ public class LogicTransformer {
         }
     }
 
-    void applyOrTransformation(final GroupElement parent) throws InvalidPatternException {
+    public void applyOrTransformation(final GroupElement parent) throws InvalidPatternException {
         final Transformation transformation = this.orTransformations.get( parent.getType() );
 
         if ( transformation == null ) {

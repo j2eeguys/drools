@@ -16,10 +16,10 @@
 
 package org.drools.modelcompiler.attributes;
 
-import org.drools.core.WorkingMemory;
-import org.drools.core.spi.KnowledgeHelper;
-import org.drools.core.spi.Salience;
-import org.drools.core.spi.Tuple;
+import org.drools.core.common.ReteEvaluator;
+import org.drools.core.rule.consequence.Activation;
+import org.drools.core.rule.accessor.Salience;
+import org.drools.core.reteoo.Tuple;
 import org.drools.model.DynamicValueSupplier;
 import org.kie.api.definition.rule.Rule;
 
@@ -32,9 +32,9 @@ public class LambdaSalience extends DynamicAttributeEvaluator<Integer> implement
     }
 
     @Override
-    public int getValue( KnowledgeHelper khelper, Rule rule, WorkingMemory workingMemory ) {
-        Tuple tuple = khelper.getMatch().getTuple();
-        Object[] facts = declarationsToFacts( workingMemory, tuple, getDeclarations(tuple), supplier.getVariables() );
+    public int getValue(Activation activation, Rule rule, ReteEvaluator reteEvaluator) {
+        Tuple tuple = activation.getTuple();
+        Object[] facts = declarationsToFacts( reteEvaluator, tuple, getDeclarations(tuple), supplier.getVariables() );
         return supplier.supply( facts );
     }
 

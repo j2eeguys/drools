@@ -16,21 +16,18 @@
 
 package org.drools.core.reteoo;
 
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
 import java.util.Arrays;
 
 import org.drools.core.RuleBaseConfiguration;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.InternalWorkingMemory;
 import org.drools.core.common.Memory;
 import org.drools.core.common.MemoryFactory;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.common.UpdateContext;
 import org.drools.core.reteoo.builder.BuildContext;
 import org.drools.core.rule.Declaration;
 import org.drools.core.rule.Pattern;
-import org.drools.core.spi.PropagationContext;
+import org.drools.core.common.PropagationContext;
 import org.drools.core.time.impl.Timer;
 import org.drools.core.util.AbstractBaseLinkedListNode;
 import org.drools.core.util.index.TupleList;
@@ -73,23 +70,6 @@ public class TimerNode extends LeftTupleSource
 
         hashcode = calculateHashCode();
 
-    }
-
-    public void readExternal(ObjectInput in) throws IOException,
-            ClassNotFoundException {
-        super.readExternal(in);
-        timer = (Timer) in.readObject();
-        calendarNames = (String[]) in.readObject();
-        tupleMemoryEnabled = in.readBoolean();
-        startEndDeclarations = ( Declaration[][] ) in.readObject();
-    }
-
-    public void writeExternal(ObjectOutput out) throws IOException {
-        super.writeExternal(out);
-        out.writeObject(timer);
-        out.writeObject( calendarNames );
-        out.writeBoolean(tupleMemoryEnabled);
-        out.writeObject(startEndDeclarations);
     }
 
     public void doAttach(BuildContext context) {
@@ -167,7 +147,7 @@ public class TimerNode extends LeftTupleSource
                this.timer.equals(other.timer);
     }
 
-    public TimerNodeMemory createMemory(final RuleBaseConfiguration config, InternalWorkingMemory wm) {
+    public TimerNodeMemory createMemory(final RuleBaseConfiguration config, ReteEvaluator reteEvaluator) {
         return new TimerNodeMemory();
     }
 

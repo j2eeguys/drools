@@ -16,9 +16,6 @@
 
 package org.drools.core.reteoo;
 
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -30,6 +27,7 @@ import org.drools.core.common.InternalFactHandle;
 import org.drools.core.common.InternalWorkingMemory;
 import org.drools.core.common.Memory;
 import org.drools.core.common.MemoryFactory;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.reteoo.ObjectTypeNode.ObjectTypeNodeMemory;
 import org.drools.core.reteoo.WindowNode.WindowMemory;
 import org.drools.core.reteoo.builder.BuildContext;
@@ -37,8 +35,9 @@ import org.drools.core.rule.Behavior;
 import org.drools.core.rule.BehaviorManager;
 import org.drools.core.rule.EntryPointId;
 import org.drools.core.rule.SlidingTimeWindow;
-import org.drools.core.spi.AlphaNodeFieldConstraint;
-import org.drools.core.spi.PropagationContext;
+import org.drools.core.rule.constraint.AlphaNodeFieldConstraint;
+import org.drools.core.base.ObjectType;
+import org.drools.core.common.PropagationContext;
 import org.drools.core.util.bitmask.BitMask;
 
 /**
@@ -83,10 +82,10 @@ public class WindowNode extends ObjectSource
                       final BuildContext context) {
         super(id,
               context.getPartitionId(),
-              context.getKnowledgeBase().getConfiguration().isMultithreadEvaluation(),
+              context.getRuleBase().getConfiguration().isMultithreadEvaluation(),
               objectSource,
-              context.getKnowledgeBase().getConfiguration().getAlphaNodeHashingThreshold(),
-              context.getKnowledgeBase().getConfiguration().getAlphaNodeRangeIndexThreshold());
+              context.getRuleBase().getConfiguration().getAlphaNodeHashingThreshold(),
+              context.getRuleBase().getConfiguration().getAlphaNodeRangeIndexThreshold());
         // needs to be cloned as the list is managed externally
         this.constraints = new ArrayList<AlphaNodeFieldConstraint>(constraints);
         this.behavior = new BehaviorManager(behaviors);
@@ -98,22 +97,6 @@ public class WindowNode extends ObjectSource
         }
         hashcode = calculateHashCode();
         initMemoryId( context );
-    }
-
-    @SuppressWarnings("unchecked")
-    public void readExternal(ObjectInput in) throws IOException,
-            ClassNotFoundException {
-        super.readExternal(in);
-        constraints = (List<AlphaNodeFieldConstraint>) in.readObject();
-        behavior = (BehaviorManager) in.readObject();
-        entryPoint = (EntryPointId) in.readObject();
-    }
-
-    public void writeExternal(ObjectOutput out) throws IOException {
-        super.writeExternal(out);
-        out.writeObject(constraints);
-        out.writeObject(behavior);
-        out.writeObject(entryPoint);
     }
 
     public short getType() {
@@ -142,10 +125,10 @@ public class WindowNode extends ObjectSource
 
     public void assertObject(final InternalFactHandle factHandle,
                              final PropagationContext pctx,
-                             final InternalWorkingMemory workingMemory) {
+                             final ReteEvaluator reteEvaluator) {
         EventFactHandle evFh = ( EventFactHandle ) factHandle;
         for (AlphaNodeFieldConstraint constraint : constraints) {
-            if (!constraint.isAllowed(evFh, workingMemory)) {
+            if (!constraint.isAllowed(evFh, reteEvaluator)) {
                 return;
             }
         }
@@ -157,29 +140,29 @@ public class WindowNode extends ObjectSource
         rightTuple.setContextObject( clonedFh );
 
         // process the behavior
-        final WindowMemory memory = workingMemory.getNodeMemory(this);
-        if (!behavior.assertFact(memory.behaviorContext, clonedFh, pctx, workingMemory)) {
+        final WindowMemory memory = reteEvaluator.getNodeMemory(this);
+        if (!behavior.assertFact(memory.behaviorContext, clonedFh, pctx, reteEvaluator)) {
             return;
         }
 
-        this.sink.propagateAssertObject(clonedFh, pctx, workingMemory);
+        this.sink.propagateAssertObject(clonedFh, pctx, reteEvaluator);
     }
 
     @Override
-    public void retractRightTuple(RightTuple rightTuple, PropagationContext pctx, InternalWorkingMemory wm) {
+    public void retractRightTuple(RightTuple rightTuple, PropagationContext pctx, ReteEvaluator reteEvaluator) {
         if (isInUse()) {
             // This retraction could be the effect of an event expiration, but this node could be no
             // longer in use since an incremental update could have concurrently removed it
-            WindowMemory memory = wm.getNodeMemory( this );
-            behavior.retractFact( memory.behaviorContext, rightTuple.getFactHandle(), pctx, wm );
+            WindowMemory memory = reteEvaluator.getNodeMemory( this );
+            behavior.retractFact( memory.behaviorContext, rightTuple.getFactHandle(), pctx, reteEvaluator );
         }
 
         InternalFactHandle clonedFh = ( InternalFactHandle ) rightTuple.getContextObject();
-        ObjectTypeNode.doRetractObject(clonedFh, pctx, wm);
+        ObjectTypeNode.doRetractObject(clonedFh, pctx, reteEvaluator);
     }
 
     @Override
-    public void modifyRightTuple(RightTuple rightTuple, PropagationContext context, InternalWorkingMemory workingMemory) {
+    public void modifyRightTuple(RightTuple rightTuple, PropagationContext context, ReteEvaluator reteEvaluator) {
         EventFactHandle originalFactHandle = ( EventFactHandle ) rightTuple.getFactHandle();
         EventFactHandle cloneFactHandle  = ( EventFactHandle ) rightTuple.getContextObject();
         originalFactHandle.quickCloneUpdate( cloneFactHandle ); // make sure all fields are updated
@@ -187,8 +170,7 @@ public class WindowNode extends ObjectSource
         // behavior modify
         boolean isAllowed = true;
         for (AlphaNodeFieldConstraint constraint : constraints) {
-            if (!constraint.isAllowed(cloneFactHandle,
-                                      workingMemory)) {
+            if (!constraint.isAllowed(cloneFactHandle, reteEvaluator)) {
                 isAllowed = false;
                 break;
             }
@@ -197,20 +179,17 @@ public class WindowNode extends ObjectSource
         if  ( isAllowed ) {
             ModifyPreviousTuples modifyPreviousTuples = new ModifyPreviousTuples(cloneFactHandle.detachLinkedTuples() );
 
-            this.sink.propagateModifyObject(cloneFactHandle,
-                                            modifyPreviousTuples,
-                                            context,
-                                            workingMemory);
-            modifyPreviousTuples.retractTuples(context, workingMemory);
+            this.sink.propagateModifyObject(cloneFactHandle, modifyPreviousTuples, context, reteEvaluator);
+            modifyPreviousTuples.retractTuples(context, reteEvaluator);
         } else {
-            ObjectTypeNode.doRetractObject(cloneFactHandle, context, workingMemory);
+            ObjectTypeNode.doRetractObject(cloneFactHandle, context, reteEvaluator);
         }
     }
 
     public void modifyObject(InternalFactHandle factHandle,
                              ModifyPreviousTuples modifyPreviousTuples,
                              PropagationContext context,
-                             InternalWorkingMemory wm) {
+                             ReteEvaluator reteEvaluator) {
         RightTuple rightTuple = modifyPreviousTuples.peekRightTuple(partitionId);
 
         // if the peek is for a different OTN we assume that it is after the current one and then this is an assert
@@ -219,42 +198,42 @@ public class WindowNode extends ObjectSource
 
             // we skipped this node, due to alpha hashing, so retract now
             rightTuple.setPropagationContext( context );
-            rightTuple.retractTuple( context, wm );
+            rightTuple.retractTuple( context, reteEvaluator );
             rightTuple = modifyPreviousTuples.peekRightTuple(partitionId);
         }
 
         if ( rightTuple != null && rightTuple.getInputOtnId().equals( getRightInputOtnId()) ) {
             modifyPreviousTuples.removeRightTuple(partitionId);
             rightTuple.reAdd();
-            modifyRightTuple( rightTuple, context, wm );
+            modifyRightTuple( rightTuple, context, reteEvaluator );
         } else {
             // RightTuple does not exist for this node, so create and continue as assert
-            assertObject( factHandle, context, wm );
+            assertObject( factHandle, context, reteEvaluator );
         }
     }
 
     public void byPassModifyToBetaNode(InternalFactHandle factHandle,
                                        ModifyPreviousTuples modifyPreviousTuples,
                                        PropagationContext context,
-                                       InternalWorkingMemory workingMemory) {
-        sink.byPassModifyToBetaNode(factHandle, modifyPreviousTuples, context, workingMemory);
+                                       ReteEvaluator reteEvaluator) {
+        sink.byPassModifyToBetaNode(factHandle, modifyPreviousTuples, context, reteEvaluator);
     }
 
     public void updateSink(final ObjectSink sink,
                            final PropagationContext context,
-                           final InternalWorkingMemory wm) {
-        final ObjectTypeNodeMemory omem = wm.getNodeMemory( getObjectTypeNode());
+                           final InternalWorkingMemory workingMemory) {
+        final ObjectTypeNodeMemory omem = workingMemory.getNodeMemory( getObjectTypeNode());
         Iterator<InternalFactHandle> it = omem.iterator();
 
         while (it.hasNext()) {
-            assertObject( it.next(), context, wm );
+            assertObject( it.next(), context, workingMemory );
         }
     }
 
     /**
      * Creates the WindowNode's memory.
      */
-    public WindowMemory createMemory(final RuleBaseConfiguration config, InternalWorkingMemory wm) {
+    public WindowMemory createMemory(final RuleBaseConfiguration config, ReteEvaluator reteEvaluator) {
         WindowMemory memory = new WindowMemory();
         memory.behaviorContext = this.behavior.createBehaviorContext();
         return memory;
@@ -322,7 +301,7 @@ public class WindowNode extends ObjectSource
     }
 
     @Override
-    public BitMask calculateDeclaredMask(Class modifiedClass, List<String> settableProperties) {
+    public BitMask calculateDeclaredMask(ObjectType modifiedType, List<String> settableProperties) {
         throw new UnsupportedOperationException();
     }
 

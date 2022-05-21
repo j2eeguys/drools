@@ -45,14 +45,15 @@ import com.github.javaparser.ast.expr.LambdaExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.SimpleName;
-import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.type.Type;
-import org.drools.compiler.lang.descr.RuleDescr;
+import org.drools.compiler.compiler.MissingDependencyError;
+import org.drools.drl.ast.descr.RuleDescr;
+import org.drools.core.common.TruthMaintenanceSystemFactory;
 import org.drools.core.factmodel.ClassDefinition;
-import org.drools.core.util.StringUtils;
+import org.drools.util.StringUtils;
 import org.drools.model.BitMask;
 import org.drools.model.bitmask.AllSetButLastBitMask;
 import org.drools.modelcompiler.builder.PackageModel;
@@ -68,10 +69,11 @@ import org.drools.mvelcompiler.MvelCompilerException;
 import static com.github.javaparser.StaticJavaParser.parseExpression;
 import static com.github.javaparser.ast.NodeList.nodeList;
 import static java.util.stream.Collectors.toSet;
-import static org.drools.core.util.ClassUtils.getter2property;
-import static org.drools.core.util.ClassUtils.isGetter;
-import static org.drools.core.util.ClassUtils.isSetter;
-import static org.drools.core.util.ClassUtils.setter2property;
+import static org.drools.util.ClassUtils.getter2property;
+import static org.drools.util.ClassUtils.isGetter;
+import static org.drools.util.ClassUtils.isReadableProperty;
+import static org.drools.util.ClassUtils.isSetter;
+import static org.drools.util.ClassUtils.setter2property;
 import static org.drools.modelcompiler.builder.PackageModel.DOMAIN_CLASSESS_METADATA_FILE_NAME;
 import static org.drools.modelcompiler.builder.PackageModel.DOMAIN_CLASS_METADATA_INSTANCE;
 import static org.drools.modelcompiler.builder.generator.DrlxParseUtil.addCurlyBracesToBlock;
@@ -79,12 +81,14 @@ import static org.drools.modelcompiler.builder.generator.DrlxParseUtil.findAllCh
 import static org.drools.modelcompiler.builder.generator.DrlxParseUtil.isNameExprWithName;
 import static org.drools.modelcompiler.builder.generator.DrlxParseUtil.parseBlock;
 import static org.drools.modelcompiler.builder.generator.DrlxParseUtil.toClassOrInterfaceType;
+import static org.drools.modelcompiler.builder.generator.DrlxParseUtil.toStringLiteral;
 import static org.drools.modelcompiler.builder.generator.DslMethodNames.BREAKING_CALL;
 import static org.drools.modelcompiler.builder.generator.DslMethodNames.EXECUTE_CALL;
 import static org.drools.modelcompiler.builder.generator.DslMethodNames.GET_CHANNEL_CALL;
 import static org.drools.modelcompiler.builder.generator.DslMethodNames.ON_CALL;
+import static org.drools.modelcompiler.builder.generator.DslMethodNames.createDslTopLevelMethod;
 import static org.drools.modelcompiler.util.ClassUtil.asJavaSourceName;
-import static org.drools.mvel.parser.printer.PrintUtil.printConstraint;
+import static org.drools.mvel.parser.printer.PrintUtil.printNode;
 
 public class Consequence {
 
@@ -295,7 +299,7 @@ public class Consequence {
         MethodCallExpr onCall = null;
 
         if (!usedArguments.isEmpty()) {
-            onCall = new MethodCallExpr(null, ON_CALL);
+            onCall = createDslTopLevelMethod(ON_CALL);
             usedArguments.stream().map(context::getVar).forEach(onCall::addArgument);
         }
         return onCall;
@@ -310,7 +314,7 @@ public class Consequence {
         ModifyCompiler modifyCompiler = new ModifyCompiler();
         CompiledBlockResult compile = modifyCompiler.compile(addCurlyBracesToBlock(consequence));
 
-        return printConstraint(compile.statementResults());
+        return printNode(compile.statementResults());
     }
 
     private boolean rewriteRHS(BlockStmt ruleBlock, BlockStmt rhs) {
@@ -321,11 +325,14 @@ public class Consequence {
 
         Map<String, Type> rhsBodyDeclarations = new HashMap<>();
         for (VariableDeclarator variableDeclarator : rhs.findAll(VariableDeclarator.class)) {
-            variableDeclarator.getInitializer().ifPresent( init -> rhsBodyDeclarations.put(variableDeclarator.getNameAsString(), variableDeclarator.getType()));
+            rhsBodyDeclarations.put(variableDeclarator.getNameAsString(), variableDeclarator.getType());
         }
 
         for (MethodCallExpr methodCallExpr : methodCallExprs) {
             if (!methodCallExpr.getScope().isPresent() && isImplicitDroolsMethod( methodCallExpr )) {
+                if ( methodCallExpr.getNameAsString().equals("insertLogical") && !TruthMaintenanceSystemFactory.present() ) {
+                    context.addCompilationError(new MissingDependencyError(TruthMaintenanceSystemFactory.NO_TMS));
+                }
                 methodCallExpr.setScope(new NameExpr("drools"));
             }
             if (hasDroolsScope( methodCallExpr ) || hasDroolsAsParameter( methodCallExpr )) {
@@ -397,7 +404,7 @@ public class Consequence {
             String domainClassSourceName = asJavaSourceName( updatedClass );
             bitMaskCreation = new MethodCallExpr(new NameExpr(BitMask.class.getCanonicalName()), "getPatternMask");
             bitMaskCreation.addArgument( DOMAIN_CLASSESS_METADATA_FILE_NAME + packageModel.getPackageUUID() + "." + domainClassSourceName + DOMAIN_CLASS_METADATA_INSTANCE );
-            modifiedProps.forEach(s -> bitMaskCreation.addArgument(new StringLiteralExpr(s)));
+            modifiedProps.forEach(s -> bitMaskCreation.addArgument(toStringLiteral(s)));
         } else {
             bitMaskCreation = new MethodCallExpr(new NameExpr(AllSetButLastBitMask.class.getCanonicalName()), "get");
         }
@@ -449,7 +456,9 @@ public class Consequence {
                     continue;
                 }
                 if (propName != null) {
-                    modifiedProps.add(propName);
+                    if (isReadableProperty( updatedClass, propName )) {
+                        modifiedProps.add(propName);
+                    }
                 } else {
                     // if we were unable to detect the property the mask has to be all set, so avoid the rest of the cycle
                     return new HashSet<>();

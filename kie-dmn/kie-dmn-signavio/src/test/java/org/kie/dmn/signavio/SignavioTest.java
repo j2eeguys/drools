@@ -18,7 +18,10 @@ package org.kie.dmn.signavio;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.Test;
 import org.kie.api.KieServices;
@@ -37,13 +40,7 @@ import org.kie.dmn.model.api.Definitions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.everyItem;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.iterableWithSize;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.hamcrest.core.Is.is;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -65,23 +62,23 @@ public class SignavioTest {
         DMNResult evaluateAll = runtime.evaluateAll(model0, context);
         LOG.info("{}", evaluateAll);
         
-        assertThat( (List<?>) evaluateAll.getContext().get( "Greeting for each Person in Persons" ), contains( "Hello p1", "Hello p2" ) );
+        assertThat((List<String>) evaluateAll.getContext().get("Greeting for each Person in Persons")).contains("Hello p1", "Hello p2");
     }
     
     @Test
-    public void test_unmarshall() {
+    public void testUnmarshall() {
         DMNRuntime runtime = createRuntime("Test_Signavio_multiple.dmn");
         DMNModel model0 = runtime.getModels().get(0);
         Definitions definitions = model0.getDefinitions();
         DRGElement decision = definitions.getDrgElement().stream().filter(e -> e.getName().equals("greetingForEachPersonInPersons")).findFirst().orElseThrow(IllegalStateException::new);
         Object extElement = decision.getExtensionElements().getAny().get(0);
-        assertThat(extElement, is(instanceOf(MultiInstanceDecisionLogic.class)));
+        assertThat(extElement).isInstanceOf(MultiInstanceDecisionLogic.class);
         MultiInstanceDecisionLogic mid = (MultiInstanceDecisionLogic) extElement;
         LOG.info("{}", mid);
-        assertThat(mid.getIterationExpression(), is("persons"));
-        assertThat(mid.getIteratorShapeId(), is("id-707bbdf74438414623ac5d7067805b38"));
-        assertThat(mid.getAggregationFunction(), is("COLLECT"));
-        assertThat(mid.getTopLevelDecisionId(), is("id-7a23e2f201e3e0db3c991313cff5cd2b"));
+        assertThat(mid.getIterationExpression()).isEqualTo("persons");
+        assertThat(mid.getIteratorShapeId()).isEqualTo("id-707bbdf74438414623ac5d7067805b38");
+        assertThat(mid.getAggregationFunction()).isEqualTo("COLLECT");
+        assertThat(mid.getTopLevelDecisionId()).isEqualTo("id-7a23e2f201e3e0db3c991313cff5cd2b");
     }
 
     @Test
@@ -143,7 +140,7 @@ public class SignavioTest {
         DMNResult evaluateAll = runtime.evaluateAll(model0, context);
         LOG.info("{}", evaluateAll);
 
-        assertThat(evaluateAll.getDecisionResultByName("iterating").getResult(), is(iterating));
+        assertThat(evaluateAll.getDecisionResultByName("iterating").getResult()).isEqualTo(iterating);
     }
 
     private DMNRuntime createRuntime(String modelFileName) {
@@ -231,8 +228,9 @@ public class SignavioTest {
         LOG.info("{}", evaluateAll);
     
         List<Object> result = (List<Object>) evaluateAll.getDecisionResultByName("calculate").getResult();
-        assertThat(result, iterableWithSize(6));
-        assertThat(result, everyItem(notNullValue()));
+        assertThat(result).hasSize(6);
+        
+        assertThat(result).doesNotContainNull();
     }
     
     
@@ -266,7 +264,59 @@ public class SignavioTest {
         DMNResult evaluateAll = runtime.evaluateAll(model0, context);
         LOG.info("{}", evaluateAll);
         
-        assertThat((List<?>) evaluateAll.getDecisionResultByName("zipvararg").getResult(), iterableWithSize(2));
-        assertThat((List<?>) evaluateAll.getDecisionResultByName("zipsinglelist").getResult(), iterableWithSize(2));
+        assertThat((List<?>) evaluateAll.getDecisionResultByName("zipvararg").getResult()).hasSize(2);
+        assertThat((List<?>) evaluateAll.getDecisionResultByName("zipsinglelist").getResult()).hasSize(2);
+    }
+    
+    @Test
+    public void testSignavioIterateMultiinstanceWithComplexInputs() {
+        DMNRuntime runtime = createRuntime("Iterate Complex List.dmn");
+        
+        DMNContext context = runtime.newContext();
+        Map<String, Object> johnDoe = new HashMap<>();
+        johnDoe.put("iD", "id-john");
+        johnDoe.put("name", "John Doe");
+        Map<String, Object> alice = new HashMap<>();
+        alice.put("iD", "id-alice");
+        alice.put("name", "Alice");
+        context.set("customer", Collections.singletonMap("persons", Arrays.asList(johnDoe, alice)));
+        
+        DMNModel model0 = runtime.getModels().get(0);
+        LOG.info("EVALUATE ALL:");
+        DMNResult evaluateAll = runtime.evaluateAll(model0, context);
+        LOG.info("{}", evaluateAll);
+    
+        assertEquals(Arrays.asList("John Doe", "Alice"), evaluateAll.getDecisionResultByName("extractNames").getResult());
+    }
+    
+    @Test
+    public void testSignavioIterateMultiinstanceMultipleDecisions() {
+        DMNRuntime runtime = createRuntime("MID with multiple inside decisions.dmn");
+        
+        DMNContext context = runtime.newContext();
+        context.set("names", Arrays.asList("John", "Alice"));
+        
+        DMNModel model0 = runtime.getModels().get(0);
+        LOG.info("EVALUATE ALL:");
+        DMNResult evaluateAll = runtime.evaluateAll(model0, context);
+        LOG.info("{}", evaluateAll);
+    
+        assertThat(evaluateAll.getDecisionResultByName("overallage").getResult()).isEqualTo(new BigDecimal("18"));
+    }
+    
+    @Test
+    public void testSignavioIterateMultiinstanceMultipleDecisionsOutside() {
+        DMNRuntime runtime = createRuntime("MID with outside requirement.dmn");
+        
+        DMNContext context = runtime.newContext();
+        context.set("numbers", Arrays.asList(1,2,3));
+        context.set("operand", "PLUS");
+        
+        DMNModel model0 = runtime.getModels().get(0);
+        LOG.info("EVALUATE ALL:");
+        DMNResult evaluateAll = runtime.evaluateAll(model0, context);
+        LOG.info("{}", evaluateAll);
+    
+        assertThat(evaluateAll.getDecisionResultByName("sumUp").getResult()).isEqualTo(new BigDecimal("6"));
     }
 }

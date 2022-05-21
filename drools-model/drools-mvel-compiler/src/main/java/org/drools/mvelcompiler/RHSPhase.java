@@ -21,10 +21,8 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.VariableDeclarator;
@@ -41,18 +39,23 @@ import com.github.javaparser.ast.expr.LongLiteralExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NullLiteralExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
+import com.github.javaparser.ast.expr.PatternExpr;
 import com.github.javaparser.ast.expr.SimpleName;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
+import com.github.javaparser.ast.expr.TextBlockLiteralExpr;
+import com.github.javaparser.ast.expr.UnaryExpr;
 import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
-import org.drools.core.util.ClassUtils;
-import org.drools.core.util.MethodUtils;
-import org.drools.core.util.MethodUtils.NullType;
+import com.github.javaparser.ast.stmt.YieldStmt;
+import org.drools.util.ClassUtils;
+import org.drools.util.MethodUtils.NullType;
 import org.drools.mvel.parser.ast.expr.BigDecimalLiteralExpr;
+import org.drools.mvel.parser.ast.expr.BigIntegerLiteralExpr;
 import org.drools.mvel.parser.ast.expr.DrlNameExpr;
 import org.drools.mvel.parser.ast.visitor.DrlGenericVisitor;
 import org.drools.mvelcompiler.ast.BigDecimalArithmeticExprT;
 import org.drools.mvelcompiler.ast.BigDecimalConvertedExprT;
+import org.drools.mvelcompiler.ast.BigIntegerConvertedExprT;
 import org.drools.mvelcompiler.ast.BinaryExprT;
 import org.drools.mvelcompiler.ast.CastExprT;
 import org.drools.mvelcompiler.ast.CharacterLiteralExpressionT;
@@ -61,22 +64,18 @@ import org.drools.mvelcompiler.ast.FieldToAccessorTExpr;
 import org.drools.mvelcompiler.ast.IntegerLiteralExpressionT;
 import org.drools.mvelcompiler.ast.ListAccessExprT;
 import org.drools.mvelcompiler.ast.LongLiteralExpressionT;
-import org.drools.mvelcompiler.ast.MethodCallExprT;
 import org.drools.mvelcompiler.ast.ObjectCreationExpressionT;
 import org.drools.mvelcompiler.ast.SimpleNameTExpr;
 import org.drools.mvelcompiler.ast.StringLiteralExpressionT;
 import org.drools.mvelcompiler.ast.TypedExpression;
 import org.drools.mvelcompiler.ast.UnalteredTypedExpression;
 import org.drools.mvelcompiler.context.Declaration;
-import org.drools.mvelcompiler.context.DeclaredFunction;
 import org.drools.mvelcompiler.context.MvelCompilerContext;
 import org.drools.mvelcompiler.util.TypeUtils;
 
 import static java.util.Arrays.asList;
 import static java.util.Optional.ofNullable;
-
-import static org.drools.core.util.ClassUtils.getAccessor;
-import static org.drools.core.util.StreamUtils.optionalToStream;
+import static org.drools.util.ClassUtils.getAccessor;
 import static org.drools.mvelcompiler.ast.BigDecimalArithmeticExprT.toBigDecimalMethod;
 import static org.drools.mvelcompiler.util.OptionalUtils.map2;
 import static org.drools.mvelcompiler.util.TypeUtils.classFromType;
@@ -138,6 +137,21 @@ public class RHSPhase implements DrlGenericVisitor<TypedExpression, RHSPhase.Con
         }
     }
 
+    @Override
+    public TypedExpression visit(YieldStmt n, Context arg) {
+        return null;
+    }
+
+    @Override
+    public TypedExpression visit(TextBlockLiteralExpr n, Context arg) {
+        return null;
+    }
+
+    @Override
+    public TypedExpression visit(PatternExpr n, Context arg) {
+        return null;
+    }
+
     private TypedExpression simpleNameAsFirstNode(SimpleName n) {
         return asDeclaration(n)
                 .map(Optional::of)
@@ -182,12 +196,16 @@ public class RHSPhase implements DrlGenericVisitor<TypedExpression, RHSPhase.Con
 
     private Optional<TypedExpression> asPropertyAccessor(SimpleName n, Context arg) {
         Optional<TypedExpression> lastTypedExpression = arg.scope;
-        Optional<Type> scopeType = arg.getScopeType();
+
+        Optional<Type> scopeType = lastTypedExpression.filter(ListAccessExprT.class::isInstance)
+                                                      .map(ListAccessExprT.class::cast)
+                                                      .map(expr -> expr.getElementType())
+                                                      .orElse(arg.getScopeType());
+
         Optional<Method> optAccessor = scopeType.flatMap(t -> ofNullable(getAccessor(classFromType(t), n.asString())));
 
         return map2(lastTypedExpression, optAccessor, FieldToAccessorTExpr::new);
     }
-
 
     private Optional<TypedExpression> asPropertyAccessorOfRootPattern(SimpleName n) {
         Optional<Class<?>> scopeType = mvelCompilerContext.getRootPattern();
@@ -342,6 +360,24 @@ public class RHSPhase implements DrlGenericVisitor<TypedExpression, RHSPhase.Con
     @Override
     public TypedExpression visit(BigDecimalLiteralExpr n, Context arg) {
         return new BigDecimalConvertedExprT(new StringLiteralExpressionT(new StringLiteralExpr(n.getValue())));
+    }
+
+    @Override
+    public TypedExpression visit(BigIntegerLiteralExpr n, Context arg) {
+        return new BigIntegerConvertedExprT(new StringLiteralExpressionT(new StringLiteralExpr(n.getValue())));
+    }
+
+    @Override
+    public TypedExpression visit(UnaryExpr n, Context arg) {
+        Expression innerExpr = n.getExpression();
+        UnaryExpr.Operator operator = n.getOperator();
+        if (innerExpr instanceof BigDecimalLiteralExpr && operator == UnaryExpr.Operator.MINUS) {
+            return new BigDecimalConvertedExprT(new StringLiteralExpressionT(new StringLiteralExpr(operator.asString() + ((BigDecimalLiteralExpr) innerExpr).getValue())));
+        } else if (innerExpr instanceof BigIntegerLiteralExpr && operator == UnaryExpr.Operator.MINUS) {
+            return new BigIntegerConvertedExprT(new StringLiteralExpressionT(new StringLiteralExpr(operator.asString() + ((BigIntegerLiteralExpr) innerExpr).getValue())));
+        } else {
+            return defaultMethod(n, arg);
+        }
     }
 
     private Class<?> resolveType(com.github.javaparser.ast.type.Type type) {

@@ -19,7 +19,7 @@ import java.io.File;
 import java.io.FilenameFilter;
 
 import org.apache.commons.io.FileUtils;
-import org.drools.core.util.IoUtils;
+import org.drools.util.IoUtils;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -96,8 +96,8 @@ public class DumpGeneratedDrlTest {
     @Test
     public void testUseReleaseIdInGeneratedDumpForProjectResource() {
         ReleaseId releaseId = KieServices.get().getRepository().getDefaultReleaseId();
-        new KieHelper().addContent(DUMMY_DTABLE_CSV_SOURCE, "some/source/path/project-dtable.csv").build();
-        assertGeneratedDrlExists(dumpDir, releaseId.getGroupId() + "_" + releaseId.getArtifactId() + "_" + "some_source_path_project-dtable.csv.drl");
+        new KieHelper().addContent(DUMMY_DTABLE_CSV_SOURCE, "some/source/path/project-dtable.drl.csv").build();
+        assertGeneratedDrlExists(dumpDir, releaseId.getGroupId() + "_" + releaseId.getArtifactId() + "_" + "some_source_path_project-dtable.drl.csv.drl");
     }
 
     @After

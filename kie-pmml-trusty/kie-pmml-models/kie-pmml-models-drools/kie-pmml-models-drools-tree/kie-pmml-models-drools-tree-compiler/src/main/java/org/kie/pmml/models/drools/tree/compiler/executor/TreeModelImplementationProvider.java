@@ -18,14 +18,14 @@ package org.kie.pmml.models.drools.tree.compiler.executor;
 import java.util.List;
 import java.util.Map;
 
-import org.dmg.pmml.DataDictionary;
-import org.dmg.pmml.TransformationDictionary;
+import org.dmg.pmml.Field;
 import org.dmg.pmml.tree.TreeModel;
 import org.kie.pmml.api.enums.PMML_MODEL;
 import org.kie.pmml.api.exceptions.KiePMMLException;
-import org.kie.pmml.commons.model.HasClassLoader;
+import org.kie.pmml.commons.model.KiePMMLModel;
 import org.kie.pmml.models.drools.ast.KiePMMLDroolsAST;
 import org.kie.pmml.models.drools.ast.KiePMMLDroolsType;
+import org.kie.pmml.models.drools.dto.DroolsCompilationDTO;
 import org.kie.pmml.models.drools.provider.DroolsModelProvider;
 import org.kie.pmml.models.drools.tree.compiler.factories.KiePMMLTreeModelFactory;
 import org.kie.pmml.models.drools.tree.model.KiePMMLTreeModel;
@@ -44,34 +44,29 @@ public class TreeModelImplementationProvider extends DroolsModelProvider<TreeMod
     }
 
     @Override
-    public KiePMMLTreeModel getKiePMMLDroolsModel(final DataDictionary dataDictionary,
-                                                  final TransformationDictionary transformationDictionary,
-                                                  final TreeModel model,
-                                                  final Map<String, KiePMMLOriginalTypeGeneratedType> fieldTypeMap,
-                                                  final String packageName,
-                                                  final HasClassLoader hasClassLoader) {
+    public Class<KiePMMLTreeModel> getKiePMMLModelClass() {
+        return KiePMMLTreeModel.class;
+    }
+
+    @Override
+    public KiePMMLTreeModel getKiePMMLDroolsModel(final DroolsCompilationDTO<TreeModel> compilationDTO) {
         try {
-            return KiePMMLTreeModelFactory.getKiePMMLTreeModel(dataDictionary,
-                                                               transformationDictionary,
-                                                               model,
-                                                               fieldTypeMap,
-                                                               packageName,
-                                                               hasClassLoader);
+            return KiePMMLTreeModelFactory.getKiePMMLTreeModel(compilationDTO);
         } catch (IllegalAccessException | InstantiationException e) {
             throw new KiePMMLException(e.getMessage(), e);
         }
     }
 
     @Override
-    public KiePMMLDroolsAST getKiePMMLDroolsAST(final DataDictionary dataDictionary,
+    public KiePMMLDroolsAST getKiePMMLDroolsAST(final List<Field<?>> fields,
                                                 final TreeModel model,
                                                 final Map<String, KiePMMLOriginalTypeGeneratedType> fieldTypeMap,
-                                                final List<KiePMMLDroolsType> types){
-        return KiePMMLTreeModelFactory.getKiePMMLDroolsAST(dataDictionary, model, fieldTypeMap, types);
+                                                final List<KiePMMLDroolsType> types) {
+        return KiePMMLTreeModelFactory.getKiePMMLDroolsAST(fields, model, fieldTypeMap, types);
     }
 
     @Override
-    public Map<String, String> getKiePMMLDroolsModelSourcesMap(final DataDictionary dataDictionary, final TransformationDictionary transformationDictionary, final TreeModel model, final Map<String, KiePMMLOriginalTypeGeneratedType> fieldTypeMap, final String packageName) {
-        return KiePMMLTreeModelFactory.getKiePMMLTreeModelSourcesMap(dataDictionary, transformationDictionary, model, fieldTypeMap, packageName);
+    public Map<String, String> getKiePMMLDroolsModelSourcesMap(final DroolsCompilationDTO<TreeModel> compilationDTO) {
+        return KiePMMLTreeModelFactory.getKiePMMLTreeModelSourcesMap(compilationDTO);
     }
 }

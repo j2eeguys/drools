@@ -20,7 +20,7 @@ import java.util.Map;
 
 import org.drools.core.common.BaseNode;
 import org.drools.core.common.InternalWorkingMemory;
-import org.drools.core.impl.InternalKnowledgeBase;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
 import org.kie.api.marshalling.ObjectMarshallingStrategyStore;
 import org.kie.api.runtime.Environment;
 
@@ -33,7 +33,7 @@ public class ProtobufProcessMarshallerWriteContext extends ProtobufMarshallerWri
     public static final int STATE_ACTIVE = 1;
     public static final int STATE_COMPLETED = 2;
 
-    private Long processInstanceId;
+    private String processInstanceId;
     private Long taskId;
     private Long workItemId;
     private int state;
@@ -48,11 +48,11 @@ public class ProtobufProcessMarshallerWriteContext extends ProtobufMarshallerWri
         super(stream, kBase, wm, sinks, resolverStrategyFactory, env);
     }
     
-    public Long getProcessInstanceId() {
+    public String getProcessInstanceId() {
         return processInstanceId;
     }
     
-    public void setProcessInstanceId(Long processInstanceId) {
+    public void setProcessInstanceId(String processInstanceId) {
         this.processInstanceId = processInstanceId;
     }
     

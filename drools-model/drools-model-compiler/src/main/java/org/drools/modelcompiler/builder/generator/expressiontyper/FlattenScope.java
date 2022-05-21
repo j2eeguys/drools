@@ -25,15 +25,17 @@ import java.util.Optional;
 
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.expr.ArrayAccessExpr;
+import com.github.javaparser.ast.expr.EnclosedExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.Name;
-import org.drools.core.addon.TypeResolver;
+import org.drools.util.TypeResolver;
 import org.drools.mvel.parser.ast.expr.FullyQualifiedInlineCastExpr;
 import org.drools.mvel.parser.ast.expr.InlineCastExpr;
 import org.drools.mvel.parser.ast.expr.NullSafeFieldAccessExpr;
 import org.drools.mvel.parser.ast.expr.NullSafeMethodCallExpr;
+import org.drools.mvel.parser.printer.PrintUtil;
 
 import static org.drools.modelcompiler.builder.generator.DrlxParseUtil.toClassOrInterfaceType;
 
@@ -77,6 +79,8 @@ public class FlattenScope {
             ArrayAccessExpr arrayAccessExpr = (ArrayAccessExpr) expressionWithScope;
             res.addAll(flattenScope( typeResolver, arrayAccessExpr.getName()) );
             res.add(arrayAccessExpr);
+        } else if (expressionWithScope instanceof EnclosedExpr) {
+            res.addAll(flattenScope(typeResolver, ((EnclosedExpr) expressionWithScope).getInner()));
         } else {
             res.add(expressionWithScope);
         }
@@ -130,7 +134,7 @@ public class FlattenScope {
     private static boolean isFullyQualifiedClassName( TypeResolver typeResolver, Expression scope ) {
         if (scope instanceof FieldAccessExpr ) {
             try {
-                typeResolver.resolveType( scope.toString() );
+                typeResolver.resolveType( PrintUtil.printNode(scope) );
                 return true;
             } catch (ClassNotFoundException e) {
                 // ignore

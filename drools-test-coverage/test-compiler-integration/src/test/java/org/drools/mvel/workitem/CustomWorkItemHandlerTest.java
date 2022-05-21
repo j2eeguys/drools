@@ -18,7 +18,8 @@ import java.util.Properties;
 
 import org.drools.core.SessionConfiguration;
 import org.drools.core.impl.EnvironmentFactory;
-import org.drools.core.impl.KnowledgeBaseFactory;
+import org.drools.core.impl.RuleBaseFactory;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
 import org.junit.Test;
 import org.kie.api.KieBase;
 import org.kie.api.runtime.KieSession;
@@ -26,8 +27,8 @@ import org.kie.api.runtime.KieSessionConfiguration;
 import org.kie.api.runtime.process.WorkItemHandler;
 import org.kie.api.runtime.process.WorkItemManager;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 public class CustomWorkItemHandlerTest {
@@ -37,16 +38,16 @@ public class CustomWorkItemHandlerTest {
         KieBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
         Properties props = new Properties();
         props.setProperty("drools.workItemHandlers", "CustomWorkItemHandlers.conf");
-        KieSessionConfiguration config = KnowledgeBaseFactory.newKnowledgeSessionConfiguration(props);
+        KieSessionConfiguration config = RuleBaseFactory.newKnowledgeSessionConfiguration(props);
         
         KieSession ksession = kbase.newKieSession(config, EnvironmentFactory.newEnvironment());
-        assertNotNull(ksession);
+        assertThat(ksession).isNotNull();
         // this test would fail on creation of the work item manager if injecting session is not supported
         WorkItemManager manager = ksession.getWorkItemManager();
-        assertNotNull(manager);
+        assertThat(manager).isNotNull();
         
         Map<String, WorkItemHandler> handlers = ((SessionConfiguration)config).getWorkItemHandlers();
-        assertNotNull(handlers);
+        assertThat(handlers).isNotNull();
         assertEquals(1, handlers.size());
         assertTrue(handlers.containsKey("Custom"));
     }

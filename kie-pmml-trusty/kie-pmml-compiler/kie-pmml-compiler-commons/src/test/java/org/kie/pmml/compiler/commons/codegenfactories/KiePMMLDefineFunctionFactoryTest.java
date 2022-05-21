@@ -16,6 +16,7 @@
 
 package org.kie.pmml.compiler.commons.codegenfactories;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -36,11 +37,13 @@ import org.kie.pmml.commons.model.expressions.KiePMMLConstant;
 import org.kie.pmml.commons.model.expressions.KiePMMLFieldRef;
 import org.kie.pmml.commons.transformations.KiePMMLDefineFunction;
 import org.kie.pmml.commons.transformations.KiePMMLParameterField;
-import org.kie.pmml.compiler.commons.codegenfactories.KiePMMLDefineFunctionFactory;
 import org.kie.pmml.compiler.commons.utils.JavaParserUtils;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.kie.pmml.compiler.api.CommonTestingUtils.getDATA_TYPEString;
+import static org.kie.pmml.compiler.api.CommonTestingUtils.getOP_TYPEString;
 import static org.kie.pmml.compiler.commons.testutils.CodegenTestUtils.commonValidateCompilationWithImports;
+import static org.kie.test.util.filesystem.FileUtils.getFileContent;
 
 public class KiePMMLDefineFunctionFactoryTest {
 
@@ -48,9 +51,10 @@ public class KiePMMLDefineFunctionFactoryTest {
     private static final String PARAM_1 = "PARAM_1";
     private static final String PARAM_2 = "PARAM_2";
     private static final Double value1 = 100.0;
+    private static final String TEST_01_SOURCE = "KiePMMLDefineFunctionFactoryTest_01.txt";
 
     @Test
-    public void getDefineFunctionVariableDeclaration() {
+    public void getDefineFunctionVariableDeclaration() throws IOException {
         ParameterField parameterField1 = new ParameterField(FieldName.create(PARAM_1));
         parameterField1.setDataType(DataType.DOUBLE);
         parameterField1.setOpType(OpType.CONTINUOUS);
@@ -72,59 +76,31 @@ public class KiePMMLDefineFunctionFactoryTest {
         defineFunction.setDataType(DataType.DOUBLE);
         defineFunction.setOpType(OpType.CONTINUOUS);
         defineFunction.setExpression(apply);
+        String dataType1 = getDATA_TYPEString(parameterField1.getDataType());
+        String dataType2 = getDATA_TYPEString(parameterField2.getDataType());
+        String dataType3 = getDATA_TYPEString(defineFunction.getDataType());
+        String opType1 = getOP_TYPEString(parameterField1.getOpType());
+        String opType2 = getOP_TYPEString(parameterField2.getOpType());
+        String opType3 = getOP_TYPEString(defineFunction.getOpType());
         BlockStmt retrieved = KiePMMLDefineFunctionFactory.getDefineFunctionVariableDeclaration(defineFunction);
+        String text = getFileContent(TEST_01_SOURCE);
         Statement expected = JavaParserUtils
-                .parseBlock(String.format("{\n" +
-                                                  "    KiePMMLParameterField CUSTOM_FUNCTION_0 = " +
-                                                  "KiePMMLParameterField.builder(\"%s\", Collections" +
-                                                  ".emptyList())" +
-                                                  ".withDataType(\"%s\")" +
-                                                  ".withOpType(\"%s\")" +
-                                                  ".withDisplayName(\"%s\")" +
-                                                  ".build();\n" +
-                                                  "    KiePMMLParameterField CUSTOM_FUNCTION_1 = " +
-                                                  "KiePMMLParameterField.builder(\"%s\", Collections" +
-                                                  ".emptyList()).withDataType(\"%s\")" +
-                                                  ".withOpType(\"%s\")" +
-                                                  ".withDisplayName(\"%s\")" +
-                                                  ".build();\n" +
-                                                  "    KiePMMLConstant CUSTOM_FUNCTION_Expression_0 = " +
-                                                  "new KiePMMLConstant(\"CUSTOM_FUNCTION_Expression_0\", " +
-                                                  "Collections.emptyList(), %s);\n" +
-                                                  "    KiePMMLFieldRef CUSTOM_FUNCTION_Expression_1 = " +
-                                                  "new KiePMMLFieldRef(\"%s\", Collections.emptyList(), null);" +
-                                                  "\n" +
-                                                  "    KiePMMLApply CUSTOM_FUNCTION_Expression = " +
-                                                  "KiePMMLApply.builder(\"CUSTOM_FUNCTION_Expression\", Collections" +
-                                                  ".emptyList(), \"%s\")" +
-                                                  ".withDefaultValue(null)" +
-                                                  ".withMapMissingTo(null)" +
-                                                  ".withInvalidValueTreatmentMethod" +
-                                                  "(\"%s\")" +
-                                                  ".withKiePMMLExpressions(Arrays.asList" +
-                                                  "(CUSTOM_FUNCTION_Expression_0, CUSTOM_FUNCTION_Expression_1))" +
-                                                  ".build()" +
-                                                  ";\n" +
-                                                  "    KiePMMLDefineFunction CUSTOM_FUNCTION = " +
-                                                  "new KiePMMLDefineFunction(\"CUSTOM_FUNCTION\", Collections" +
-                                                  ".emptyList(), \"%s\", Arrays" +
-                                                  ".asList(CUSTOM_FUNCTION_0, CUSTOM_FUNCTION_1), " +
-                                                  "CUSTOM_FUNCTION_Expression);\n" +
-                                                  "}",
+                .parseBlock(String.format(text,
                                           parameterField1.getName().getValue(),
-                                          parameterField1.getDataType().value(),
-                                          parameterField1.getOpType().value(),
+                                          dataType1,
+                                          opType1,
                                           parameterField1.getDisplayName(),
                                           parameterField2.getName().getValue(),
-                                          parameterField2.getDataType().value(),
-                                          parameterField2.getOpType().value(),
+                                          dataType2,
+                                          opType2,
                                           parameterField2.getDisplayName(),
                                           constant.getValue(),
                                           fieldRef.getField().getValue(),
                                           apply.getFunction(),
                                           apply.getInvalidValueTreatment().value(),
-                                          defineFunction.getOpType().value()));
-        assertTrue(JavaParserUtils.equalsNode(expected, retrieved));
+                                          dataType3,
+                                          opType3));
+        assertThat(JavaParserUtils.equalsNode(expected, retrieved)).isTrue();
         List<Class<?>> imports = Arrays.asList(KiePMMLParameterField.class,
                                                KiePMMLConstant.class,
                                                KiePMMLFieldRef.class,

@@ -5,10 +5,11 @@
   <parent>
     <artifactId>kie-dmn-pmml-tests-parent</artifactId>
     <groupId>org.kie</groupId>
-    <version>7.58.0-SNAPSHOT</version>
+    <version>8.22.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
+  <name>KiE :: Decision Model Notation - PMML Tests</name>
   <artifactId>kie-dmn-pmml-tests</artifactId>
 
   <dependencies>
@@ -39,11 +40,6 @@
       <artifactId>slf4j-api</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.hamcrest</groupId>
-      <artifactId>hamcrest-library</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <scope>test</scope>
@@ -71,8 +67,8 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>org.jboss.spec.javax.xml.bind</groupId>
-      <artifactId>jboss-jaxb-api_2.3_spec</artifactId>
+      <groupId>jakarta.xml.bind</groupId>
+      <artifactId>jakarta.xml.bind-api</artifactId>
       <scope>provided</scope>
     </dependency>
   </dependencies>

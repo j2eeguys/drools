@@ -24,14 +24,15 @@ import java.util.Collections;
 import java.util.List;
 
 import org.drools.core.base.ClassObjectType;
-import org.drools.core.base.evaluators.TimeIntervalParser;
 import org.drools.core.factmodel.ClassDefinition;
 import org.drools.core.factmodel.GeneratedFact;
 import org.drools.core.facttemplates.FactTemplate;
 import org.drools.core.facttemplates.FactTemplateObjectType;
-import org.drools.core.spi.InternalReadAccessor;
-import org.drools.core.spi.ObjectType;
-import org.drools.core.util.ClassUtils;
+import org.drools.core.rule.accessor.ReadAccessor;
+import org.drools.core.base.ObjectType;
+import org.drools.core.util.PropertyReactivityUtil;
+import org.drools.core.util.TimeIntervalParser;
+import org.drools.util.ClassUtils;
 import org.kie.api.definition.type.ClassReactive;
 import org.kie.api.definition.type.Expires;
 import org.kie.api.definition.type.Expires.Policy;
@@ -103,8 +104,8 @@ public class TypeDeclaration
     private Nature                 nature;
     private String                 timestampAttribute;
     private String                 durationAttribute;
-    private InternalReadAccessor   durationExtractor;
-    private InternalReadAccessor   timestampExtractor;
+    private ReadAccessor           durationExtractor;
+    private ReadAccessor           timestampExtractor;
     private transient Class< ? >   typeClass;
     private String                 typeClassName;
     private FactTemplate           typeTemplate;
@@ -115,7 +116,7 @@ public class TypeDeclaration
     private boolean                novel;
     private boolean                valid;
     private boolean                propertyReactive;
-    private boolean javaBased;
+    private boolean                javaBased;
     private transient List<String> accessibleProperties;
 
     private transient ObjectType   objectType;
@@ -177,8 +178,8 @@ public class TypeDeclaration
         this.typeClassName = (String) in.readObject();
         this.typeTemplate = (FactTemplate) in.readObject();
         this.typeClassDef = (ClassDefinition) in.readObject();
-        this.durationExtractor = (InternalReadAccessor) in.readObject();
-        this.timestampExtractor = (InternalReadAccessor) in.readObject();
+        this.durationExtractor = (ReadAccessor) in.readObject();
+        this.timestampExtractor = (ReadAccessor) in.readObject();
         this.resource = (Resource) in.readObject();
         this.expirationOffset = in.readLong();
         this.expirationPolicy = (Expires.Policy) in.readObject();
@@ -388,11 +389,11 @@ public class TypeDeclaration
         return true;
     }
 
-    public InternalReadAccessor getDurationExtractor() {
+    public ReadAccessor getDurationExtractor() {
         return durationExtractor;
     }
 
-    public void setDurationExtractor(InternalReadAccessor durationExtractor) {
+    public void setDurationExtractor(ReadAccessor durationExtractor) {
         this.durationExtractor = durationExtractor;
     }
 
@@ -410,11 +411,11 @@ public class TypeDeclaration
         this.typeClassDef = typeClassDef;
     }
 
-    public InternalReadAccessor getTimestampExtractor() {
+    public ReadAccessor getTimestampExtractor() {
         return timestampExtractor;
     }
 
-    public void setTimestampExtractor(InternalReadAccessor timestampExtractor) {
+    public void setTimestampExtractor(ReadAccessor timestampExtractor) {
         this.timestampExtractor = timestampExtractor;
     }
 
@@ -500,7 +501,7 @@ public class TypeDeclaration
 
     public List<String> getAccessibleProperties() {
         if ( accessibleProperties == null ) {
-            accessibleProperties = propertyReactive ? ClassUtils.getAccessibleProperties( getTypeClass() ) : Collections.emptyList();
+            accessibleProperties = propertyReactive ? PropertyReactivityUtil.getAccessibleProperties( getTypeClass() ) : Collections.emptyList();
         }
         return accessibleProperties;
     }

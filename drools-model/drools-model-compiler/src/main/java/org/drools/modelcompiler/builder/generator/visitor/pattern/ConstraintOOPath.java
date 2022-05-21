@@ -19,7 +19,7 @@ package org.drools.modelcompiler.builder.generator.visitor.pattern;
 
 import java.util.Optional;
 
-import org.drools.compiler.lang.descr.PatternDescr;
+import org.drools.drl.ast.descr.PatternDescr;
 import org.drools.modelcompiler.builder.PackageModel;
 import org.drools.modelcompiler.builder.generator.OOPathExprGenerator;
 import org.drools.modelcompiler.builder.generator.RuleContext;
@@ -36,13 +36,13 @@ class ConstraintOOPath implements DSLNode {
     private final String expression;
     private final DrlxParseSuccess drlxParseResult;
 
-    public ConstraintOOPath(RuleContext context, PackageModel packageModel, PatternDescr pattern, Class<?> patternType, PatternConstraintParseResult patternConstraintParseResult, String expression, DrlxParseSuccess drlxParseResult) {
+    public ConstraintOOPath(RuleContext context, PackageModel packageModel, PatternDescr pattern, Class<?> patternType, PatternConstraintParseResult patternConstraintParseResult, DrlxParseSuccess drlxParseResult) {
         this.context = context;
         this.packageModel = packageModel;
         this.pattern = pattern;
         this.patternType = patternType;
         this.patternConstraintParseResult = patternConstraintParseResult;
-        this.expression = expression;
+        this.expression = patternConstraintParseResult.getExpression();
         this.drlxParseResult = drlxParseResult;
     }
 

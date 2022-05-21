@@ -29,22 +29,24 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.expr.Name;
-import com.github.javaparser.printer.PrettyPrinter;
-import com.github.javaparser.printer.PrettyPrinterConfiguration;
-import org.drools.compiler.builder.impl.KnowledgeBuilderImpl;
+import com.github.javaparser.printer.DefaultPrettyPrinter;
+import com.github.javaparser.printer.configuration.DefaultConfigurationOption;
+import com.github.javaparser.printer.configuration.DefaultPrinterConfiguration;
+import org.drools.compiler.builder.impl.BuildResultCollector;
 import org.drools.compiler.compiler.JavaDialectConfiguration;
 import org.drools.compiler.compiler.io.memory.MemoryFileSystem;
 import org.drools.compiler.kie.builder.impl.CompilationProblemAdapter;
 import org.drools.modelcompiler.builder.errors.CompilationProblemErrorResult;
-import org.drools.reflective.classloader.ProjectClassLoader;
+import org.drools.wiring.api.classloader.ProjectClassLoader;
 import org.kie.memorycompiler.CompilationProblem;
 import org.kie.memorycompiler.CompilationResult;
 import org.kie.memorycompiler.JavaCompiler;
+import org.drools.util.PortablePath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.drools.compiler.compiler.JavaDialectConfiguration.createDefaultCompiler;
-import static org.drools.core.util.ClassUtils.isJboss;
+import static org.drools.util.ClassUtils.isJboss;
 
 public class JavaParserCompiler {
 
@@ -54,24 +56,24 @@ public class JavaParserCompiler {
                                                       JavaDialectConfiguration.createEclipseCompiler() :
                                                       JavaDialectConfiguration.createDefaultCompiler();
 
-    private static final PrettyPrinter PRETTY_PRINTER = createPrettyPrinter();
+    private static final DefaultPrettyPrinter PRETTY_PRINTER = createPrettyPrinter();
 
     public static JavaCompiler getCompiler() {
         return JAVA_COMPILER;
     }
 
-    private static PrettyPrinter createPrettyPrinter() {
-        PrettyPrinterConfiguration config = new PrettyPrinterConfiguration();
-        config.setColumnAlignParameters( true );
-        config.setColumnAlignFirstMethodChain( true );
-        return new PrettyPrinter( config );
+    private static DefaultPrettyPrinter createPrettyPrinter() {
+        DefaultPrinterConfiguration config = new DefaultPrinterConfiguration();
+        config.addOption(new DefaultConfigurationOption(DefaultPrinterConfiguration.ConfigOption.COLUMN_ALIGN_PARAMETERS, true));
+        config.addOption(new DefaultConfigurationOption(DefaultPrinterConfiguration.ConfigOption.COLUMN_ALIGN_FIRST_METHOD_CHAIN, true));
+        return new DefaultPrettyPrinter( config );
     }
 
-    public static PrettyPrinter getPrettyPrinter() {
+    public static DefaultPrettyPrinter getPrettyPrinter() {
         return PRETTY_PRINTER;
     }
 
-    public static Map<String, Class<?>> compileAll(KnowledgeBuilderImpl kbuilder, ClassLoader classLoader, List<GeneratedClassWithPackage> classes) {
+    public static Map<String, Class<?>> compileAll(BuildResultCollector resultAccumulator, ClassLoader classLoader, List<GeneratedClassWithPackage> classes) {
         if (classes == null || classes.isEmpty()) {
             return Collections.emptyMap();
         }
@@ -85,7 +87,7 @@ public class JavaParserCompiler {
         if (errors.length != 0) {
             classes.forEach(c -> logger.error(c.toString()));
             for (CompilationProblem error : errors) {
-                kbuilder.addBuilderResult(new CompilationProblemErrorResult(new CompilationProblemAdapter( error )));
+                resultAccumulator.addBuilderResult(new CompilationProblemErrorResult(new CompilationProblemAdapter( error )));
             }
             return Collections.emptyMap();
         }
@@ -108,9 +110,8 @@ public class JavaParserCompiler {
 
     private static List<String> getClassNames(ClassLoader classLoader, MemoryFileSystem trgMfs) {
         List<String> classNames = new ArrayList<>();
-        for (Map.Entry<String, byte[]> entry : trgMfs.getMap().entrySet()) {
-            String fileName = entry.getKey();
-            String className = fileName.substring( 0, fileName.length()-".class".length() ).replace( '/', '.' );
+        for (Map.Entry<PortablePath, byte[]> entry : trgMfs.getMap().entrySet()) {
+            String className = entry.getKey().asClassName();
             classNames.add(className);
             if (classLoader instanceof ProjectClassLoader && ((ProjectClassLoader) classLoader).isDynamic()) {
                 ((ProjectClassLoader) classLoader).storeClass(className, entry.getValue());
@@ -138,10 +139,10 @@ public class JavaParserCompiler {
         CompilationUnit cu = new CompilationUnit();
         cu.setPackageDeclaration( pkgName );
         for (String i : imports) {
-            cu.addImport( new ImportDeclaration(new Name(i), false, false ) );
+            cu.getImports().add( new ImportDeclaration(new Name(i), false, false ) );
         }
         for (String i : staticImports) {
-            cu.addImport( new ImportDeclaration(new Name(i), true, false ) );
+            cu.getImports().add( new ImportDeclaration(new Name(i), true, false ) );
         }
         cu.addType(pojo);
         return getPrettyPrinter().print(cu);

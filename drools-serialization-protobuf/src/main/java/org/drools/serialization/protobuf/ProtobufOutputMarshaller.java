@@ -31,9 +31,6 @@ import java.util.Map;
 import com.google.protobuf.ByteString;
 import org.drools.core.InitialFact;
 import org.drools.core.WorkingMemoryEntryPoint;
-import org.drools.core.beliefsystem.BeliefSet;
-import org.drools.core.beliefsystem.ModedAssertion;
-import org.drools.core.common.ActivationIterator;
 import org.drools.core.common.AgendaGroupQueueImpl;
 import org.drools.core.common.AgendaItem;
 import org.drools.core.common.BaseNode;
@@ -41,25 +38,21 @@ import org.drools.core.common.DefaultFactHandle;
 import org.drools.core.common.EqualityKey;
 import org.drools.core.common.EventFactHandle;
 import org.drools.core.common.InternalAgenda;
+import org.drools.core.common.InternalAgendaGroup;
 import org.drools.core.common.InternalFactHandle;
 import org.drools.core.common.InternalWorkingMemory;
-import org.drools.core.common.LeftTupleIterator;
-import org.drools.core.common.LogicalDependency;
 import org.drools.core.common.Memory;
-import org.drools.core.common.NamedEntryPoint;
 import org.drools.core.common.NodeMemories;
 import org.drools.core.common.ObjectStore;
 import org.drools.core.common.ObjectTypeConfigurationRegistry;
 import org.drools.core.common.QueryElementFactHandle;
 import org.drools.core.common.TruthMaintenanceSystem;
+import org.drools.core.common.TruthMaintenanceSystemFactory;
 import org.drools.core.definitions.rule.impl.RuleImpl;
-import org.drools.core.impl.StatefulKnowledgeSessionImpl;
-import org.drools.core.marshalling.impl.MarshallerWriteContext;
-import org.drools.core.marshalling.impl.ProcessMarshaller;
-import org.drools.core.marshalling.impl.ProcessMarshallerFactory;
+import org.drools.core.marshalling.MarshallerWriteContext;
 import org.drools.core.phreak.PropagationEntry;
 import org.drools.core.phreak.RuleAgendaItem;
-import org.drools.core.process.instance.WorkItem;
+import org.drools.core.process.WorkItem;
 import org.drools.core.reteoo.BaseTuple;
 import org.drools.core.reteoo.LeftTuple;
 import org.drools.core.reteoo.NodeTypeEnums;
@@ -70,9 +63,8 @@ import org.drools.core.reteoo.QueryElementNode.QueryElementNodeMemory;
 import org.drools.core.reteoo.RightTuple;
 import org.drools.core.reteoo.Sink;
 import org.drools.core.reteoo.TerminalNode;
-import org.drools.core.spi.Activation;
-import org.drools.core.spi.AgendaGroup;
-import org.drools.core.spi.RuleFlowGroup;
+import org.drools.core.rule.consequence.Activation;
+import org.drools.core.common.RuleFlowGroup;
 import org.drools.core.time.JobContext;
 import org.drools.core.time.SelfRemovalJobContext;
 import org.drools.core.time.Trigger;
@@ -85,12 +77,23 @@ import org.drools.core.time.impl.TimerJobInstance;
 import org.drools.core.util.FastIterator;
 import org.drools.core.util.LinkedListEntry;
 import org.drools.core.util.ObjectHashMap;
+import org.drools.kiesession.entrypoints.NamedEntryPoint;
+import org.drools.kiesession.session.StatefulKnowledgeSessionImpl;
 import org.drools.serialization.protobuf.ProtobufMessages.FactHandle;
 import org.drools.serialization.protobuf.ProtobufMessages.ObjectTypeConfiguration;
 import org.drools.serialization.protobuf.ProtobufMessages.ProcessData.Builder;
 import org.drools.serialization.protobuf.ProtobufMessages.Timers;
 import org.drools.serialization.protobuf.ProtobufMessages.Timers.Timer;
 import org.drools.serialization.protobuf.ProtobufMessages.Tuple;
+import org.drools.serialization.protobuf.iterators.ActivationIterator;
+import org.drools.serialization.protobuf.iterators.LeftTupleIterator;
+import org.drools.serialization.protobuf.marshalling.ProcessMarshaller;
+import org.drools.serialization.protobuf.marshalling.ProcessMarshallerFactory;
+import org.drools.tms.LogicalDependency;
+import org.drools.tms.TruthMaintenanceSystemEqualityKey;
+import org.drools.tms.agenda.TruthMaintenanceSystemAgendaItem;
+import org.drools.tms.beliefsystem.BeliefSet;
+import org.drools.tms.beliefsystem.ModedAssertion;
 import org.kie.api.marshalling.ObjectMarshallingStrategy;
 import org.kie.api.marshalling.ObjectMarshallingStrategyStore;
 import org.kie.api.runtime.rule.EntryPoint;
@@ -128,7 +131,7 @@ public class ProtobufOutputMarshaller {
 
         try {
             wm.getLock().lock();
-            for (WorkingMemoryEntryPoint ep : wm.getWorkingMemoryEntryPoints().values()) {
+            for (EntryPoint ep : wm.getEntryPoints()) {
                 if (ep instanceof NamedEntryPoint) {
                     ((NamedEntryPoint)ep).lock();
                 }
@@ -160,7 +163,7 @@ public class ProtobufOutputMarshaller {
 
             writeNodeMemories( context, _ruleData );
 
-            for ( EntryPoint wmep : wm.getWorkingMemoryEntryPoints().values() ) {
+            for ( EntryPoint wmep : wm.getEntryPoints() ) {
                 ProtobufMessages.EntryPoint.Builder _epb = ProtobufMessages.EntryPoint.newBuilder();
                 _epb.setEntryPointId( wmep.getEntryPointId() );
 
@@ -206,7 +209,7 @@ public class ProtobufOutputMarshaller {
                 _session.setProcessData( _pdata.build() );
             }
 
-            Timers _timers = writeTimers( context.getWorkingMemory().getTimerService().getTimerJobInstances( context.getWorkingMemory().getIdentifier() ),
+            Timers _timers = writeTimers( context.getWorkingMemory().getTimerJobInstances( context.getWorkingMemory().getIdentifier() ),
                                           context );
             if ( _timers != null ) {
                 _session.setTimers( _timers );
@@ -214,7 +217,7 @@ public class ProtobufOutputMarshaller {
 
             return _session.build();
         } finally {
-            for (WorkingMemoryEntryPoint ep : wm.getWorkingMemoryEntryPoints().values()) {
+            for (EntryPoint ep : wm.getEntryPoints()) {
                 if (ep instanceof NamedEntryPoint) {
                     ((NamedEntryPoint)ep).unlock();
                 }
@@ -252,22 +255,10 @@ public class ProtobufOutputMarshaller {
 	}
 
 	private static void evaluateRuleActivations(StatefulKnowledgeSessionImpl wm) {
-        // ET: NOTE: initially we were only resolving partially evaluated rules
-        // but some tests fail because of that. Have to resolve all rule agenda items
-        // in order to fix the tests
-        
-        // find all partially evaluated rule activations
-//        ActivationIterator it = ActivationIterator.iterator( wm );
-//        Set<String> evaluated = new HashSet<String>();
-//        for ( org.drools.core.spi.Activation item = (org.drools.core.spi.Activation) it.next(); item != null; item = (org.drools.core.spi.Activation) it.next() ) {
-//            if ( !item.isRuleAgendaItem() ) {
-//                evaluated.add( item.getRule().getPackageName()+"."+item.getRule().getName() );
-//            }
-//        }
         // need to evaluate all lazy partially evaluated activations before serializing
         boolean dirty = true;
         while ( dirty) {
-            for ( Activation activation : wm.getAgenda().getActivations() ) {
+            for ( Activation activation : wm.getAgenda().getAgendaGroupsManager().getActivations() ) {
                 if ( activation.isRuleAgendaItem() /*&& evaluated.contains( activation.getRule().getPackageName()+"."+activation.getRule().getName() )*/ ) {
                     // evaluate it
                     ((RuleAgendaItem)activation).getRuleExecutor().reEvaluateNetwork( wm );
@@ -276,7 +267,7 @@ public class ProtobufOutputMarshaller {
             }
             dirty = false;
             // network evaluation with phreak and TMS may make previous processed rules dirty again, so need to reprocess until all is flushed.
-            for ( Activation activation : wm.getAgenda().getActivations() ) {
+            for ( Activation activation : wm.getAgenda().getAgendaGroupsManager().getActivations() ) {
                 if ( activation.isRuleAgendaItem() && ((RuleAgendaItem)activation).getRuleExecutor().isDirty() ) {
                     dirty = true;
                     break;
@@ -293,10 +284,10 @@ public class ProtobufOutputMarshaller {
 
         ProtobufMessages.Agenda.Builder _ab = ProtobufMessages.Agenda.newBuilder();
 
-        AgendaGroup[] agendaGroups = agenda.getAgendaGroupsMap().values().toArray( new AgendaGroup[agenda.getAgendaGroupsMap().size()] );
+        InternalAgendaGroup[] agendaGroups = agenda.getAgendaGroupsManager().getAgendaGroupsMap().values().toArray( new InternalAgendaGroup[agenda.getAgendaGroupsManager().getAgendaGroupsMap().size()] );
         Arrays.sort( agendaGroups,
                      AgendaGroupSorter.instance );
-        for ( AgendaGroup ag : agendaGroups ) {
+        for ( InternalAgendaGroup ag : agendaGroups ) {
             AgendaGroupQueueImpl group = (AgendaGroupQueueImpl) ag;
             ProtobufMessages.Agenda.AgendaGroup.Builder _agb = ProtobufMessages.Agenda.AgendaGroup.newBuilder();
             _agb.setName( group.getName() )
@@ -323,27 +314,27 @@ public class ProtobufOutputMarshaller {
         }
 
         ProtobufMessages.Agenda.FocusStack.Builder _fsb = ProtobufMessages.Agenda.FocusStack.newBuilder();
-        for ( String groupName : agenda.getGroupsName() ) {
+        for ( String groupName : agenda.getAgendaGroupsManager().getGroupsName() ) {
             _fsb.addGroupName( groupName );
         }
         _ab.setFocusStack( _fsb.build() );
 
         // serialize all dormant activations
         org.drools.core.util.Iterator it = ActivationIterator.iterator( wm );
-        List<org.drools.core.spi.Activation> dormant = new ArrayList<org.drools.core.spi.Activation>();
-        for ( org.drools.core.spi.Activation item = (org.drools.core.spi.Activation) it.next(); item != null; item = (org.drools.core.spi.Activation) it.next() ) {
+        List<Activation> dormant = new ArrayList<Activation>();
+        for (Activation item = (Activation) it.next(); item != null; item = (Activation) it.next() ) {
             if ( !item.isQueued() ) {
                 dormant.add( item );
             }
         }
 
         Collections.sort( dormant, ActivationsSorter.INSTANCE );
-        for ( org.drools.core.spi.Activation activation : dormant ) {
+        for ( Activation activation : dormant ) {
             _ab.addMatch( writeActivation( context, (AgendaItem) activation, true) );
         }
 
         // serialize all network evaluator activations
-        for ( Activation activation : agenda.getActivations() ) {
+        for ( Activation activation : agenda.getAgendaGroupsManager().getActivations() ) {
             if ( activation.isRuleAgendaItem() ) {
                 // serialize it
                 _ab.addRuleActivation( writeActivation( context, (AgendaItem) activation, false) );
@@ -430,11 +421,11 @@ public class ProtobufOutputMarshaller {
 
     private static class AgendaGroupSorter
             implements
-            Comparator<AgendaGroup> {
+            Comparator<InternalAgendaGroup> {
         public static final AgendaGroupSorter instance = new AgendaGroupSorter();
 
-        public int compare(AgendaGroup group1,
-                           AgendaGroup group2) {
+        public int compare(InternalAgendaGroup group1,
+                           InternalAgendaGroup group2) {
             return group1.getName().compareTo( group2.getName() );
         }
     }
@@ -471,7 +462,7 @@ public class ProtobufOutputMarshaller {
     public static void writeTruthMaintenanceSystem( MarshallerWriteContext context,
                                                     EntryPoint wmep,
                                                     ProtobufMessages.EntryPoint.Builder _epb) throws IOException {
-        TruthMaintenanceSystem tms = ((NamedEntryPoint) wmep).getTruthMaintenanceSystem();
+        TruthMaintenanceSystem tms = TruthMaintenanceSystemFactory.get().getOrCreateTruthMaintenanceSystem((NamedEntryPoint) wmep);
         ObjectHashMap justifiedMap = tms.getEqualityKeyMap();
 
         if ( !justifiedMap.isEmpty() ) {
@@ -502,8 +493,8 @@ public class ProtobufOutputMarshaller {
                     }
                 }
 
-                if ( key.getBeliefSet() != null ) {
-                    writeBeliefSet( context, key.getBeliefSet(), _key );
+                if ( ((TruthMaintenanceSystemEqualityKey)key).getBeliefSet() != null ) {
+                    writeBeliefSet( context, ((TruthMaintenanceSystemEqualityKey)key).getBeliefSet(), _key );
                 }
 
                 _tms.addKey( _key.build() );
@@ -530,7 +521,7 @@ public class ProtobufOutputMarshaller {
             //_belief.setActivation( value )
 
             LogicalDependency dependency = (LogicalDependency) node.getObject();
-            org.drools.core.spi.Activation activation = dependency.getJustifier();
+            Activation activation = dependency.getJustifier();
             ProtobufMessages.Activation _activation = ProtobufMessages.Activation.newBuilder()
                     .setPackageName( activation.getRule().getPackage() )
                     .setRuleName( activation.getRule().getName() )
@@ -675,15 +666,15 @@ public class ProtobufOutputMarshaller {
 
     public static class ActivationsSorter
             implements
-            Comparator<org.drools.core.spi.Activation> {
+            Comparator<Activation> {
         public static final ActivationsSorter INSTANCE = new ActivationsSorter();
 
-        public int compare(org.drools.core.spi.Activation o1,
-                           org.drools.core.spi.Activation o2) {
+        public int compare(Activation o1,
+                           Activation o2) {
             int result = o1.getRule().getName().compareTo( o2.getRule().getName() );
             if ( result == 0 ) {
-                org.drools.core.spi.Tuple t1 = o1.getTuple();
-                org.drools.core.spi.Tuple t2 = o2.getTuple();
+                org.drools.core.reteoo.Tuple t1 = o1.getTuple();
+                org.drools.core.reteoo.Tuple t2 = o2.getTuple();
                 while ( result == 0 && t1 != null && t2 != null ) {
                     // can be null for eval, not and exists that have no right input
                     if ( t1.getFactHandle() == null ) {
@@ -701,7 +692,7 @@ public class ProtobufOutputMarshaller {
     }
 
     public static <M extends ModedAssertion<M>> ProtobufMessages.Activation writeActivation( MarshallerWriteContext context,
-                                                                                             AgendaItem<M> agendaItem,
+                                                                                             AgendaItem agendaItem,
                                                                                              boolean isDormient) {
         ProtobufMessages.Activation.Builder _activation = ProtobufMessages.Activation.newBuilder();
 
@@ -721,25 +712,27 @@ public class ProtobufOutputMarshaller {
             _activation.setHandleId( agendaItem.getActivationFactHandle().getId() );
         }
 
-        org.drools.core.util.LinkedList<LogicalDependency<M>> list = agendaItem.getLogicalDependencies();
-        if ( list != null && !list.isEmpty() ) {
-            for ( LogicalDependency<?> node = list.getFirst(); node != null; node = node.getNext() ) {
-                _activation.addLogicalDependency( ((BeliefSet) node.getJustified()).getFactHandle().getId() );
+        if (agendaItem instanceof TruthMaintenanceSystemAgendaItem) {
+            org.drools.core.util.LinkedList<LogicalDependency<M>> list = ((TruthMaintenanceSystemAgendaItem)agendaItem).getLogicalDependencies();
+            if (list != null && !list.isEmpty()) {
+                for (LogicalDependency<?> node = list.getFirst(); node != null; node = node.getNext()) {
+                    _activation.addLogicalDependency(((BeliefSet) node.getJustified()).getFactHandle().getId());
+                }
             }
         }
 
         return _activation.build();
     }
 
-    public static Tuple writeTuple( MarshallerWriteContext context, Activation<?> activation, boolean isDormient ) {
-        org.drools.core.spi.Tuple tuple = activation.getTuple();
+    public static Tuple writeTuple( MarshallerWriteContext context, Activation activation, boolean isDormient ) {
+        org.drools.core.reteoo.Tuple tuple = activation.getTuple();
         ProtobufMessages.Tuple.Builder _tb = ProtobufMessages.Tuple.newBuilder();
 
         boolean serializeObjects = isDormient && hasNodeMemory((BaseTuple) activation);
 
         if (tuple != null) {
             // tuple can be null if this is a rule network evaluation activation, instead of terminal node left tuple.
-            for (org.drools.core.spi.Tuple entry = tuple.skipEmptyHandles(); entry != null; entry = entry.getParent()) {
+            for (org.drools.core.reteoo.Tuple entry = tuple.skipEmptyHandles(); entry != null; entry = entry.getParent()) {
                 InternalFactHandle handle = entry.getFactHandle();
                 _tb.addHandleId(handle.getId());
 

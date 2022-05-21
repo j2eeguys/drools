@@ -24,10 +24,9 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.drools.core.base.CoreComponentsBuilder;
-import org.drools.core.process.instance.WorkItemManagerFactory;
-import org.drools.core.time.TimerService;
+import org.drools.core.process.WorkItemManagerFactory;
 import org.drools.core.util.ConfFileUtils;
-import org.drools.reflective.classloader.ProjectClassLoader;
+import org.drools.wiring.api.classloader.ProjectClassLoader;
 import org.kie.api.KieBase;
 import org.kie.api.runtime.Environment;
 import org.kie.api.runtime.ExecutableRunner;
@@ -151,9 +150,7 @@ public class SessionConfigurationImpl extends SessionConfiguration {
     }
 
     private void init(Properties properties, ClassLoader classLoader, ChainedProperties chainedProperties) {
-        this.classLoader = classLoader instanceof ProjectClassLoader ?
-                           classLoader :
-                           ProjectClassLoader.getClassLoader(classLoader == null ? null : classLoader, getClass(), false);
+        this.classLoader = classLoader instanceof ProjectClassLoader ? classLoader : ProjectClassLoader.getClassLoader(classLoader, getClass());
 
         this.immutable = false;
 
@@ -369,7 +366,7 @@ public class SessionConfigurationImpl extends SessionConfiguration {
 
     @SuppressWarnings("unchecked")
     private void initWorkItemManagerFactory() {
-        String className = getPropertyValue( "drools.workItemManagerFactory", "org.drools.core.process.instance.impl.DefaultWorkItemManagerFactory" );
+        String className = getPropertyValue( "drools.workItemManagerFactory", "org.drools.core.process.impl.DefaultWorkItemManagerFactory" );
         Class<WorkItemManagerFactory> clazz = null;
         try {
             clazz = (Class<WorkItemManagerFactory>) this.classLoader.loadClass( className );
@@ -405,8 +402,7 @@ public class SessionConfigurationImpl extends SessionConfiguration {
     }
 
     @SuppressWarnings("unchecked")
-    private void initCommandService(KieBase kbase,
-                                    Environment environment) {
+    private void initCommandService(KieBase kbase, Environment environment) {
         String className = getPropertyValue( "drools.commandService", null );
         if ( className == null ) {
             return;
@@ -426,42 +422,10 @@ public class SessionConfigurationImpl extends SessionConfiguration {
                                                                                      this,
                                                                                      environment );
             } catch ( Exception e ) {
-                throw new IllegalArgumentException( "Unable to instantiate command service '" + className + "'",
-                                                    e );
+                throw new IllegalArgumentException( "Unable to instantiate command service '" + className + "'", e );
             }
         } else {
             throw new IllegalArgumentException( "Command service '" + className + "' not found" );
-        }
-    }
-
-    public TimerService newTimerService() {
-        String className = getPropertyValue( "drools.timerService", "org.drools.core.time.impl.JDKTimerService" );
-        if ( className == null ) {
-            return null;
-        }
-        Class<TimerService> clazz = null;
-        try {
-            clazz = (Class<TimerService>) this.classLoader.loadClass( className );
-        } catch ( ClassNotFoundException e ) {
-        }
-
-        if ( clazz != null ) {
-            try {
-                return clazz.newInstance();
-            } catch ( Exception e ) {
-
-                throw new IllegalArgumentException(
-                        "Unable to instantiate timer service '" + className
-                                + "'",
-                        e );
-            }
-        } else {
-            try {
-                return (TimerService) CoreComponentsBuilder.get().getMVELExecutor().eval(className);
-            } catch (Exception e) {
-                throw new IllegalArgumentException( "Timer service '" + className
-                        + "' not found", e );
-            }
         }
     }
 

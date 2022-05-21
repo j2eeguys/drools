@@ -7,7 +7,7 @@
   <parent>
     <groupId>org.kie</groupId>
     <artifactId>kie-dmn</artifactId>
-    <version>7.58.0-SNAPSHOT</version>
+    <version>8.22.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>kie-dmn-feel-gwt-functions</artifactId>
@@ -41,6 +41,11 @@
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

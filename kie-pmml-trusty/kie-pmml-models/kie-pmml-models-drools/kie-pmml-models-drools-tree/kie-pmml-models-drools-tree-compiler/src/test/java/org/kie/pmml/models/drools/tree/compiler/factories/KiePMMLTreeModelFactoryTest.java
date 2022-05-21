@@ -31,20 +31,23 @@ import org.dmg.pmml.DataDictionary;
 import org.dmg.pmml.DataField;
 import org.dmg.pmml.PMML;
 import org.dmg.pmml.tree.TreeModel;
+import org.drools.compiler.builder.impl.KnowledgeBuilderImpl;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.kie.pmml.api.enums.MINING_FUNCTION;
 import org.kie.pmml.api.enums.PMML_MODEL;
-import org.kie.pmml.compiler.commons.mocks.HasClassLoaderMock;
-import org.kie.pmml.compiler.testutils.TestUtils;
+import org.kie.pmml.compiler.api.dto.CommonCompilationDTO;
+import org.kie.pmml.compiler.api.testutils.TestUtils;
 import org.kie.pmml.models.drools.ast.KiePMMLDroolsAST;
+import org.kie.pmml.models.drools.commons.implementations.HasKnowledgeBuilderMock;
+import org.kie.pmml.models.drools.dto.DroolsCompilationDTO;
 import org.kie.pmml.models.drools.tree.model.KiePMMLTreeModel;
 import org.kie.pmml.models.drools.tuples.KiePMMLOriginalTypeGeneratedType;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.kie.pmml.commons.Constants.PACKAGE_NAME;
 import static org.kie.pmml.commons.utils.KiePMMLModelUtils.getSanitizedClassName;
+import static org.kie.pmml.compiler.api.CommonTestingUtils.getFieldsFromDataDictionary;
 import static org.kie.pmml.compiler.commons.testutils.CodegenTestUtils.commonEvaluateConstructor;
 import static org.kie.pmml.compiler.commons.utils.JavaParserUtils.getFromFileName;
 import static org.kie.pmml.models.drools.tree.compiler.factories.KiePMMLTreeModelFactory.KIE_PMML_TREE_MODEL_TEMPLATE;
@@ -55,7 +58,6 @@ public class KiePMMLTreeModelFactoryTest {
 
     private static final String SOURCE_1 = "TreeSample.pmml";
     private static final String TARGET_FIELD = "whatIdo";
-    private static final String PACKAGE_NAME = "packagename";
     private static PMML pmml;
     private static TreeModel treeModel;
     private static ClassOrInterfaceDeclaration classOrInterfaceDeclaration;
@@ -63,9 +65,9 @@ public class KiePMMLTreeModelFactoryTest {
     @BeforeClass
     public static void setUp() throws Exception {
         pmml = TestUtils.loadFromFile(SOURCE_1);
-        assertNotNull(pmml);
-        assertEquals(1, pmml.getModels().size());
-        assertTrue(pmml.getModels().get(0) instanceof TreeModel);
+        assertThat(pmml).isNotNull();
+        assertThat(pmml.getModels()).hasSize(1);
+        assertThat(pmml.getModels().get(0)).isInstanceOf(TreeModel.class);
         treeModel = (TreeModel) pmml.getModels().get(0);
         CompilationUnit templateCU = getFromFileName(KIE_PMML_TREE_MODEL_TEMPLATE_JAVA);
         classOrInterfaceDeclaration = templateCU
@@ -77,29 +79,38 @@ public class KiePMMLTreeModelFactoryTest {
         final Map<String, KiePMMLOriginalTypeGeneratedType> fieldTypeMap = getFieldTypeMap(pmml.getDataDictionary(),
                                                                                            pmml.getTransformationDictionary(),
                                                                                            treeModel.getLocalTransformations());
-        KiePMMLTreeModel retrieved = KiePMMLTreeModelFactory.getKiePMMLTreeModel(pmml.getDataDictionary(),
-                                                                                 pmml.getTransformationDictionary(),
-                                                                                 treeModel,
-                                                                                 fieldTypeMap,
-                                                                                 PACKAGE_NAME,
-                                                                                 new HasClassLoaderMock());
-        assertNotNull(retrieved);
-        assertEquals(treeModel.getModelName(), retrieved.getName());
-        assertEquals(TARGET_FIELD, retrieved.getTargetField());
+        KnowledgeBuilderImpl knowledgeBuilder = new KnowledgeBuilderImpl();
+        final CommonCompilationDTO<TreeModel> compilationDTO =
+                CommonCompilationDTO.fromGeneratedPackageNameAndFields(PACKAGE_NAME,
+                                                                       pmml,
+                                                                       treeModel,
+                                                                       new HasKnowledgeBuilderMock(knowledgeBuilder));
+        final DroolsCompilationDTO<TreeModel> droolsCompilationDTO =
+                DroolsCompilationDTO.fromCompilationDTO(compilationDTO,
+                                                        fieldTypeMap);
+        KiePMMLTreeModel retrieved = KiePMMLTreeModelFactory.getKiePMMLTreeModel(droolsCompilationDTO);
+        assertThat(retrieved).isNotNull();
+        assertThat(retrieved.getName()).isEqualTo(treeModel.getModelName());
+        assertThat(retrieved.getTargetField()).isEqualTo(TARGET_FIELD);
     }
 
     @Test
-    public void getKiePMMLScorecardModelSourcesMap()  {
+    public void getKiePMMLScorecardModelSourcesMap() {
         final Map<String, KiePMMLOriginalTypeGeneratedType> fieldTypeMap = getFieldTypeMap(pmml.getDataDictionary(),
                                                                                            pmml.getTransformationDictionary(),
                                                                                            treeModel.getLocalTransformations());
-        Map<String, String> retrieved = KiePMMLTreeModelFactory.getKiePMMLTreeModelSourcesMap(pmml.getDataDictionary(),
-                                                                                                        pmml.getTransformationDictionary(),
-                                                                                              treeModel,
-                                                                                                        fieldTypeMap,
-                                                                                                        PACKAGE_NAME);
-        assertNotNull(retrieved);
-        assertEquals(1, retrieved.size());
+        KnowledgeBuilderImpl knowledgeBuilder = new KnowledgeBuilderImpl();
+        final CommonCompilationDTO<TreeModel> compilationDTO =
+                CommonCompilationDTO.fromGeneratedPackageNameAndFields(PACKAGE_NAME,
+                                                                       pmml,
+                                                                       treeModel,
+                                                                       new HasKnowledgeBuilderMock(knowledgeBuilder));
+        final DroolsCompilationDTO<TreeModel> droolsCompilationDTO =
+                DroolsCompilationDTO.fromCompilationDTO(compilationDTO,
+                                                        fieldTypeMap);
+        Map<String, String> retrieved = KiePMMLTreeModelFactory.getKiePMMLTreeModelSourcesMap(droolsCompilationDTO);
+        assertThat(retrieved).isNotNull();
+        assertThat(retrieved).hasSize(1);
     }
 
     @Test
@@ -108,21 +119,29 @@ public class KiePMMLTreeModelFactoryTest {
         final Map<String, KiePMMLOriginalTypeGeneratedType> fieldTypeMap = getFieldTypeMap(pmml.getDataDictionary(),
                                                                                            pmml.getTransformationDictionary(),
                                                                                            treeModel.getLocalTransformations());
-        KiePMMLDroolsAST retrieved = KiePMMLTreeModelFactory.getKiePMMLDroolsAST(dataDictionary, treeModel, fieldTypeMap, Collections.emptyList());
-        assertNotNull(retrieved);
+        KiePMMLDroolsAST retrieved =
+                KiePMMLTreeModelFactory.getKiePMMLDroolsAST(getFieldsFromDataDictionary(dataDictionary), treeModel,
+                                                            fieldTypeMap, Collections.emptyList());
+        assertThat(retrieved).isNotNull();
         List<DataField> dataFields = dataDictionary.getDataFields();
-        assertEquals(dataFields.size(), fieldTypeMap.size());
-        dataFields.forEach(dataField -> assertTrue(fieldTypeMap.containsKey(dataField.getName().getValue())));
+        assertThat(fieldTypeMap).hasSameSizeAs(dataFields);
+        dataFields.forEach(dataField -> assertThat(fieldTypeMap).containsKey(dataField.getName().getValue()));
     }
 
     @Test
     public void setConstructor() {
         final String targetField = "whatIdo";
         final ClassOrInterfaceDeclaration modelTemplate = classOrInterfaceDeclaration.clone();
-        KiePMMLTreeModelFactory.setConstructor(treeModel,
-                                               pmml.getDataDictionary(),
-                                               pmml.getTransformationDictionary(),
-                                               modelTemplate);
+        KnowledgeBuilderImpl knowledgeBuilder = new KnowledgeBuilderImpl();
+        final CommonCompilationDTO<TreeModel> compilationDTO =
+                CommonCompilationDTO.fromGeneratedPackageNameAndFields(PACKAGE_NAME,
+                                                                       pmml,
+                                                                       treeModel,
+                                                                       new HasKnowledgeBuilderMock(knowledgeBuilder));
+        final DroolsCompilationDTO<TreeModel> droolsCompilationDTO =
+                DroolsCompilationDTO.fromCompilationDTO(compilationDTO,
+                                                        new HashMap<>());
+        KiePMMLTreeModelFactory.setConstructor(droolsCompilationDTO, modelTemplate);
         Map<Integer, Expression> superInvocationExpressionsMap = new HashMap<>();
         superInvocationExpressionsMap.put(0, new NameExpr(String.format("\"%s\"", treeModel.getModelName())));
         superInvocationExpressionsMap.put(2, new NameExpr(String.format("\"%s\"", treeModel.getAlgorithmName())));
@@ -134,7 +153,7 @@ public class KiePMMLTreeModelFactoryTest {
                                 new NameExpr(miningFunction.getClass().getName() + "." + miningFunction.name()));
         assignExpressionMap.put("pmmlMODEL", new NameExpr(pmmlModel.getClass().getName() + "." + pmmlModel.name()));
         ConstructorDeclaration constructorDeclaration = modelTemplate.getDefaultConstructor().get();
-        assertTrue(commonEvaluateConstructor(constructorDeclaration, getSanitizedClassName(treeModel.getModelName()), superInvocationExpressionsMap, assignExpressionMap));
+        assertThat(commonEvaluateConstructor(constructorDeclaration, getSanitizedClassName(treeModel.getModelName()),
+                                             superInvocationExpressionsMap, assignExpressionMap)).isTrue();
     }
-
 }

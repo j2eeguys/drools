@@ -23,11 +23,10 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.assertj.core.api.Assertions;
 import org.drools.core.ClassObjectFilter;
 import org.drools.core.ClockType;
 import org.drools.core.SessionConfigurationImpl;
-import org.drools.core.impl.KnowledgeBaseFactory;
+import org.drools.core.impl.RuleBaseFactory;
 import org.drools.core.time.impl.PseudoClockScheduler;
 import org.drools.mvel.integrationtests.facts.BasicEvent;
 import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
@@ -43,6 +42,7 @@ import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.KieSessionConfiguration;
 import org.kie.api.runtime.conf.ClockTypeOption;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.kie.api.definition.type.Expires.Policy.TIME_SOFT;
 
@@ -72,7 +72,7 @@ public class ExpirationTest {
                      "  counter.incrementAndGet();\n" +
                      "end";
 
-        KieSessionConfiguration sessionConfig = KnowledgeBaseFactory.newKnowledgeSessionConfiguration();
+        KieSessionConfiguration sessionConfig = RuleBaseFactory.newKnowledgeSessionConfiguration();
         sessionConfig.setOption( ClockTypeOption.get( ClockType.PSEUDO_CLOCK.getId() ) );
 
         KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("test", kieBaseTestConfiguration, drl);
@@ -110,7 +110,7 @@ public class ExpirationTest {
                      "  counter.incrementAndGet();\n" +
                      "end";
 
-        KieSessionConfiguration sessionConfig = KnowledgeBaseFactory.newKnowledgeSessionConfiguration();
+        KieSessionConfiguration sessionConfig = RuleBaseFactory.newKnowledgeSessionConfiguration();
         sessionConfig.setOption( ClockTypeOption.get( ClockType.PSEUDO_CLOCK.getId() ) );
 
         KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("test", kieBaseTestConfiguration, drl);
@@ -150,7 +150,7 @@ public class ExpirationTest {
                      "  counter.incrementAndGet();\n" +
                      "end";
 
-        KieSessionConfiguration sessionConfig = KnowledgeBaseFactory.newKnowledgeSessionConfiguration();
+        KieSessionConfiguration sessionConfig = RuleBaseFactory.newKnowledgeSessionConfiguration();
         sessionConfig.setOption( ClockTypeOption.get( ClockType.PSEUDO_CLOCK.getId() ) );
 
         KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("test", kieBaseTestConfiguration, drl);
@@ -186,7 +186,7 @@ public class ExpirationTest {
                      "  counter.incrementAndGet();\n" +
                      "end";
 
-        KieSessionConfiguration sessionConfig = KnowledgeBaseFactory.newKnowledgeSessionConfiguration();
+        KieSessionConfiguration sessionConfig = RuleBaseFactory.newKnowledgeSessionConfiguration();
         sessionConfig.setOption( ClockTypeOption.get( ClockType.PSEUDO_CLOCK.getId() ) );
 
         KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("test", kieBaseTestConfiguration, drl);
@@ -225,7 +225,7 @@ public class ExpirationTest {
                      "  counter.incrementAndGet();\n" +
                      "end";
 
-        KieSessionConfiguration sessionConfig = KnowledgeBaseFactory.newKnowledgeSessionConfiguration();
+        KieSessionConfiguration sessionConfig = RuleBaseFactory.newKnowledgeSessionConfiguration();
         sessionConfig.setOption( ClockTypeOption.get( ClockType.PSEUDO_CLOCK.getId() ) );
 
         KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("test", kieBaseTestConfiguration, drl);
@@ -326,7 +326,7 @@ public class ExpirationTest {
                      "  $e : ExpiringEventC()\n" +
                      "then end\n";
 
-        KieSessionConfiguration sessionConfig = KnowledgeBaseFactory.newKnowledgeSessionConfiguration();
+        KieSessionConfiguration sessionConfig = RuleBaseFactory.newKnowledgeSessionConfiguration();
         sessionConfig.setOption( ClockTypeOption.get( ClockType.PSEUDO_CLOCK.getId() ) );
 
         KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("test", kieBaseTestConfiguration, drl);
@@ -390,7 +390,7 @@ public class ExpirationTest {
                      "  $e : C()\n" +
                      "then end\n";
 
-        KieSessionConfiguration sessionConfig = KnowledgeBaseFactory.newKnowledgeSessionConfiguration();
+        KieSessionConfiguration sessionConfig = RuleBaseFactory.newKnowledgeSessionConfiguration();
         sessionConfig.setOption( ClockTypeOption.get( ClockType.PSEUDO_CLOCK.getId() ) );
 
         KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("test", kieBaseTestConfiguration, drl);
@@ -478,7 +478,7 @@ public class ExpirationTest {
     }
 
     private void testEventsExpiredInThePast(final String drl) {
-        final KieSessionConfiguration sessionConfig = KnowledgeBaseFactory.newKnowledgeSessionConfiguration();
+        final KieSessionConfiguration sessionConfig = RuleBaseFactory.newKnowledgeSessionConfiguration();
         sessionConfig.setOption( ClockTypeOption.get( ClockType.PSEUDO_CLOCK.getId() ) );
 
         KieBase kieBase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("test", kieBaseTestConfiguration, drl);
@@ -496,9 +496,9 @@ public class ExpirationTest {
 
         clock.advanceTime(100, TimeUnit.MILLISECONDS);
 
-        Assertions.assertThat(kieSession.fireAllRules()).isEqualTo(1);
+        assertThat(kieSession.fireAllRules()).isEqualTo(1);
         clock.advanceTime(10, TimeUnit.MILLISECONDS);
-        Assertions.assertThat(kieSession.getObjects()).isEmpty();
+        assertThat(kieSession.getObjects()).isEmpty();
     }
 
     @Test
@@ -547,7 +547,7 @@ public class ExpirationTest {
                 "     modify($dummyEventContext){setState(\"release\");} \n" +
                 " end\n";
 
-        final KieSessionConfiguration sessionConfig = KnowledgeBaseFactory.newKnowledgeSessionConfiguration();
+        final KieSessionConfiguration sessionConfig = RuleBaseFactory.newKnowledgeSessionConfiguration();
         sessionConfig.setOption( ClockTypeOption.get( ClockType.PSEUDO_CLOCK.getId() ) );
 
         KieBase kieBase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("test", kieBaseTestConfiguration, drl);
@@ -560,7 +560,7 @@ public class ExpirationTest {
         kieSession.insert(new DummyEvent(1, currentTime));
         kieSession.insert(new DummyEvent(2, (expired ? currentTime - Duration.ofHours(8).toMillis() : currentTime + Duration.ofHours(8).toMillis())));
 
-        Assertions.assertThat(kieSession.fireAllRules()).isEqualTo(1);
+        assertThat(kieSession.fireAllRules()).isEqualTo(1);
     }
 
     public interface ApplicationEvent { }
@@ -723,7 +723,7 @@ public class ExpirationTest {
                 "     System.out.println(\"R2\");\n" +
                 " end\n";
 
-        final KieSessionConfiguration sessionConfig = KnowledgeBaseFactory.newKnowledgeSessionConfiguration();
+        final KieSessionConfiguration sessionConfig = RuleBaseFactory.newKnowledgeSessionConfiguration();
         sessionConfig.setOption( ClockTypeOption.get( ClockType.PSEUDO_CLOCK.getId() ) );
 
         KieBase kieBase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("test", kieBaseTestConfiguration, drl);
@@ -736,7 +736,7 @@ public class ExpirationTest {
         kieSession.insert(new DummyEvent(1, currentTime));
         kieSession.insert(new DummyEvent(2, currentTime - Duration.ofHours(8).toMillis()));
 
-        Assertions.assertThat(kieSession.fireAllRules()).isEqualTo(2);
+        assertThat(kieSession.fireAllRules()).isEqualTo(2);
     }
 
     @Test
@@ -795,7 +795,7 @@ public class ExpirationTest {
         kieSession.insert(event1);
         kieSession.insert(event2);
 
-        Assertions.assertThat(kieSession.fireAllRules()).isEqualTo(1);
+        assertThat(kieSession.fireAllRules()).isEqualTo(1);
     }
 
     @Test
@@ -1004,7 +1004,7 @@ public class ExpirationTest {
                 " then \n" +
                 " end\n";
 
-        final KieSessionConfiguration sessionConfig = KnowledgeBaseFactory.newKnowledgeSessionConfiguration();
+        final KieSessionConfiguration sessionConfig = RuleBaseFactory.newKnowledgeSessionConfiguration();
         sessionConfig.setOption( ClockTypeOption.get( ClockType.PSEUDO_CLOCK.getId() ) );
 
         KieBase kieBase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("test", kieBaseTestConfiguration, drl);
@@ -1016,7 +1016,56 @@ public class ExpirationTest {
 
         kieSession.insert(new DummyEvent(10, currentTime));
 
-        Assertions.assertThat(kieSession.fireAllRules()).isEqualTo(2);
-        Assertions.assertThat(kieSession.fireAllRules()).isEqualTo(0);
+        assertThat(kieSession.fireAllRules()).isEqualTo(2);
+        assertThat(kieSession.fireAllRules()).isEqualTo(0);
+    }
+
+    @Test
+    public void testAvoidAlreadyExpiredFactsToForeverRemainInWM() {
+        // DROOLS-6680
+        String drl =
+                " import " + DummyEvent.class.getCanonicalName() + ";\n" +
+                " import " + OtherEvent.class.getCanonicalName() + ";\n" +
+                "\n" +
+                "declare DummyEvent\n" +
+                "    @role(event)\n" +
+                "    @timestamp(eventTimestamp)\n" +
+                "    @expires (3d)\n" +
+                "end\n" +
+                "rule \"R1\"\n" +
+                "no-loop \n" +
+                "when\n" +
+                "    $evt: DummyEvent()\n" +
+                "then\n" +
+                "    modify($evt){\n" +
+                "        setState(\"value\")\n" +
+                "    }\n" +
+                "end\n" +
+                "rule \"R2\"\n" +
+                "when\n" +
+                "    $b: OtherEvent()\n" +
+                "    $a: DummyEvent()\n" +
+                "then\n" +
+                "end";
+
+        KieBaseTestConfiguration equalityConfig = TestParametersUtil.getEqualityInstanceOf(kieBaseTestConfiguration);
+        KieBase kieBase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("test", equalityConfig, drl);
+
+        final KieSessionConfiguration sessionConfig = RuleBaseFactory.newKnowledgeSessionConfiguration();
+        sessionConfig.setOption( ClockTypeOption.get( ClockType.PSEUDO_CLOCK.getId() ) );
+        final KieSession kieSession = kieBase.newKieSession( sessionConfig, null );
+
+        final long now = System.currentTimeMillis();
+        final PseudoClockScheduler clock = kieSession.getSessionClock();
+
+        clock.advanceTime(now, TimeUnit.MILLISECONDS);
+
+        final long fiveDaysAgo = now - Duration.ofDays(5).toMillis();
+        final DummyEvent dummyEvent = new DummyEvent(1, fiveDaysAgo);
+
+        kieSession.insert(dummyEvent);
+
+        assertThat(kieSession.fireAllRules()).isEqualTo(1);
+        assertThat(kieSession.getFactCount()).isEqualTo(0);
     }
 }

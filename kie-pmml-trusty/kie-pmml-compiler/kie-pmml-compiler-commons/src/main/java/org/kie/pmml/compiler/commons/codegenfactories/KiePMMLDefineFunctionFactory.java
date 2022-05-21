@@ -33,9 +33,12 @@ import org.kie.pmml.compiler.commons.utils.JavaParserUtils;
 import static org.kie.pmml.commons.Constants.MISSING_BODY_TEMPLATE;
 import static org.kie.pmml.commons.Constants.MISSING_VARIABLE_INITIALIZER_TEMPLATE;
 import static org.kie.pmml.commons.Constants.MISSING_VARIABLE_IN_BODY;
+import static org.kie.pmml.commons.Constants.VARIABLE_NAME_TEMPLATE;
+import static org.kie.pmml.compiler.commons.utils.CommonCodegenUtils.getExpressionForDataType;
+import static org.kie.pmml.compiler.commons.utils.CommonCodegenUtils.getExpressionForOpType;
 import static org.kie.pmml.compiler.commons.utils.CommonCodegenUtils.getVariableDeclarator;
 import static org.kie.pmml.compiler.commons.utils.JavaParserUtils.MAIN_CLASS_NOT_FOUND;
-import static org.kie.pmml.compiler.commons.codegenfactories.KiePMMLExpressionFactory.getKiePMMLExpression;
+import static org.kie.pmml.compiler.commons.codegenfactories.KiePMMLExpressionFactory.getKiePMMLExpressionBlockStmt;
 import static org.kie.pmml.compiler.commons.codegenfactories.KiePMMLParameterFieldFactory.getParameterFieldVariableDeclaration;
 
 /**
@@ -73,14 +76,14 @@ public class KiePMMLDefineFunctionFactory {
         int counter = 0;
         final NodeList<Expression> parameterFieldArguments = new NodeList<>();
         for (ParameterField parameterField: defineFunction.getParameterFields()) {
-            String nestedVariableName = String.format("%s_%s", defineFunction.getName(), counter);
+            String nestedVariableName = String.format(VARIABLE_NAME_TEMPLATE, defineFunction.getName(), counter);
             parameterFieldArguments.add(new NameExpr(nestedVariableName));
             BlockStmt toAdd = getParameterFieldVariableDeclaration(nestedVariableName, parameterField);
             toAdd.getStatements().forEach(toReturn::addStatement);
             counter ++;
         }
         String kiePMMLExpression = String.format("%s_Expression", defineFunction.getName());
-        BlockStmt toAdd = getKiePMMLExpression(kiePMMLExpression, defineFunction.getExpression());
+        BlockStmt toAdd = getKiePMMLExpressionBlockStmt(kiePMMLExpression, defineFunction.getExpression());
         toAdd.getStatements().forEach(toReturn::addStatement);
 
 
@@ -89,9 +92,12 @@ public class KiePMMLDefineFunctionFactory {
                 .asObjectCreationExpr();
         final StringLiteralExpr nameExpr = new StringLiteralExpr(defineFunction.getName());
         objectCreationExpr.getArguments().set(0, nameExpr);
-        objectCreationExpr.getArguments().set(2, new StringLiteralExpr(defineFunction.getOpType().value()));
-        objectCreationExpr.getArguments().get(3).asMethodCallExpr().setArguments(parameterFieldArguments);
-        objectCreationExpr.getArguments().set(4, new NameExpr(kiePMMLExpression));
+        final Expression dataTypeExpression = getExpressionForDataType(defineFunction.getDataType());
+        final Expression opTypeExpression = getExpressionForOpType(defineFunction.getOpType());
+        objectCreationExpr.getArguments().set(2, dataTypeExpression);
+        objectCreationExpr.getArguments().set(3, opTypeExpression);
+        objectCreationExpr.getArguments().get(4).asMethodCallExpr().setArguments(parameterFieldArguments);
+        objectCreationExpr.getArguments().set(5, new NameExpr(kiePMMLExpression));
         defineFunctionBody.getStatements().forEach(toReturn::addStatement);
         return toReturn;
     }

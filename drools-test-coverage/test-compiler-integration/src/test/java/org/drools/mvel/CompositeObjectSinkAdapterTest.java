@@ -17,15 +17,16 @@ package org.drools.mvel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import org.drools.core.base.ClassFieldAccessorCache;
-import org.drools.core.base.ClassFieldAccessorStore;
-import org.drools.core.common.DisconnectedWorkingMemoryEntryPoint;
+import org.drools.core.rule.accessor.ReadAccessor;
+import org.drools.mvel.accessors.ClassFieldAccessorStore;
+import org.drools.kiesession.entrypoints.DisconnectedWorkingMemoryEntryPoint;
 import org.drools.core.common.InternalFactHandle;
 import org.drools.core.definitions.rule.impl.RuleImpl;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
 import org.drools.core.reteoo.AlphaNode;
 import org.drools.core.reteoo.BetaNode;
 import org.drools.core.reteoo.CompositeObjectSinkAdapter;
@@ -34,8 +35,8 @@ import org.drools.core.reteoo.ObjectSink;
 import org.drools.core.reteoo.ReteooFactHandleFactory;
 import org.drools.core.reteoo.builder.BuildContext;
 import org.drools.core.rule.PredicateConstraint;
-import org.drools.core.spi.AlphaNodeFieldConstraint;
-import org.drools.core.spi.InternalReadAccessor;
+import org.drools.core.rule.constraint.AlphaNodeFieldConstraint;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
 import org.drools.mvel.model.Cheese;
 import org.drools.mvel.model.MockObjectSource;
 import org.junit.Before;
@@ -43,8 +44,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
@@ -55,7 +56,7 @@ public class CompositeObjectSinkAdapterTest {
     private InternalKnowledgeBase        kBase;
     private BuildContext                 buildContext;
 	private CompositeObjectSinkAdapter ad;
-	private InternalReadAccessor extractor;
+	private ReadAccessor extractor;
 
     ClassFieldAccessorStore store = new ClassFieldAccessorStore();
 
@@ -77,9 +78,9 @@ public class CompositeObjectSinkAdapterTest {
     public void setUp() throws Exception {
         store.setClassFieldAccessorCache( new ClassFieldAccessorCache( Thread.currentThread().getContextClassLoader() ) );
         store.setEagerWire( true );
-        this.kBase = (InternalKnowledgeBase) KnowledgeBaseFactory.newKnowledgeBase();
+        this.kBase = KnowledgeBaseFactory.newKnowledgeBase();
 
-        this.buildContext = new BuildContext( kBase );
+        this.buildContext = new BuildContext( kBase, Collections.emptyList() );
         this.buildContext.setRule(new RuleImpl("test"));
         this.ad = new CompositeObjectSinkAdapter();
     }
@@ -271,7 +272,7 @@ public class CompositeObjectSinkAdapterTest {
 
         sinksAre(al1);
         otherSinksAreEmpty();
-        assertNotNull( ad.getRangeIndexedFieldIndexes() );
+        assertThat(ad.getRangeIndexedFieldIndexes()).isNotNull();
         rangeIndexableSinksAre(al1);
     }
  
@@ -302,7 +303,7 @@ public class CompositeObjectSinkAdapterTest {
         ad.addObjectSink( al3 );
 
         //this should now be nicely indexed.
-        assertNotNull( ad.getRangeIndexMap() );
+        assertThat(ad.getRangeIndexMap()).isNotNull();
         rangeIndexableSinksIsEmpty();
     }    
     
@@ -411,15 +412,15 @@ public class CompositeObjectSinkAdapterTest {
 	}
 
 	private AlphaNode createAlphaNode(AlphaNodeFieldConstraint lit) {
-		return new AlphaNode( buildContext.getNextId(),
+		return new AlphaNode( buildContext.getNextNodeId(),
                                             lit,
-                                            new MockObjectSource( buildContext.getNextId() ),
+                                            new MockObjectSource( buildContext.getNextNodeId() ),
                                             buildContext );
 	}
    
 
 	private MockBetaNode createBetaNode() {
-		return new MockBetaNode( buildContext.getNextId(),
+		return new MockBetaNode( buildContext.getNextNodeId(),
                                                     new MockBetaNode( ),
                                                     new MockObjectSource(),
                                                     buildContext );

@@ -16,9 +16,6 @@
 
 package org.drools.core.common;
 
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
 import java.util.Collection;
 
 import org.drools.core.reteoo.EntryPointNode;
@@ -31,8 +28,6 @@ import org.drools.core.reteoo.Sink;
 import org.drools.core.reteoo.builder.BuildContext;
 import org.drools.core.util.Bag;
 import org.kie.api.definition.rule.Rule;
-
-import static org.drools.core.impl.StatefulKnowledgeSessionImpl.DEFAULT_RULE_UNIT;
 
 /**
  * The base class for all Rete nodes.
@@ -70,28 +65,6 @@ public abstract class BaseNode
         this.associations = new Bag<Rule>();
     }
 
-    @SuppressWarnings("unchecked")
-    public void readExternal(ObjectInput in) throws IOException,
-                                            ClassNotFoundException {
-        id = in.readInt();
-        memoryId = in.readInt();
-        partitionId = (RuleBasePartitionId) in.readObject();
-        partitionsEnabled = in.readBoolean();
-        associations = (Bag<Rule>) in.readObject();
-        streamMode = in.readBoolean();
-        hashcode = in.readInt();
-    }
-
-    public void writeExternal(ObjectOutput out) throws IOException {
-        out.writeInt( id );
-        out.writeInt( memoryId );
-        out.writeObject( partitionId );
-        out.writeBoolean( partitionsEnabled );
-        out.writeObject( associations );
-        out.writeBoolean( streamMode );
-        out.writeInt(hashcode);
-    }
-
     /* (non-Javadoc)
      * @see org.kie.spi.ReteooNode#getId()
      */
@@ -112,7 +85,7 @@ public abstract class BaseNode
 
     protected void initMemoryId( BuildContext context ) {
         if (context != null && this instanceof MemoryFactory) {
-            memoryId = context.getNextId( DEFAULT_RULE_UNIT );
+            memoryId = context.getNextMemoryId();
         }
     }
 
@@ -149,7 +122,7 @@ public abstract class BaseNode
                           ReteooBuilder builder) {
         boolean removed = doRemove( context, builder );
         if ( !this.isInUse() && !(this instanceof EntryPointNode) ) {
-            builder.getIdGenerator().releaseId(this );
+            builder.releaseId(this);
         }
         return removed;
     }

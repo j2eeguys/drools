@@ -29,13 +29,12 @@ import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.ClassExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
-import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
-import org.drools.compiler.lang.descr.QueryDescr;
+import org.drools.drl.ast.descr.QueryDescr;
 import org.drools.model.Query;
 import org.drools.model.QueryDef;
 import org.drools.modelcompiler.builder.PackageModel;
@@ -46,8 +45,10 @@ import org.kie.internal.ruleunit.RuleUnitDescription;
 import static org.drools.model.impl.VariableImpl.GENERATED_VARIABLE_PREFIX;
 import static org.drools.modelcompiler.builder.generator.DrlxParseUtil.getClassFromContext;
 import static org.drools.modelcompiler.builder.generator.DrlxParseUtil.toClassOrInterfaceType;
+import static org.drools.modelcompiler.builder.generator.DrlxParseUtil.toStringLiteral;
 import static org.drools.modelcompiler.builder.generator.DslMethodNames.BUILD_CALL;
 import static org.drools.modelcompiler.builder.generator.DslMethodNames.QUERY_CALL;
+import static org.drools.modelcompiler.builder.generator.DslMethodNames.createDslTopLevelMethod;
 import static org.drools.modelcompiler.util.StringUtil.toId;
 
 public class QueryGenerator {
@@ -64,14 +65,14 @@ public class QueryGenerator {
         parseQueryParameters(context, packageModel, queryDescr);
         ClassOrInterfaceType queryDefType = getQueryType(context.getQueryParameters());
 
-        MethodCallExpr queryCall = new MethodCallExpr(null, QUERY_CALL);
+        MethodCallExpr queryCall = createDslTopLevelMethod(QUERY_CALL);
         if (!queryDescr.getNamespace().isEmpty()) {
-            queryCall.addArgument( new StringLiteralExpr(queryDescr.getNamespace() ) );
+            queryCall.addArgument( toStringLiteral(queryDescr.getNamespace() ) );
         }
-        queryCall.addArgument(new StringLiteralExpr(queryName));
+        queryCall.addArgument(toStringLiteral(queryName));
         for (QueryParameter qp : context.getQueryParameters()) {
             queryCall.addArgument(new ClassExpr(toClassOrInterfaceType(qp.getType())));
-            queryCall.addArgument(new StringLiteralExpr(qp.getName()));
+            queryCall.addArgument(toStringLiteral(qp.getName()));
         }
         packageModel.getQueryDefWithType().put(queryDefVariableName, new QueryDefWithType(queryDefType, queryCall, context));
     }
@@ -104,7 +105,7 @@ public class QueryGenerator {
         String queryDefVariableName = toQueryDef(queryDescr.getName());
         RuleContext context = packageModel.getQueryDefWithType().get(queryDefVariableName).getContext();
 
-        context.addGlobalDeclarations(packageModel.getGlobals());
+        context.addGlobalDeclarations();
         context.setDialectFromAttributes(queryDescr.getAttributes().values());
 
         new ModelGeneratorVisitor(context, packageModel).visit(queryDescr.getLhs());

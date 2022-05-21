@@ -60,6 +60,7 @@ import org.kie.dmn.feel.runtime.events.InvalidParametersEvent;
 import org.kie.dmn.feel.runtime.events.SyntaxErrorEvent;
 import org.kie.dmn.feel.util.EvalHelper;
 import org.kie.dmn.feel.util.Msg;
+import org.kie.dmn.feel.util.MsgUtil;
 
 import static com.github.javaparser.StaticJavaParser.parseClassOrInterfaceType;
 import static org.kie.dmn.feel.codegen.feel11.Expressions.compiledFeelSemanticMappingsFQN;
@@ -80,6 +81,14 @@ public class CompiledFEELSupport {
         }
 
         public ContextBuilder setEntry(String key, Object value) {
+            if (resultContext == null) {
+                return this;
+            }
+            if (resultContext.containsKey(key)) {
+                evaluationContext.notifyEvt(() -> new ASTEventBase(Severity.ERROR, Msg.createMessage(Msg.DUPLICATE_KEY_CTX, key), null));
+                resultContext = null;
+                return this;
+            }
             resultContext.put(key, value);
             evaluationContext.setValue(key, value);
             return this;
@@ -438,6 +447,7 @@ public class CompiledFEELSupport {
                 feelExprCtx.notifyEvt(() -> new ASTEventBase(Severity.ERROR, Msg.createMessage(Msg.CAN_T_INVOKE_AN_UNARY_TEST_WITH_S_PARAMETERS_UNARY_TESTS_REQUIRE_1_SINGLE_PARAMETER, ps.size()), null));
             }
         }
+        feelExprCtx.notifyEvt(() -> new ASTEventBase(Severity.ERROR, Msg.createMessage(Msg.CANNOT_INVOKE, MsgUtil.clipToString(function, 50)), null));
         return null;
     }
 
@@ -499,7 +509,7 @@ public class CompiledFEELSupport {
         MethodCallExpr list = new MethodCallExpr(compiledFeelSemanticMappingsFQN(), "list", new NodeList<>(new NameExpr(constantName)));
 
         DirectCompilerResult directCompilerResult = DirectCompilerResult.of(list, BuiltInType.LIST);
-        directCompilerResult.addFieldDesclaration(fd);
+        directCompilerResult.addFieldDeclaration(fd);
         return directCompilerResult;
 
     }
@@ -530,5 +540,30 @@ public class CompiledFEELSupport {
 
     public static BigDecimal pow(BigDecimal l, BigDecimal r) {
         return BigDecimalMath.pow( l, r, MathContext.DECIMAL128 );
+    }
+
+    public static BigDecimal negate(EvaluationContext feelExprCtx, Object value) {
+        if (isValidSignedType(feelExprCtx, value)) {
+            return ((BigDecimal) value).negate();
+        } else {
+            return null;
+        }
+    }
+
+    public static BigDecimal positive(EvaluationContext feelExprCtx, Object value) {
+        if (isValidSignedType(feelExprCtx, value)) {
+            return (BigDecimal) value;
+        } else {
+            return null;
+        }
+    }
+
+    private static boolean isValidSignedType(EvaluationContext feelExprCtx, Object value) {
+        if (value instanceof String) {
+            feelExprCtx.notifyEvt(() -> new ASTEventBase(Severity.ERROR, Msg.createMessage(Msg.CANNOT_BE_SIGNED), null));
+            return false;
+        } else {
+            return true;
+        }
     }
 }

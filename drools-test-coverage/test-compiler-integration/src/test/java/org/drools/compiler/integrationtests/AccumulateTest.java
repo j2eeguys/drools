@@ -14,6 +14,7 @@
  */
 
 package org.drools.compiler.integrationtests;
+
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.io.Serializable;
@@ -28,12 +29,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.assertj.core.api.Assertions;
 import org.drools.compiler.integrationtests.incrementalcompilation.TestUtil;
-import org.drools.compiler.kproject.ReleaseIdImpl;
 import org.drools.core.SessionConfiguration;
-import org.drools.core.command.runtime.rule.InsertElementsCommand;
-import org.drools.core.impl.InternalKnowledgeBase;
+import org.drools.commands.runtime.rule.InsertElementsCommand;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
 import org.drools.testcoverage.common.model.Cheese;
 import org.drools.testcoverage.common.model.Cheesery;
 import org.drools.testcoverage.common.model.Order;
@@ -57,19 +56,20 @@ import org.kie.api.event.rule.AfterMatchFiredEvent;
 import org.kie.api.event.rule.AgendaEventListener;
 import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;
+import org.kie.api.runtime.KieSessionConfiguration;
 import org.kie.api.runtime.rule.AccumulateFunction;
 import org.kie.api.runtime.rule.FactHandle;
 import org.kie.api.runtime.rule.Match;
 import org.kie.api.runtime.rule.QueryResults;
 import org.kie.api.runtime.rule.Variable;
+import org.kie.internal.runtime.conf.ForceEagerActivationOption;
+import org.kie.util.maven.support.ReleaseIdImpl;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 import static java.util.Arrays.asList;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -1029,12 +1029,9 @@ public class AccumulateTest {
             Mockito.verify(ael).afterMatchFired(cap.capture());
 
             Match activation = cap.getValue().getMatch();
-            assertThat(((Number) activation.getDeclarationValue("$sum")).intValue(),
-                       is(18));
-            assertThat(((Number) activation.getDeclarationValue("$min")).intValue(),
-                       is(3));
-            assertThat(((Number) activation.getDeclarationValue("$avg")).intValue(),
-                       is(6));
+            assertThat(((Number) activation.getDeclarationValue("$sum")).intValue()).isEqualTo(18);
+            assertThat(((Number) activation.getDeclarationValue("$min")).intValue()).isEqualTo(3);
+            assertThat(((Number) activation.getDeclarationValue("$avg")).intValue()).isEqualTo(6);
 
             Mockito.reset(ael);
             // ---------------- 2nd scenario
@@ -1056,12 +1053,9 @@ public class AccumulateTest {
             Mockito.verify(ael).afterMatchFired(cap.capture());
 
             activation = cap.getValue().getMatch();
-            assertThat(((Number) activation.getDeclarationValue("$sum")).intValue(),
-                       is(20));
-            assertThat(((Number) activation.getDeclarationValue("$min")).intValue(),
-                       is(3));
-            assertThat(((Number) activation.getDeclarationValue("$avg")).intValue(),
-                       is(10));
+            assertThat(((Number) activation.getDeclarationValue("$sum")).intValue()).isEqualTo(20);
+            assertThat(((Number) activation.getDeclarationValue("$min")).intValue()).isEqualTo(3);
+            assertThat(((Number) activation.getDeclarationValue("$avg")).intValue()).isEqualTo(10);
         } finally {
             ksession.dispose();
         }
@@ -1178,7 +1172,7 @@ public class AccumulateTest {
                 final Cheese c = (Cheese) next;
                 data.cheese[c.getOldPrice()] = c;
                 data.cheeseHandles[c.getOldPrice()] = session.getFactHandle(c);
-                assertNotNull(data.cheeseHandles[c.getOldPrice()]);
+                assertThat(data.cheeseHandles[c.getOldPrice()]).isNotNull();
             } else if (next instanceof Person) {
                 data.bob = (Person) next;
                 data.bobHandle = session.getFactHandle(data.bob);
@@ -1852,11 +1846,11 @@ public class AccumulateTest {
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration,
                                                                     false,
                                                                     drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).extracting(Message::getText)
-                .anySatisfy(text -> Assertions.assertThat(text).contains("Unknown accumulate function: 'nonExistingFunction' on rule 'Accumulate non existing function - Java'."));
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).extracting(Message::getText)
-                .anySatisfy(text -> Assertions.assertThat(text).contains("Unknown accumulate function: 'nonExistingFunction' on rule 'Accumulate non existing function - MVEL'."));
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).extracting(Message::getText)
+                .anySatisfy(text -> assertThat(text).contains("Unknown accumulate function: 'nonExistingFunction' on rule 'Accumulate non existing function - Java'."));
+        assertThat(kieBuilder.getResults().getMessages()).extracting(Message::getText)
+                .anySatisfy(text -> assertThat(text).contains("Unknown accumulate function: 'nonExistingFunction' on rule 'Accumulate non existing function - MVEL'."));
     }
 
     @Test(timeout = 10000)
@@ -1921,12 +1915,9 @@ public class AccumulateTest {
             Mockito.verify(ael).afterMatchFired(cap.capture());
 
             Match activation = cap.getValue().getMatch();
-            assertThat(((Number) activation.getDeclarationValue("$sum")).intValue(),
-                       is(18));
-            assertThat(((Number) activation.getDeclarationValue("$min")).intValue(),
-                       is(3));
-            assertThat(((Number) activation.getDeclarationValue("$avg")).intValue(),
-                       is(6));
+            assertThat(((Number) activation.getDeclarationValue("$sum")).intValue()).isEqualTo(18);
+            assertThat(((Number) activation.getDeclarationValue("$min")).intValue()).isEqualTo(3);
+            assertThat(((Number) activation.getDeclarationValue("$avg")).intValue()).isEqualTo(6);
 
             Mockito.reset(ael);
             // ---------------- 2nd scenario
@@ -1939,12 +1930,9 @@ public class AccumulateTest {
             Mockito.verify(ael).afterMatchFired(cap.capture());
 
             activation = cap.getValue().getMatch();
-            assertThat(((Number) activation.getDeclarationValue("$sum")).intValue(),
-                       is(24));
-            assertThat(((Number) activation.getDeclarationValue("$min")).intValue(),
-                       is(5));
-            assertThat(((Number) activation.getDeclarationValue("$avg")).intValue(),
-                       is(8));
+            assertThat(((Number) activation.getDeclarationValue("$sum")).intValue()).isEqualTo(24);
+            assertThat(((Number) activation.getDeclarationValue("$min")).intValue()).isEqualTo(5);
+            assertThat(((Number) activation.getDeclarationValue("$avg")).intValue()).isEqualTo(8);
 
             Mockito.reset(ael);
             // ---------------- 3rd scenario
@@ -1956,12 +1944,9 @@ public class AccumulateTest {
             Mockito.verify(ael).afterMatchFired(cap.capture());
 
             activation = cap.getValue().getMatch();
-            assertThat(((Number) activation.getDeclarationValue("$sum")).intValue(),
-                       is(32));
-            assertThat(((Number) activation.getDeclarationValue("$min")).intValue(),
-                       is(15));
-            assertThat(((Number) activation.getDeclarationValue("$avg")).intValue(),
-                       is(16));
+            assertThat(((Number) activation.getDeclarationValue("$sum")).intValue()).isEqualTo(32);
+            assertThat(((Number) activation.getDeclarationValue("$min")).intValue()).isEqualTo(15);
+            assertThat(((Number) activation.getDeclarationValue("$avg")).intValue()).isEqualTo(16);
 
             Mockito.reset(ael);
             // ---------------- 4th scenario
@@ -1971,12 +1956,9 @@ public class AccumulateTest {
             Mockito.verify(ael).afterMatchFired(cap.capture());
 
             activation = cap.getValue().getMatch();
-            assertThat(((Number) activation.getDeclarationValue("$sum")).intValue(),
-                       is(17));
-            assertThat(((Number) activation.getDeclarationValue("$min")).intValue(),
-                       is(17));
-            assertThat(((Number) activation.getDeclarationValue("$avg")).intValue(),
-                       is(17));
+            assertThat(((Number) activation.getDeclarationValue("$sum")).intValue()).isEqualTo(17);
+            assertThat(((Number) activation.getDeclarationValue("$min")).intValue()).isEqualTo(17);
+            assertThat(((Number) activation.getDeclarationValue("$avg")).intValue()).isEqualTo(17);
         } finally {
             ksession.dispose();
         }
@@ -2676,7 +2658,7 @@ public class AccumulateTest {
             final ArgumentCaptor<AfterMatchFiredEvent> ac = ArgumentCaptor.forClass(AfterMatchFiredEvent.class);
             verify(ael).afterMatchFired(ac.capture());
 
-            assertThat(ac.getValue().getMatch().getDeclarationValue("$v"), is(1));
+            assertThat(ac.getValue().getMatch().getDeclarationValue("$v")).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
@@ -2849,7 +2831,7 @@ public class AccumulateTest {
                 "end  ";
 
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
     }
 
     @Test
@@ -2865,7 +2847,7 @@ public class AccumulateTest {
                 "end";
 
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
     }
 
     public static class ExpectedMessage {
@@ -3097,7 +3079,7 @@ public class AccumulateTest {
                         "end\n";
 
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
     }
 
     @Test
@@ -3115,7 +3097,7 @@ public class AccumulateTest {
                         "end\n";
 
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
     }
 
     @Test
@@ -3635,7 +3617,7 @@ public class AccumulateTest {
                 "end";
 
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
     }
 
     @Test
@@ -3757,9 +3739,9 @@ public class AccumulateTest {
                         "end";
 
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).extracting(Message::getText)
-                .anySatisfy(text -> Assertions.assertThat(text).contains("openAlarms"));
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).extracting(Message::getText)
+                .anySatisfy(text -> assertThat(text).contains("openAlarms"));
     }
 
     @Test
@@ -3885,6 +3867,46 @@ public class AccumulateTest {
         try {
             kieSession.insert("test");
             kieSession.insert(4);
+            assertEquals(1, kieSession.fireAllRules());
+        } finally {
+            kieSession.dispose();
+        }
+    }
+
+    public static final class PersonsContainer {
+        public List<Person> getPersons() {
+            List<Person> persons = new ArrayList<>();
+            persons.add(null);
+            persons.add(new Person("test"));
+            return persons;
+        }
+    }
+
+    @Test
+    public void testPeerCollectWithEager() {
+        // DROOLS-6768
+        final String drl =
+                "import " + PersonsContainer.class.getCanonicalName() + ";\n" +
+                "import " + Person.class.getCanonicalName() + ";\n" +
+                "import " + List.class.getCanonicalName() + ";\n" +
+                "rule R1 when\n" +
+                "    $pc : PersonsContainer()\n" +
+                "    List(size == 0) from collect( Person( name.startsWith(\"t\") ) from $pc.persons )\n" +
+                "then\n" +
+                "end\n" +
+                "rule R2 when\n" +
+                "    $pc : PersonsContainer()\n" +
+                "    List(size == 0) from collect( Person( name.endsWith(\"x\") ) from $pc.persons )\n" +
+                "then\n" +
+                "end";
+
+        KieSessionConfiguration config = KieServices.Factory.get().newKieSessionConfiguration(null);
+        config.setOption( ForceEagerActivationOption.YES );
+
+        final KieBase kieBase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("collect-test", kieBaseTestConfiguration, drl);
+        final KieSession kieSession = kieBase.newKieSession(config, null);
+        try {
+            kieSession.insert(new PersonsContainer());
             assertEquals(1, kieSession.fireAllRules());
         } finally {
             kieSession.dispose();

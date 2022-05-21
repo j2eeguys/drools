@@ -16,6 +16,7 @@
 
 package org.kie.pmml.compiler.commons.codegenfactories;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -27,22 +28,21 @@ import org.junit.Test;
 import org.kie.pmml.commons.model.predicates.KiePMMLTruePredicate;
 import org.kie.pmml.compiler.commons.utils.JavaParserUtils;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.kie.pmml.compiler.commons.testutils.CodegenTestUtils.commonValidateCompilationWithImports;
+import static org.kie.test.util.filesystem.FileUtils.getFileContent;
 
 public class KiePMMLTruePredicateFactoryTest {
 
+    private static final String TEST_01_SOURCE = "KiePMMLTruePredicateFactoryTest_01.txt";
+
     @Test
-    public void getTruePredicateVariableDeclaration() {
+    public void getTruePredicateVariableDeclaration() throws IOException {
         String variableName = "variableName";
         BlockStmt retrieved = KiePMMLTruePredicateFactory.getTruePredicateVariableDeclaration(variableName, new True());
-        Statement expected = JavaParserUtils.parseBlock(String.format("{" +
-                                                                                  "KiePMMLTruePredicate %1$s = new " +
-                                                                                  "KiePMMLTruePredicate(\"%1$s\", " +
-                                                                                  "Collections" +
-                                                                                  ".emptyList());" +
-                                                                                  "}", variableName));
-        assertTrue(JavaParserUtils.equalsNode(expected, retrieved));
+        String text = getFileContent(TEST_01_SOURCE);
+        Statement expected = JavaParserUtils.parseBlock(String.format(text, variableName));
+        assertThat(JavaParserUtils.equalsNode(expected, retrieved)).isTrue();
         List<Class<?>> imports = Arrays.asList(KiePMMLTruePredicate.class, Collections.class);
         commonValidateCompilationWithImports(retrieved, imports);
     }

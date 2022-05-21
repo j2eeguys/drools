@@ -23,10 +23,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import org.assertj.core.api.Assertions;
 import org.drools.compiler.kie.builder.impl.DrlProject;
 import org.drools.core.base.ClassObjectType;
-import org.drools.core.impl.KnowledgeBaseImpl;
+import org.drools.core.impl.RuleBase;
 import org.drools.core.reteoo.ObjectTypeNode;
 import org.kie.api.KieBase;
 import org.kie.api.KieServices;
@@ -44,6 +43,8 @@ import org.kie.api.runtime.KieContainer;
 import org.kie.internal.builder.conf.AlphaNetworkCompilerOption;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Util class that provides various methods related to Kie API.
@@ -158,7 +159,7 @@ public final class KieUtil {
         }
 
         if (failIfBuildError) {
-            Assertions.assertThat(msgs).as(msgs.toString()).isEmpty();
+            assertThat(msgs).as(msgs.toString()).isEmpty();
         }
 
         return kbuilder;
@@ -327,7 +328,11 @@ public final class KieUtil {
     }
 
     public static ObjectTypeNode getObjectTypeNode(final KieBase kbase, final Class<?> nodeClass) {
-        final List<ObjectTypeNode> nodes = ((KnowledgeBaseImpl) kbase).getRete().getObjectTypeNodes();
+        return getObjectTypeNode((RuleBase) kbase, nodeClass);
+    }
+
+    public static ObjectTypeNode getObjectTypeNode(final RuleBase kbase, final Class<?> nodeClass) {
+        final List<ObjectTypeNode> nodes = kbase.getRete().getObjectTypeNodes();
         for (final ObjectTypeNode n : nodes) {
             if (((ClassObjectType) n.getObjectType()).getClassType() == nodeClass) {
                 return n;

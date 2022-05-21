@@ -22,10 +22,10 @@ import java.util.Collections;
 import java.util.List;
 
 import org.dmg.pmml.SimplePredicate;
-import org.drools.compiler.lang.descr.GlobalDescr;
-import org.drools.compiler.lang.descr.ImportDescr;
-import org.drools.compiler.lang.descr.PackageDescr;
-import org.drools.compiler.lang.descr.RuleDescr;
+import org.drools.drl.ast.descr.GlobalDescr;
+import org.drools.drl.ast.descr.ImportDescr;
+import org.drools.drl.ast.descr.PackageDescr;
+import org.drools.drl.ast.descr.RuleDescr;
 import org.junit.Test;
 import org.kie.api.pmml.PMML4Result;
 import org.kie.pmml.api.enums.BOOLEAN_OPERATOR;
@@ -37,8 +37,8 @@ import org.kie.pmml.models.drools.ast.KiePMMLFieldOperatorValue;
 import org.kie.pmml.models.drools.executor.KiePMMLStatusHolder;
 import org.kie.pmml.models.drools.tuples.KiePMMLOperatorValue;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.kie.pmml.commons.Constants.PACKAGE_NAME;
 import static org.kie.pmml.models.drools.commons.factories.KiePMMLDescrFactory.OUTPUTFIELDS_MAP;
 import static org.kie.pmml.models.drools.commons.factories.KiePMMLDescrFactory.OUTPUTFIELDS_MAP_IDENTIFIER;
 import static org.kie.pmml.models.drools.commons.factories.KiePMMLDescrFactory.PMML4_RESULT;
@@ -46,7 +46,6 @@ import static org.kie.pmml.models.drools.commons.factories.KiePMMLDescrFactory.P
 
 public class KiePMMLDescrFactoryTest {
 
-    private static final String PACKAGE_NAME = "package";
     private static final String RULE_NAME = "NAME";
     private static final String STATUS_TO_SET = "STATUS_TO_SET";
     private static final String PATTERN_TYPE = "TEMPERATURE";
@@ -65,35 +64,35 @@ public class KiePMMLDescrFactoryTest {
         rules.add(rule);
         KiePMMLDroolsAST drooledAST = new KiePMMLDroolsAST(types, rules);
         PackageDescr packageDescr = KiePMMLDescrFactory.getBaseDescr(drooledAST, PACKAGE_NAME);
-        assertEquals(PACKAGE_NAME, packageDescr.getName());
+        assertThat(packageDescr.getName()).isEqualTo(PACKAGE_NAME);
         checkImports(packageDescr.getImports());
         checkGlobals(packageDescr.getGlobals());
         checkRules(packageDescr.getRules());
     }
 
     private void checkImports(List<ImportDescr> toCheck) {
-        assertEquals(4, toCheck.size());
+        assertThat(toCheck).hasSize(4);
         List<String> expectedImports = Arrays.asList(KiePMMLStatusHolder.class.getName(),
                                                      SimplePredicate.class.getName(),
                                                      PMML4Result.class.getName());
         for (String expectedImport : expectedImports) {
-            assertNotNull(toCheck.stream().filter(importDescr -> expectedImport.equals(importDescr.getTarget())).findFirst().orElse(null));
+            assertThat(toCheck.stream().filter(importDescr -> expectedImport.equals(importDescr.getTarget())).findFirst().orElse(null)).isNotNull();
         }
     }
 
     private void checkGlobals(List<GlobalDescr> toCheck) {
-        assertEquals(2, toCheck.size());
+        assertThat(toCheck).hasSize(2);
         GlobalDescr retrieved = toCheck.get(0);
-        assertEquals(PMML4_RESULT_IDENTIFIER, retrieved.getIdentifier());
-        assertEquals(PMML4_RESULT, retrieved.getType());
+        assertThat(retrieved.getIdentifier()).isEqualTo(PMML4_RESULT_IDENTIFIER);
+        assertThat(retrieved.getType()).isEqualTo(PMML4_RESULT);
         retrieved = toCheck.get(1);
-        assertEquals(OUTPUTFIELDS_MAP_IDENTIFIER, retrieved.getIdentifier());
-        assertEquals(OUTPUTFIELDS_MAP, retrieved.getType());
+        assertThat(retrieved.getIdentifier()).isEqualTo(OUTPUTFIELDS_MAP_IDENTIFIER);
+        assertThat(retrieved.getType()).isEqualTo(OUTPUTFIELDS_MAP);
     }
 
     private void checkRules(List<RuleDescr> toCheck) {
-        assertEquals(1, toCheck.size());
+        assertThat(toCheck).hasSize(1);
         RuleDescr retrieved = toCheck.get(0);
-        assertEquals(RULE_NAME, retrieved.getName());
+        assertThat(retrieved.getName()).isEqualTo(RULE_NAME);
     }
 }

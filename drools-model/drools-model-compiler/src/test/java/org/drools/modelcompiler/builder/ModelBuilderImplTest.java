@@ -18,19 +18,19 @@ package org.drools.modelcompiler.builder;
 
 import org.drools.compiler.builder.impl.KnowledgeBuilderConfigurationImpl;
 import org.drools.compiler.compiler.PackageRegistry;
-import org.drools.compiler.kproject.ReleaseIdImpl;
-import org.drools.compiler.lang.descr.GlobalDescr;
-import org.drools.compiler.lang.descr.PackageDescr;
 import org.drools.core.definitions.InternalKnowledgePackage;
-import org.drools.core.definitions.impl.KnowledgePackageImpl;
+import org.drools.core.reteoo.CoreComponentFactory;
+import org.drools.drl.ast.descr.GlobalDescr;
+import org.drools.drl.ast.descr.PackageDescr;
 import org.junit.Before;
 import org.junit.Test;
 import org.kie.api.builder.ReleaseId;
+import org.kie.util.maven.support.ReleaseIdImpl;
 
-import static org.drools.core.util.StringUtils.generateUUID;
-import static org.drools.core.util.StringUtils.getPkgUUID;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.drools.modelcompiler.builder.PackageModel.getPkgUUID;
+import static org.drools.util.StringUtils.generateUUID;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 
 public class ModelBuilderImplTest {
 
@@ -42,7 +42,7 @@ public class ModelBuilderImplTest {
 
     @Before
     public void setup() {
-        internalKnowledgePackage = new KnowledgePackageImpl("apackage");
+        internalKnowledgePackage = CoreComponentFactory.get().createKnowledgePackage("apackage");
         modelBuilder = new ModelBuilderImpl<>(PackageSources::dumpSources, CONFIGURATION, RELEASE_ID, false);
         packageRegistry = new PackageRegistry(ModelBuilderImplTest.class.getClassLoader(), CONFIGURATION, internalKnowledgePackage);
     }
@@ -52,7 +52,7 @@ public class ModelBuilderImplTest {
         String pkgUUID = generateUUID();
         PackageDescr packageDescr = getPackageDescr(pkgUUID);
         PackageModel retrieved =  modelBuilder.getPackageModel(packageDescr, packageRegistry, internalKnowledgePackage.getName());
-        assertNotNull(retrieved);
+        assertThat(retrieved).isNotNull();
         assertEquals(pkgUUID, retrieved.getPackageUUID());
     }
 
@@ -60,7 +60,7 @@ public class ModelBuilderImplTest {
     public void getPackageModelWithoutPkgUUID() {
         PackageDescr packageDescr = getPackageDescr(null);
         PackageModel retrieved =  modelBuilder.getPackageModel(packageDescr, packageRegistry, internalKnowledgePackage.getName());
-        assertNotNull(retrieved);
+        assertThat(retrieved).isNotNull();
         String expected = getPkgUUID(RELEASE_ID, internalKnowledgePackage.getName());
         assertEquals(expected, retrieved.getPackageUUID());
     }

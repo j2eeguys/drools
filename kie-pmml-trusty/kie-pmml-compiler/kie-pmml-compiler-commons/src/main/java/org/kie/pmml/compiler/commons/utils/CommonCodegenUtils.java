@@ -21,6 +21,8 @@ import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -60,7 +62,10 @@ import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
+import org.dmg.pmml.DataType;
+import org.dmg.pmml.OpType;
 import org.kie.pmml.api.enums.DATA_TYPE;
+import org.kie.pmml.api.enums.OP_TYPE;
 import org.kie.pmml.api.exceptions.KiePMMLException;
 import org.kie.pmml.api.exceptions.KiePMMLInternalException;
 import org.kie.pmml.commons.model.tuples.KiePMMLNameValue;
@@ -81,8 +86,6 @@ import static org.kie.pmml.commons.Constants.MISSING_VARIABLE_IN_BODY;
 public class CommonCodegenUtils {
 
     static final String LAMBDA_PARAMETER_NAME = "lmbdParam";
-    static final String METHOD_NAME_TEMPLATE = "%s%s";
-    static final String PARAMETER_NAME_TEMPLATE = "param%s";
     public static String OPTIONAL_FILTERED_KIEPMMLNAMEVALUE_NAME = "kiePMMLNameValue";
 
     private CommonCodegenUtils() {
@@ -160,8 +163,8 @@ public class CommonCodegenUtils {
         initializer.setScope(initializerScope);
         // Optional<KiePMMLNameValue> kiePMMLNameValue
         VariableDeclarator variableDeclarator =
-                new VariableDeclarator(getTypedClassOrInterfaceType(Optional.class.getName(),
-                                                                    Collections.singletonList(KiePMMLNameValue.class.getName())),
+                new VariableDeclarator(getTypedClassOrInterfaceTypeByTypeNames(Optional.class.getName(),
+                                                                               Collections.singletonList(KiePMMLNameValue.class.getName())),
                                        OPTIONAL_FILTERED_KIEPMMLNAMEVALUE_NAME);
         // Optional<KiePMMLNameValue> kiePMMLNameValue = kiePMMLNameValueListParam.stream().filter((KiePMMLNameValue
         // kpmmlnv)  -> Objects.equals(fieldNameToRef, kpmmlnv.getName())).findFirst()
@@ -207,6 +210,58 @@ public class CommonCodegenUtils {
     }
 
     /**
+     * Declare and initialize a new <code>Map</code> in the given <code>BlockStmt</code>
+     * @param body
+     * @param mapName
+     * @param mapTypes
+     */
+    public static void createHashMap(final BlockStmt body,
+                                     final String mapName,
+                                     final List<String> mapTypes) {
+        createMap(body, mapName, mapTypes, HashMap.class);
+    }
+
+    /**
+     * Declare and initialize a new <code>LinkedHashMap</code> in the given <code>BlockStmt</code>
+     * @param body
+     * @param mapName
+     * @param mapTypes
+     */
+    public static void createLinkedHashMap(final BlockStmt body,
+                                 final String mapName,
+                                 final List<String> mapTypes) {
+        createMap(body, mapName, mapTypes, LinkedHashMap.class);
+    }
+
+    /**
+     * Declare, initialize and populate a new <code>HashMap</code> in the given <code>BlockStmt</code>
+     * @param body
+     * @param mapName
+     * @param mapTypes
+     */
+    public static void createPopulatedHashMap(final BlockStmt body,
+                                              final String mapName,
+                                              final List<String> mapTypes,
+                                              final Map<String, Expression> toAdd) {
+        createHashMap(body, mapName, mapTypes);
+        addMapPopulationExpressions(toAdd, body, mapName);
+    }
+
+    /**
+     * Declare, initialize and populate a new <code>LinkedHashMap</code> in the given <code>BlockStmt</code>
+     * @param body
+     * @param mapName
+     * @param mapTypes
+     */
+    public static void createPopulatedLinkedHashMap(final BlockStmt body,
+                                              final String mapName,
+                                              final List<String> mapTypes,
+                                              final Map<String, Expression> toAdd) {
+        createLinkedHashMap(body, mapName, mapTypes);
+        addMapPopulationExpressions(toAdd, body, mapName);
+    }
+
+    /**
      * For every entry in the given map, add a "put" statement to the provided {@link BlockStmt} body.
      * @param toAdd the map containing the input values to process
      * @param body the destination body
@@ -236,11 +291,71 @@ public class CommonCodegenUtils {
      * @param body
      * @param listName
      */
-    public static void addListPopulation(final List<ObjectCreationExpr> toAdd,
-                                         final BlockStmt body,
-                                         final String listName) {
+    public static void addListPopulationByObjectCreationExpr(final List<ObjectCreationExpr> toAdd,
+                                                             final BlockStmt body,
+                                                             final String listName) {
         toAdd.forEach(objectCreationExpr -> {
             NodeList<Expression> arguments = NodeList.nodeList(objectCreationExpr);
+            MethodCallExpr methodCallExpr = new MethodCallExpr();
+            methodCallExpr.setScope(new NameExpr(listName));
+            methodCallExpr.setName("add");
+            methodCallExpr.setArguments(arguments);
+            ExpressionStmt expressionStmt = new ExpressionStmt();
+            expressionStmt.setExpression(methodCallExpr);
+            body.addStatement(expressionStmt);
+        });
+    }
+
+    /**
+     * Method to be used to populate a <code>List</code> inside a getter method meant to return only that <code>List</code>
+     * @param toAdd
+     * @param methodDeclaration
+     * @param listName
+     */
+    public static void populateListInListGetter(final List<? extends Expression> toAdd,
+                                                final MethodDeclaration methodDeclaration,
+                                                final String listName) {
+        final BlockStmt body = methodDeclaration.getBody().orElseThrow(() -> new KiePMMLInternalException(String.format(MISSING_BODY_IN_METHOD, methodDeclaration)));
+        Optional<ReturnStmt> oldReturn =  body.getStatements().parallelStream().filter(ReturnStmt.class::isInstance)
+                .map(ReturnStmt.class::cast)
+                .findFirst();
+        oldReturn.ifPresent(Node::remove);
+
+        toAdd.forEach(expression -> {
+            NodeList<Expression> arguments = NodeList.nodeList(expression);
+            MethodCallExpr methodCallExpr = new MethodCallExpr();
+            methodCallExpr.setScope(new NameExpr(listName));
+            methodCallExpr.setName("add");
+            methodCallExpr.setArguments(arguments);
+            ExpressionStmt expressionStmt = new ExpressionStmt();
+            expressionStmt.setExpression(methodCallExpr);
+            body.addStatement(expressionStmt);
+        });
+        body.addStatement(getReturnStmt(listName));
+    }
+
+    /**
+     * For every entry in the given list, add
+     * <pre>
+     *     (<i>listName</i>).add(<i>MethodCallExpr</i>>);
+     * </pre>
+     * e.g.
+     * <pre>
+     *     LIST_NAME.add(ObjectA.builder().build());
+     *     LIST_NAME.add(ObjectB.builder().build());
+     *     LIST_NAME.add(ObjectC.builder().build());
+     *     LIST_NAME.add(ObjectD.builder().build());
+     * </pre>
+     * inside the given <code>BlockStmt</code>
+     * @param toAdd
+     * @param body
+     * @param listName
+     */
+    public static void addListPopulationByMethodCallExpr(final List<MethodCallExpr> toAdd,
+                                                         final BlockStmt body,
+                                                         final String listName) {
+        toAdd.forEach(methodCallExpr1 -> {
+            NodeList<Expression> arguments = NodeList.nodeList(methodCallExpr1);
             MethodCallExpr methodCallExpr = new MethodCallExpr();
             methodCallExpr.setScope(new NameExpr(listName));
             methodCallExpr.setName("add");
@@ -364,11 +479,31 @@ public class CommonCodegenUtils {
      * @param typesName
      * @return
      */
-    public static ClassOrInterfaceType getTypedClassOrInterfaceType(final String className,
-                                                                    final List<String> typesName) {
-        ClassOrInterfaceType toReturn = parseClassOrInterfaceType(className);
+    public static ClassOrInterfaceType getTypedClassOrInterfaceTypeByTypeNames(final String className,
+                                                                               final List<String> typesName) {
         List<Type> types = typesName.stream()
                 .map(StaticJavaParser::parseClassOrInterfaceType).collect(Collectors.toList());
+        return getTypedClassOrInterfaceTypeByTypes(className, types);
+    }
+
+    /**
+     * Returns
+     * <pre>
+     *     (<i>className</i>)<(<i>comma-separated list of types</i>)>
+     * </pre>
+     * <p>
+     * e.g
+     * <pre>
+     *     CLASS_NAME<TypeA, TypeB>
+     * </pre>
+     * a <b>typed</b> <code>ClassOrInterfaceType</code>
+     * @param className
+     * @param types
+     * @return
+     */
+    public static ClassOrInterfaceType getTypedClassOrInterfaceTypeByTypes(final String className,
+                                                                           final List<Type> types) {
+        ClassOrInterfaceType toReturn = parseClassOrInterfaceType(className);
         toReturn.setTypeArguments(NodeList.nodeList(types));
         return toReturn;
     }
@@ -635,6 +770,28 @@ public class CommonCodegenUtils {
                 .stream()
                 .filter(variableDeclarator -> variableDeclarator.getName().asString().equals(variableName))
                 .findFirst();
+    }
+
+    public static Expression getExpressionForDataType(DataType dataTypeParam) {
+        final Expression toReturn;
+        if (dataTypeParam != null) {
+            final DATA_TYPE dataType = DATA_TYPE.byName(dataTypeParam.value());
+            toReturn = new NameExpr(DATA_TYPE.class.getName() + "." + dataType.name());
+        } else {
+            toReturn = new NullLiteralExpr();
+        }
+        return toReturn;
+    }
+
+    public static Expression getExpressionForOpType(OpType opTypeParam) {
+        final Expression toReturn;
+        if (opTypeParam != null) {
+            final OP_TYPE opType = OP_TYPE.byName(opTypeParam.value());
+            toReturn = new NameExpr(OP_TYPE.class.getName() + "." + opType.name());
+        } else {
+            toReturn = new NullLiteralExpr();
+        }
+        return toReturn;
     }
 
     public static Expression getExpressionForObject(Object source) {
@@ -934,4 +1091,20 @@ public class CommonCodegenUtils {
             this.replacement = replacement;
         }
     }
+
+    private static void createMap(final BlockStmt body,
+                                  final String mapName,
+                                  final List<String> mapTypes,
+                                  final Class<? extends Map> mapClass) {
+        final VariableDeclarator mapDeclarator =
+                new VariableDeclarator(getTypedClassOrInterfaceTypeByTypeNames(Map.class.getName(),mapTypes),
+                                       mapName);
+        final ObjectCreationExpr mapInitializer = new ObjectCreationExpr();
+        mapInitializer.setType(getTypedClassOrInterfaceTypeByTypeNames(mapClass.getName(), mapTypes));
+        mapDeclarator.setInitializer(mapInitializer);
+        final VariableDeclarationExpr mapDeclarationExpr =
+                new VariableDeclarationExpr(mapDeclarator);
+        body.addStatement(mapDeclarationExpr);
+    }
+
 }

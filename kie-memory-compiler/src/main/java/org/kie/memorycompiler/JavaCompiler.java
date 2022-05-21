@@ -32,6 +32,35 @@ import org.kie.memorycompiler.resources.ResourceStore;
  */
 public interface JavaCompiler {
 
+    boolean DUMP_GENERATED_CLASSES = false;
+
+    static JavaCompiler getCompiler() {
+        return CompilerHolder.JAVA_COMPILER;
+    }
+
+    class CompilerHolder {
+        private static final JavaCompiler JAVA_COMPILER =
+                System.getProperty("jboss.server.name") != null ?
+                        JavaCompiler.createEclipseCompiler() :
+                        JavaCompiler.createNativeCompiler();
+    }
+
+    static JavaCompiler createNativeCompiler() {
+        return createNativeCompiler(System.getProperty("java.version"));
+    }
+
+    static JavaCompiler createNativeCompiler(String javaVersion) {
+        return JavaCompilerFactory.loadCompiler(JavaConfiguration.CompilerType.NATIVE, javaVersion, "src/main/java/");
+    }
+
+    static JavaCompiler createEclipseCompiler() {
+        return createEclipseCompiler(System.getProperty("java.version"));
+    }
+
+    static JavaCompiler createEclipseCompiler(String javaVersion) {
+        return JavaCompilerFactory.loadCompiler(JavaConfiguration.CompilerType.ECLIPSE, javaVersion, "src/main/java/");
+    }
+
     default void setSourceFolder( String sourceFolder ) { }
 
     /**

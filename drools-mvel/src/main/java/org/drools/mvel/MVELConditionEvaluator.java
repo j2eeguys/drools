@@ -14,36 +14,41 @@
 
 package org.drools.mvel;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.drools.core.base.EvaluatorWrapper;
-import org.drools.mvel.expr.MVELCompilationUnit;
+import org.drools.compiler.rule.builder.EvaluatorWrapper;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.InternalWorkingMemory;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.rule.Declaration;
-import org.drools.core.rule.constraint.ConditionEvaluator;
-import org.drools.core.spi.Tuple;
+import org.drools.core.reteoo.Tuple;
+import org.drools.mvel.expr.MVELCompilationUnit;
+import org.drools.mvel.expr.MvelEvaluator;
 import org.mvel2.MVEL;
 import org.mvel2.ParserConfiguration;
 import org.mvel2.ParserContext;
 import org.mvel2.ast.ASTNode;
 import org.mvel2.ast.And;
-import org.mvel2.ast.BinaryOperation;
 import org.mvel2.ast.BooleanNode;
 import org.mvel2.ast.Contains;
 import org.mvel2.ast.LineLabel;
+import org.mvel2.ast.LiteralNode;
 import org.mvel2.ast.Negation;
 import org.mvel2.ast.Or;
 import org.mvel2.ast.Substatement;
+import org.mvel2.compiler.Accessor;
+import org.mvel2.compiler.AccessorNode;
 import org.mvel2.compiler.CompiledExpression;
 import org.mvel2.compiler.ExecutableAccessor;
 import org.mvel2.compiler.ExecutableLiteral;
 import org.mvel2.compiler.ExecutableStatement;
 import org.mvel2.integration.VariableResolverFactory;
+import org.mvel2.optimizers.impl.refl.nodes.MethodAccessor;
 import org.mvel2.util.ASTLinkedList;
 
-import static org.drools.core.rule.constraint.EvaluatorHelper.valuesAsMap;
+import static org.drools.mvel.EvaluatorHelper.valuesAsMap;
+import static org.drools.mvel.expr.MvelEvaluator.createMvelEvaluator;
 
 public class MVELConditionEvaluator implements ConditionEvaluator {
 
@@ -54,6 +59,8 @@ public class MVELConditionEvaluator implements ConditionEvaluator {
     private final ParserConfiguration parserConfiguration;
     private final ExecutableStatement executableStatement;
     private final MVELCompilationUnit compilationUnit;
+
+    private final MvelEvaluator<Boolean> evaluator;
 
     private boolean evaluated = false;
 
@@ -82,18 +89,19 @@ public class MVELConditionEvaluator implements ConditionEvaluator {
         this.compilationUnit = compilationUnit;
         this.parserConfiguration = parserConfiguration;
         this.executableStatement = executableStatement;
+        this.evaluator = createMvelEvaluator( executableStatement );
     }
 
-    public boolean evaluate(InternalFactHandle handle, InternalWorkingMemory workingMemory, Tuple tuple) {
-        return evaluate(executableStatement, handle, workingMemory, tuple);
+    public boolean evaluate(InternalFactHandle handle, ReteEvaluator reteEvaluator, Tuple tuple) {
+        return evaluate(evaluator, handle, reteEvaluator, tuple);
     }
 
-    private boolean evaluate(ExecutableStatement statement, InternalFactHandle handle, InternalWorkingMemory workingMemory, Tuple tuple) {
+    private boolean evaluate(MvelEvaluator<Boolean> evaluator, InternalFactHandle handle, ReteEvaluator reteEvaluator, Tuple tuple) {
         if (compilationUnit == null) {
-            Map<String, Object> vars = valuesAsMap(handle.getObject(), workingMemory, tuple, declarations);
+            Map<String, Object> vars = valuesAsMap(handle.getObject(), reteEvaluator, tuple, declarations);
             if (operators.length > 0) {
                 if (vars == null) {
-                    vars = new HashMap<String, Object>();
+                    vars = new HashMap<>();
                 }
                 InternalFactHandle[] handles = tuple != null ? tuple.toFactHandles() : new InternalFactHandle[0];
                 for (EvaluatorWrapper operator : operators) {
@@ -101,49 +109,111 @@ public class MVELConditionEvaluator implements ConditionEvaluator {
                     operator.loadHandles(handles, handle);
                 }
             }
-            return evaluate(statement, handle.getObject(), vars);
+            return evaluate(evaluator, handle.getObject(), vars);
         }
 
         VariableResolverFactory factory = compilationUnit.createFactory();
-        compilationUnit.updateFactory( handle, tuple, null, workingMemory,
-                                       workingMemory.getGlobalResolver(),
+        compilationUnit.updateFactory( handle, tuple, null, reteEvaluator,
+                                       reteEvaluator.getGlobalResolver(),
                                        factory );
 
-        return (Boolean) MVELSafeHelper.getEvaluator().executeExpression( statement, handle.getObject(), factory );
+        return evaluator.evaluate( handle.getObject(), factory );
     }
 
-    private boolean evaluate(ExecutableStatement statement, Object object, Map<String, Object> vars) {
+    private boolean evaluate(MvelEvaluator<Boolean> evaluator, Object object, Map<String, Object> vars) {
         return vars == null ?
-               (Boolean)MVELSafeHelper.getEvaluator().executeExpression(statement, object) :
-               (Boolean)MVELSafeHelper.getEvaluator().executeExpression(statement, object, vars);
+                evaluator.evaluate( object ) :
+                evaluator.evaluate( object, vars );
     }
 
-    ConditionAnalyzer.Condition getAnalyzedCondition( InternalFactHandle handle, InternalWorkingMemory workingMemory, Tuple leftTuple) {
-        ensureCompleteEvaluation(handle, workingMemory, leftTuple);
+    ConditionAnalyzer.Condition getAnalyzedCondition( InternalFactHandle handle, ReteEvaluator reteEvaluator, Tuple leftTuple) {
+        ensureCompleteEvaluation(handle, reteEvaluator, leftTuple);
         return new ConditionAnalyzer(executableStatement, declarations, operators, conditionClass).analyzeCondition();
     }
 
-    private void ensureCompleteEvaluation(InternalFactHandle handle, InternalWorkingMemory workingMemory, Tuple tuple) {
+    private void ensureCompleteEvaluation(InternalFactHandle handle, ReteEvaluator reteEvaluator, Tuple tuple) {
         if (!evaluated) {
-            ASTNode rootNode = getRootNode();
+            ASTNode rootNode = getRootNode(executableStatement);
             if (rootNode != null) {
-                ensureCompleteEvaluation(rootNode, handle, workingMemory, tuple);
+                ensureCompleteEvaluation(rootNode, handle, reteEvaluator, tuple);
             }
             evaluated = true;
         }
     }
 
-    private void ensureCompleteEvaluation(ASTNode node, InternalFactHandle handle, InternalWorkingMemory workingMemory, Tuple tuple) {
+    private void ensureCompleteEvaluation(ASTNode node, InternalFactHandle handle, ReteEvaluator reteEvaluator, Tuple tuple) {
         node = unwrap(node);
         if (!(node instanceof And || node instanceof Or)) {
-            evaluateIfNecessary(handle, workingMemory, tuple, node);
+            evaluateIfNecessary(handle, reteEvaluator, tuple, node);
             return;
         }
-        ensureBranchEvaluation(handle, workingMemory, tuple, ((BooleanNode)node).getLeft());
-        ensureBranchEvaluation(handle, workingMemory, tuple, ((BooleanNode)node).getRight());
+        ensureBranchEvaluation(handle, reteEvaluator, tuple, ((BooleanNode)node).getLeft());
+        ensureBranchEvaluation(handle, reteEvaluator, tuple, ((BooleanNode)node).getRight());
     }
 
-    private ASTNode unwrap(ASTNode node) {
+    private void ensureBranchEvaluation(InternalFactHandle handle, ReteEvaluator reteEvaluator, Tuple tuple, ASTNode node) {
+        evaluateIfNecessary( handle, reteEvaluator, tuple, node );
+        ensureCompleteEvaluation(node, handle, reteEvaluator, tuple);
+    }
+
+    private void evaluateIfNecessary( InternalFactHandle handle, ReteEvaluator reteEvaluator, Tuple tuple, ASTNode node ) {
+        if (!isEvaluated(node)) {
+            ASTNode next = node.nextASTNode;
+            node.nextASTNode = null;
+            evaluate( createMvelEvaluator(evaluator, asCompiledExpression(node) ), handle, reteEvaluator, tuple);
+            node.nextASTNode = next;
+        }
+    }
+
+    private CompiledExpression asCompiledExpression(ASTNode node) {
+        return new CompiledExpression(new ASTLinkedList(node), null, Object.class, parserConfiguration, false);
+    }
+
+    public static boolean isFullyEvaluated(Serializable executableStatement) {
+        return isEvaluated( getRootNode( executableStatement ) );
+    }
+
+    private static boolean isEvaluated(ASTNode node) {
+        node = unwrapSubstatement(node);
+        if (node == null) {
+            return true;
+        }
+
+        if (node instanceof Contains) {
+            return ((Contains)node).getFirstStatement().getAccessor() != null;
+        }
+
+        if (node instanceof BooleanNode) {
+            return isEvaluated(((BooleanNode) node).getLeft()) && isEvaluated(((BooleanNode) node).getRight());
+        }
+
+        Accessor accessor = node.getAccessor();
+        if (accessor == null) {
+            return node instanceof LiteralNode;
+        }
+
+        if (accessor instanceof AccessorNode) {
+            AccessorNode nextNode = ((AccessorNode) accessor).getNextNode();
+            if (nextNode instanceof MethodAccessor && ((MethodAccessor) nextNode).getParms() != null) {
+                for (ExecutableStatement param : ((MethodAccessor) nextNode).getParms()) {
+                    if (!isFullyEvaluated(param)) {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private static ASTNode getRootNode(Serializable executableStatement) {
+        if (executableStatement instanceof ExecutableLiteral) {
+            return null;
+        }
+        return executableStatement instanceof CompiledExpression ? ((CompiledExpression) executableStatement).getFirstNode() : ((ExecutableAccessor) executableStatement).getNode();
+    }
+
+    private static ASTNode unwrap(ASTNode node) {
         while (node instanceof Negation || node instanceof LineLabel || node instanceof Substatement) {
             node = unwrapNegation(node);
             node = unwrapSubstatement(node);
@@ -151,21 +221,7 @@ public class MVELConditionEvaluator implements ConditionEvaluator {
         return node;
     }
 
-    private void ensureBranchEvaluation(InternalFactHandle handle, InternalWorkingMemory workingMemory, Tuple tuple, ASTNode node) {
-        evaluateIfNecessary( handle, workingMemory, tuple, node );
-        ensureCompleteEvaluation(node, handle, workingMemory, tuple);
-    }
-
-    private void evaluateIfNecessary( InternalFactHandle handle, InternalWorkingMemory workingMemory, Tuple tuple, ASTNode node ) {
-        if (!isEvaluated(node)) {
-            ASTNode next = node.nextASTNode;
-            node.nextASTNode = null;
-            evaluate(asCompiledExpression(node), handle, workingMemory, tuple);
-            node.nextASTNode = next;
-        }
-    }
-
-    private ASTNode unwrapNegation(ASTNode node) {
+    private static ASTNode unwrapNegation(ASTNode node) {
         if (node instanceof Negation) {
             ExecutableStatement statement = ((Negation)node).getStatement();
             return statement instanceof ExecutableAccessor ? ((ExecutableAccessor)statement).getNode() : null;
@@ -173,29 +229,10 @@ public class MVELConditionEvaluator implements ConditionEvaluator {
         return node;
     }
 
-    private ASTNode unwrapSubstatement(ASTNode node) {
+    private static ASTNode unwrapSubstatement(ASTNode node) {
         if (node instanceof LineLabel) {
             return node.nextASTNode;
         }
         return node instanceof Substatement ? ((ExecutableAccessor)((Substatement)node).getStatement()).getNode() : node;
-    }
-
-    private boolean isEvaluated(ASTNode node) {
-        node = unwrapSubstatement(node);
-        if (node instanceof Contains) {
-            return ((Contains)node).getFirstStatement().getAccessor() != null;
-        }
-        return node instanceof BinaryOperation ? ((BooleanNode) node).getLeft().getAccessor() != null : node.getAccessor() != null;
-    }
-
-    private CompiledExpression asCompiledExpression(ASTNode node) {
-        return new CompiledExpression(new ASTLinkedList(node), null, Object.class, parserConfiguration, false);
-    }
-
-    private ASTNode getRootNode() {
-        if (executableStatement instanceof ExecutableLiteral) {
-            return null;
-        }
-        return executableStatement instanceof CompiledExpression ? ((CompiledExpression) executableStatement).getFirstNode() : ((ExecutableAccessor) executableStatement).getNode();
     }
 }

@@ -38,12 +38,15 @@ import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.MethodReferenceExpr;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.NullLiteralExpr;
+import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.TypeExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.Statement;
-import org.dmg.pmml.DataDictionary;
-import org.dmg.pmml.DerivedField;
+import com.github.javaparser.ast.type.ClassOrInterfaceType;
+import com.github.javaparser.ast.type.ClassOrInterfaceType;
+import org.dmg.pmml.Field;
 import org.dmg.pmml.Predicate;
+import org.dmg.pmml.ScoreDistribution;
 import org.dmg.pmml.tree.Node;
 import org.kie.pmml.api.exceptions.KiePMMLException;
 import org.kie.pmml.api.exceptions.KiePMMLInternalException;
@@ -52,6 +55,7 @@ import org.kie.pmml.compiler.commons.utils.CommonCodegenUtils;
 import org.kie.pmml.compiler.commons.utils.JavaParserUtils;
 import org.kie.pmml.models.tree.compiler.utils.KiePMMLTreeModelUtils;
 import org.kie.pmml.models.tree.model.KiePMMLNode;
+import org.kie.pmml.models.tree.model.KiePMMLScoreDistribution;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,6 +69,7 @@ import static org.kie.pmml.commons.Constants.MISSING_VARIABLE_IN_BODY;
 import static org.kie.pmml.commons.Constants.PACKAGE_CLASS_TEMPLATE;
 import static org.kie.pmml.compiler.commons.codegenfactories.KiePMMLModelFactoryUtils.setConstructorSuperNameInvocation;
 import static org.kie.pmml.compiler.commons.codegenfactories.KiePMMLPredicateFactory.getKiePMMLPredicate;
+import static org.kie.pmml.compiler.commons.utils.CommonCodegenUtils.getExpressionForObject;
 import static org.kie.pmml.compiler.commons.utils.JavaParserUtils.MAIN_CLASS_NOT_FOUND;
 import static org.kie.pmml.models.tree.compiler.utils.KiePMMLTreeModelUtils.createNodeClassName;
 
@@ -75,6 +80,8 @@ public class KiePMMLNodeFactory {
     static final String EVALUATE_NODE = "evaluateNode";
     static final String PREDICATE = "predicate";
     static final String SCORE = "score";
+    static final String SCORE_DISTRIBUTIONS = "scoreDistributions";
+    static final String MISSING_VALUE_PENALTY = "missingValuePenalty";
     static final String NODE_FUNCTIONS = "nodeFunctions";
     static final String EMPTY_LIST = "emptyList";
     static final String AS_LIST = "asList";
@@ -85,13 +92,13 @@ public class KiePMMLNodeFactory {
     }
 
     public static KiePMMLNode getKiePMMLNode(final Node node,
-                                             final DataDictionary dataDictionary,
-                                             final List<DerivedField> derivedFields,
+                                             final List<Field<?>> fields,
                                              final String packageName,
+                                             final Double missingValuePenalty,
                                              final HasClassLoader hasClassLoader) {
         logger.trace("getKiePMMLTreeNode {} {}", packageName, node);
-        final KiePMMLNodeFactory.NodeNamesDTO nodeNamesDTO = new KiePMMLNodeFactory.NodeNamesDTO(node, createNodeClassName(), null);
-        final Map<String, String> sourcesMap = getKiePMMLNodeSourcesMap(nodeNamesDTO, dataDictionary, derivedFields, packageName);
+        final KiePMMLNodeFactory.NodeNamesDTO nodeNamesDTO = new KiePMMLNodeFactory.NodeNamesDTO(node, createNodeClassName(), null, missingValuePenalty);
+        final Map<String, String> sourcesMap = getKiePMMLNodeSourcesMap(nodeNamesDTO, fields, packageName);
         String fullClassName = packageName + "." + nodeNamesDTO.nodeClassName;
         try {
             Class<?> kiePMMLNodeClass = hasClassLoader.compileAndLoadClass(sourcesMap, fullClassName);
@@ -102,26 +109,24 @@ public class KiePMMLNodeFactory {
     }
 
     public static Map<String, String> getKiePMMLNodeSourcesMap(final NodeNamesDTO nodeNamesDTO,
-                                                               final DataDictionary dataDictionary,
-                                                               final List<DerivedField> derivedFields,
+                                                               final List<Field<?>> fields,
                                                                final String packageName) {
         logger.trace("getKiePMMLNodeSourcesMap {} {}", nodeNamesDTO, packageName);
         final JavaParserDTO javaParserDTO = new JavaParserDTO(nodeNamesDTO, packageName);
         final Map<String, String> toReturn = new HashMap<>();
-        populateJavaParserDTOAndSourcesMap(javaParserDTO, toReturn, nodeNamesDTO, dataDictionary, derivedFields,true);
+        populateJavaParserDTOAndSourcesMap(javaParserDTO, toReturn, nodeNamesDTO, fields,true);
         return toReturn;
     }
 
     static void populateJavaParserDTOAndSourcesMap(final JavaParserDTO toPopulate,
                                                    final Map<String, String> sourcesMap,
                                                    final NodeNamesDTO nodeNamesDTO,
-                                                   final DataDictionary dataDictionary,
-                                                   final List<DerivedField> derivedFields,
+                                                   final List<Field<?>> fields,
                                                    final boolean isRoot) {
         // Set 'evaluateNode'
-        populateEvaluateNode(toPopulate, nodeNamesDTO, derivedFields, dataDictionary, isRoot);
+        populateEvaluateNode(toPopulate, nodeNamesDTO, fields, isRoot);
         // Set the nested nodes
-        populatedNestedNodes(toPopulate, sourcesMap, dataDictionary,derivedFields, nodeNamesDTO);
+        populatedNestedNodes(toPopulate, sourcesMap, fields, nodeNamesDTO);
         // merge generated methods in one class
         // dump generated sources
         sourcesMap.put(toPopulate.fullNodeClassName, toPopulate.getSource());
@@ -136,33 +141,30 @@ public class KiePMMLNodeFactory {
      *
      * @param toPopulate
      * @param sourcesMap
-     * @param dataDictionary
-     * @param derivedFields
+     * @param fields
      * @param nodeNamesDTO
      */
     static void populatedNestedNodes(final JavaParserDTO toPopulate,
                                      final Map<String, String> sourcesMap,
-                                     final DataDictionary dataDictionary,
-                                     final List<DerivedField> derivedFields,
+                                     final List<Field<?>> fields,
                                      final NodeNamesDTO nodeNamesDTO) {
         final Node node = nodeNamesDTO.node;
         if (node.hasNodes()) {
             for (Node nestedNode : node.getNodes()) {
-                final NodeNamesDTO nestedNodeNamesDTO = new NodeNamesDTO(nestedNode, nodeNamesDTO.getNestedNodeClassName(nestedNode), nodeNamesDTO.nodeClassName);
+                final NodeNamesDTO nestedNodeNamesDTO = new NodeNamesDTO(nestedNode, nodeNamesDTO.getNestedNodeClassName(nestedNode), nodeNamesDTO.nodeClassName, nodeNamesDTO.missingValuePenalty);
                 if (toPopulate.limitReach()) {
                     // start creating new node
                     // 1) dump generated class source
                     sourcesMap.put(toPopulate.fullNodeClassName, toPopulate.getSource());
                     // 2) start creation of new node
                     final JavaParserDTO javaParserDTO = new JavaParserDTO(nestedNodeNamesDTO, toPopulate.packageName);
-                    populateJavaParserDTOAndSourcesMap(javaParserDTO, sourcesMap, nestedNodeNamesDTO, dataDictionary,
-                                                       derivedFields,
+                    populateJavaParserDTOAndSourcesMap(javaParserDTO, sourcesMap, nestedNodeNamesDTO, fields,
                                                        true);
                 } else {
                     // Set 'evaluateNode'
-                    populateEvaluateNode(toPopulate, nestedNodeNamesDTO, derivedFields,dataDictionary,false);
+                    populateEvaluateNode(toPopulate, nestedNodeNamesDTO, fields,false);
                     mergeNode(toPopulate, nestedNodeNamesDTO);
-                    populatedNestedNodes(toPopulate, sourcesMap, dataDictionary, derivedFields, nestedNodeNamesDTO);
+                    populatedNestedNodes(toPopulate, sourcesMap, fields, nestedNodeNamesDTO);
                 }
             }
         }
@@ -242,14 +244,12 @@ public class KiePMMLNodeFactory {
      *
      * @param toPopulate
      * @param nodeNamesDTO
-     * @param derivedFields
-     * @param dataDictionary
+     * @param fields
      * @param isRoot
      */
     static void populateEvaluateNode(final JavaParserDTO toPopulate,
                                      final NodeNamesDTO nodeNamesDTO,
-                                     final List<DerivedField> derivedFields,
-                                     final DataDictionary dataDictionary,
+                                     final List<Field<?>> fields,
                                      final boolean isRoot) {
         String nodeClassName = nodeNamesDTO.nodeClassName;
         final BlockStmt evaluateNodeBody = isRoot ? toPopulate.evaluateRootNodeBody :
@@ -258,7 +258,7 @@ public class KiePMMLNodeFactory {
                                                                                       EVALUATE_NODE + nodeClassName)));
 
         // set 'predicate'
-        populateEvaluateNodeWithPredicate(evaluateNodeBody, nodeNamesDTO.node.getPredicate(), derivedFields, dataDictionary);
+        populateEvaluateNodeWithPredicate(evaluateNodeBody, nodeNamesDTO.node.getPredicate(), fields);
 
         // set 'nodeFunctions'
         final List<String> nestedNodesFullClasses = nodeNamesDTO.getNestedNodesFullClassNames(toPopulate.packageName);
@@ -267,6 +267,15 @@ public class KiePMMLNodeFactory {
         // set 'score'
         populateEvaluateNodeWithScore(evaluateNodeBody, nodeNamesDTO.node.getScore());
 
+        // set 'scoreDistributions'
+        if (nodeNamesDTO.node.hasScoreDistributions()) {
+            populateEvaluateNodeWithScoreDistributions(evaluateNodeBody, nodeNamesDTO.node.getScoreDistributions());
+        }
+
+        // set 'missingValuePenalty'
+        if (nodeNamesDTO.missingValuePenalty != null) {
+            populateEvaluateNodeWithMissingValuePenalty(evaluateNodeBody, nodeNamesDTO.missingValuePenalty);
+        }
     }
 
     /**
@@ -278,7 +287,7 @@ public class KiePMMLNodeFactory {
      *     <code>Object nodeFunctions = java.util.Collections.emptyList();</code>
      * </p>
      *
-     *  otherwise an <code>ArrayList</code> of related references
+     *  otherwise, an <code>ArrayList</code> of related references
      * <p>
      *     <code>Object nodeFunctions = java.util.Arrays.asList(full.node.NodeClassName0::evaluateNode, full.node.NodeClassName1::evaluateNode);</code>
      * </p>
@@ -350,23 +359,85 @@ public class KiePMMLNodeFactory {
     }
 
     /**
+     * Set the <b>scoreDistribution</b> <code>VariableDeclarator</code> initializer of the given <code>BlockStmt</code>.
+     * If <b>scoreDistributionsParam</b> is <code>null</code>, a <code>NullLiteralExpr</code> is set.
+     * <p>
+     *     <code>List<KiePMMLScoreDistribution> scoreDistributions = null;</code>
+     * </p>
+     * Otherwise
+     * <p>
+     *     <code>List<KiePMMLScoreDistribution> scoreDistributions = arrays.asList(new KiePMMLScoreDistribution(....));</code>
+     * </p>
+     *
+     *
+     * @param toPopulate
+     * @param scoreDistributionsParam
+     */
+    static void populateEvaluateNodeWithScoreDistributions(final BlockStmt toPopulate,
+                                                           final List<ScoreDistribution> scoreDistributionsParam) {
+        final Expression scoreDistributionsExpression;
+        if (scoreDistributionsParam == null) {
+            scoreDistributionsExpression = new NullLiteralExpr();
+        } else {
+            int counter = 0;
+            final NodeList<Expression> scoreDistributionsArguments = new NodeList<>();
+            for (ScoreDistribution scoreDistribution : scoreDistributionsParam) {
+                String nestedVariableName = String.format("scoreDistribution_%s", counter);
+                scoreDistributionsArguments.add(getKiePMMLScoreDistribution(nestedVariableName, scoreDistribution));
+                counter ++;
+            }
+            scoreDistributionsExpression = new MethodCallExpr();
+            ((MethodCallExpr)scoreDistributionsExpression).setScope(new NameExpr(Arrays.class.getSimpleName()));
+            ((MethodCallExpr)scoreDistributionsExpression).setName("asList");
+            ((MethodCallExpr)scoreDistributionsExpression).setArguments(scoreDistributionsArguments);
+        }
+        CommonCodegenUtils.setVariableDeclaratorValue(toPopulate, SCORE_DISTRIBUTIONS, scoreDistributionsExpression);
+    }
+
+    /**
+     * Set the <b>missingValuePenalty</b> <code>VariableDeclarator</code> initializer of the given <code>BlockStmt</code>.
+     * <p>
+     *     <code>final double missingValuePenalty = ...;</code>
+     * </p>
+     *
+     *
+     * @param toPopulate
+     * @param missingValuePenalty
+     */
+    static void populateEvaluateNodeWithMissingValuePenalty(final BlockStmt toPopulate, final Double missingValuePenalty) {
+        CommonCodegenUtils.setVariableDeclaratorValue(toPopulate, MISSING_VALUE_PENALTY, getExpressionForObject(missingValuePenalty));
+    }
+
+    static ObjectCreationExpr getKiePMMLScoreDistribution(final String variableName,
+                                         final ScoreDistribution scoreDistribution) {
+        final NodeList<Expression> scoreDistributionsArguments = new NodeList<>();
+        scoreDistributionsArguments.add(getExpressionForObject(variableName));
+        scoreDistributionsArguments.add(new NullLiteralExpr());
+        scoreDistributionsArguments.add(getExpressionForObject(scoreDistribution.getValue().toString()));
+        scoreDistributionsArguments.add(getExpressionForObject(scoreDistribution.getRecordCount().intValue()));
+        Expression confidenceExpression = scoreDistribution.getConfidence() != null ? getExpressionForObject(scoreDistribution.getConfidence().doubleValue()) : new NullLiteralExpr();
+        scoreDistributionsArguments.add(confidenceExpression);
+        Expression probabilityExpression = scoreDistribution.getProbability() != null ? getExpressionForObject(scoreDistribution.getProbability().doubleValue()) : new NullLiteralExpr();
+        scoreDistributionsArguments.add(probabilityExpression);
+
+        return new ObjectCreationExpr(null, new ClassOrInterfaceType(null, KiePMMLScoreDistribution.class.getCanonicalName()),
+                                                                       scoreDistributionsArguments);
+
+    }
+
+    /**
      * Set the <b>predicate</b> <code>VariableDeclarator</code> initializer of the given <code>BlockStmt</code>
      *
      *
      * @param toPopulate
      * @param predicate
-     * @param derivedFields
-     * @param dataDictionary
+     * @param fields
      */
     static void populateEvaluateNodeWithPredicate(final BlockStmt toPopulate,
                                                   final Predicate predicate,
-                                                  final List<DerivedField> derivedFields,
-                                                  final DataDictionary dataDictionary
-                                                          /*final String nodeClassName,
-                                                          final String nestedNodeClassName,
-                                                          final boolean isRoot*/) {
+                                                  final List<Field<?>> fields) {
         // set predicate
-        BlockStmt toAdd = getKiePMMLPredicate(PREDICATE, predicate, derivedFields, dataDictionary);
+        BlockStmt toAdd = getKiePMMLPredicate(PREDICATE, predicate, fields);
         final NodeList<Statement> predicateStatements = toAdd.getStatements();
         for (int i = 0; i < predicateStatements.size(); i ++) {
             toPopulate.addStatement(i, predicateStatements.get(i));
@@ -448,8 +519,9 @@ public class KiePMMLNodeFactory {
         final String nodeName;
         final Map<Node, String> childrenNodes;
         final String parentNodeClassName;
+        final Double missingValuePenalty;
 
-        public NodeNamesDTO(final Node node, final String nodeClassName, final String parentNodeClassName) {
+        public NodeNamesDTO(final Node node, final String nodeClassName, final String parentNodeClassName, final Double missingValuePenalty) {
             this.node = node;
             this.parentNodeClassName = parentNodeClassName;
             this.nodeClassName = nodeClassName;
@@ -462,6 +534,7 @@ public class KiePMMLNodeFactory {
             } else {
                 childrenNodes = Collections.emptyMap();
             }
+            this.missingValuePenalty = missingValuePenalty;
         }
 
         String getNestedNodeClassName(final Node nestedNode) {

@@ -18,9 +18,9 @@ package org.drools.mvel.integrationtests;
 import java.io.IOException;
 import java.util.Collection;
 
-import org.drools.compiler.compiler.DroolsParserException;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
+import org.drools.drl.parser.DroolsParserException;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.core.impl.RuleBaseFactory;
 import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
 import org.drools.testcoverage.common.util.KieBaseUtil;
 import org.drools.testcoverage.common.util.KieUtil;
@@ -103,8 +103,7 @@ public class FailureOnRemovalTest {
     }
 
     private KnowledgeBuilderConfiguration createKnowledgeBuilderConfiguration() {
-        KnowledgeBuilderConfiguration kconf = KnowledgeBuilderFactory.newKnowledgeBuilderConfiguration( null,
-                                                                                                        getClass().getClassLoader() );
+        KnowledgeBuilderConfiguration kconf = KnowledgeBuilderFactory.newKnowledgeBuilderConfiguration( null, getClass().getClassLoader() );
         kconf.setOption( DefaultDialectOption.get( "java" ) );
         return kconf;
     }
@@ -116,7 +115,7 @@ public class FailureOnRemovalTest {
     }
 
     private KieBaseConfiguration createKnowledgeBaseConfiguration(boolean shareBetaNodes) {
-        KieBaseConfiguration kconf = KnowledgeBaseFactory.newKnowledgeBaseConfiguration();
+        KieBaseConfiguration kconf = RuleBaseFactory.newKnowledgeBaseConfiguration();
         kconf.setOption( SequentialOption.NO );
         kconf.setOption( ShareAlphaNodesOption.YES );
         kconf.setOption( shareBetaNodes ? ShareBetaNodesOption.YES : ShareBetaNodesOption.NO );

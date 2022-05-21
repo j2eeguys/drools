@@ -6,11 +6,11 @@
   <parent>
     <groupId>org.drools</groupId>
     <artifactId>drools-examples-api</artifactId>
-    <version>7.58.0-SNAPSHOT</version>
+    <version>8.22.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>kie-module-from-multiple-files</artifactId>
-  <name>Drools API examples - KieModule from Multiple Files</name>
+  <name>Drools :: API examples :: KieModule from Multiple Files</name>
 
   <properties>
     <java.module.name>org.drools.examples.api.kiemodulefrommultiplefiles</java.module.name>
@@ -19,15 +19,13 @@
   <dependencies>
     <dependency>
       <groupId>org.drools</groupId>
-      <artifactId>drools-compiler</artifactId>
+      <artifactId>drools-engine-classic</artifactId>
     </dependency>
+
     <dependency>
-      <groupId>org.drools</groupId>
-      <artifactId>drools-mvel</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.kie</groupId>
-      <artifactId>kie-api</artifactId>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>test</scope>
     </dependency>
 
     <!-- Needed by the example as it uses this kjar -->

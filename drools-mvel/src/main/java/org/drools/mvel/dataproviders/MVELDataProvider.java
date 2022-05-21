@@ -23,13 +23,12 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
-import org.drools.core.common.InternalWorkingMemory;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.definitions.rule.impl.RuleImpl;
 import org.drools.core.rule.Declaration;
-import org.drools.core.spi.DataProvider;
-import org.drools.core.spi.PropagationContext;
-import org.drools.core.spi.Tuple;
-import org.drools.core.util.ArrayIterator;
+import org.drools.core.rule.accessor.DataProvider;
+import org.drools.core.common.PropagationContext;
+import org.drools.core.reteoo.Tuple;
 import org.drools.mvel.MVELDialectRuntimeData;
 import org.drools.mvel.expr.MVELCompilationUnit;
 import org.drools.mvel.expr.MVELCompileable;
@@ -119,14 +118,14 @@ public class MVELDataProvider implements DataProvider, MVELCompileable, External
     }
 
     public Iterator getResults(final Tuple tuple,
-                               final InternalWorkingMemory wm,
+                               final ReteEvaluator reteEvaluator,
                                final PropagationContext ctx,
                                final Object executionContext) {
-        return asIterator( evaluate( tuple, wm ) );
+        return asIterator( evaluate( tuple, reteEvaluator ) );
     }
 
-    protected Object evaluate( Tuple tuple, InternalWorkingMemory wm ) {
-        VariableResolverFactory factory = unit.getFactory( null, null, null, null, tuple, null, wm, wm.getGlobalResolver() );
+    protected Object evaluate( Tuple tuple, ReteEvaluator reteEvaluator ) {
+        VariableResolverFactory factory = unit.getFactory( null, null, null, null, tuple, null, reteEvaluator, reteEvaluator.getGlobalResolver() );
         return evaluator.evaluate( factory );
     }
 

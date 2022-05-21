@@ -24,17 +24,18 @@ import org.drools.compiler.builder.impl.KnowledgeBuilderConfigurationImpl;
 import org.drools.compiler.builder.impl.errors.ErrorHandler;
 import org.drools.compiler.builder.impl.errors.SrcErrorHandler;
 import org.drools.compiler.kie.builder.impl.CompilationProblemAdapter;
+import org.drools.wiring.api.classloader.ProjectClassLoader;
+import org.kie.internal.builder.KnowledgeBuilderResult;
+import org.kie.internal.jci.CompilationProblem;
 import org.kie.memorycompiler.CompilationResult;
 import org.kie.memorycompiler.JavaCompiler;
 import org.kie.memorycompiler.JavaCompilerFactory;
 import org.kie.memorycompiler.JavaConfiguration;
+import org.drools.util.PortablePath;
 import org.kie.memorycompiler.resources.MemoryResourceReader;
 import org.kie.memorycompiler.resources.ResourceStore;
-import org.drools.reflective.classloader.ProjectClassLoader;
-import org.kie.internal.builder.KnowledgeBuilderResult;
-import org.kie.internal.jci.CompilationProblem;
 
-import static org.drools.core.util.ClassUtils.convertResourceToClassName;
+import static org.drools.util.ClassUtils.convertResourceToClassName;
 
 public class ProjectJavaCompiler {
 
@@ -97,22 +98,22 @@ public class ProjectJavaCompiler {
         }
 
         @Override
-        public void write(String pResourceName, byte[] pResourceData) {
-            projectClassLoader.defineClass(convertResourceToClassName(pResourceName), pResourceName, pResourceData);
+        public void write(PortablePath resourcePath, byte[] pResourceData) {
+            projectClassLoader.defineClass(convertResourceToClassName(resourcePath.asString()), resourcePath.asString(), pResourceData);
         }
 
         @Override
-        public void write(final String resourceName, final byte[] clazzData, boolean createFolder) {
-            write(resourceName, clazzData);
+        public void write(PortablePath resourcePath, final byte[] clazzData, boolean createFolder) {
+            write(resourcePath.asString(), clazzData);
         }
 
         @Override
-        public byte[] read(String pResourceName) {
-            return projectClassLoader.getBytecode(pResourceName);
+        public byte[] read(PortablePath resourcePath) {
+            return projectClassLoader.getBytecode(resourcePath.asString());
         }
 
         @Override
-        public void remove(String pResourceName) {
+        public void remove(PortablePath resourcePath) {
             throw new UnsupportedOperationException("org.drools.compiler.compiler.ProjectJavaCompiler.ProjectResourceStore.remove -> TODO");
         }
     }

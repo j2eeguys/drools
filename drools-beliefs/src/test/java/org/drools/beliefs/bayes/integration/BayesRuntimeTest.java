@@ -18,15 +18,14 @@ package org.drools.beliefs.bayes.integration;
 import org.drools.beliefs.bayes.BayesInstance;
 import org.drools.beliefs.bayes.runtime.BayesRuntime;
 import org.drools.compiler.builder.impl.KnowledgeBuilderImpl;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
-import org.drools.core.impl.StatefulKnowledgeSessionImpl;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.kiesession.rulebase.SessionsAwareKnowledgeBase;
+import org.drools.kiesession.session.StatefulKnowledgeSessionImpl;
 import org.junit.Test;
-import org.kie.api.KieBaseConfiguration;
 import org.kie.api.io.ResourceType;
 import org.kie.internal.io.ResourceFactory;
 
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class BayesRuntimeTest {
 
@@ -44,14 +43,10 @@ public class BayesRuntimeTest {
 
         BayesRuntime bayesRuntime = ksession.getKieRuntime(BayesRuntime.class);
         BayesInstance<Garden> instance = bayesRuntime.createInstance(Garden.class);
-        assertNotNull(  instance );
+        assertThat(instance).isNotNull();
     }
 
     protected InternalKnowledgeBase getKnowledgeBase() {
-        return KnowledgeBaseFactory.newKnowledgeBase();
-    }
-
-    protected InternalKnowledgeBase getKnowledgeBase(KieBaseConfiguration kBaseConfig) {
-        return KnowledgeBaseFactory.newKnowledgeBase(kBaseConfig);
+        return new SessionsAwareKnowledgeBase();
     }
 }

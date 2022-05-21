@@ -16,11 +16,6 @@
 
 package org.drools.core.common;
 
-import java.util.Map;
-
-import org.drools.core.spi.Activation;
-import org.drools.core.spi.RuleFlowGroup;
-
 public interface InternalRuleFlowGroup extends InternalAgendaGroup, RuleFlowGroup {
 
 //    void setWorkingMemory(InternalWorkingMemory workingMemory);
@@ -54,9 +49,9 @@ public interface InternalRuleFlowGroup extends InternalAgendaGroup, RuleFlowGrou
 //
 //    boolean isActive();
 //
-//    void addNodeInstance(Long processInstanceId, String nodeInstanceId);
+//    void addNodeInstance(String processInstanceId, String nodeInstanceId);
 //
-//    void removeNodeInstance(Long processInstanceId, String nodeInstanceId);
+//    void removeNodeInstance(String processInstanceId, String nodeInstanceId);
 //
 //    public Activation[] getActivations();
 //

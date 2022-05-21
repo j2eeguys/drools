@@ -22,12 +22,12 @@ import java.io.ObjectOutput;
 
 import org.drools.core.RuleBaseConfiguration;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.InternalWorkingMemory;
 import org.drools.core.common.Memory;
 import org.drools.core.common.MemoryFactory;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.common.UpdateContext;
 import org.drools.core.reteoo.builder.BuildContext;
-import org.drools.core.spi.PropagationContext;
+import org.drools.core.common.PropagationContext;
 import org.drools.core.util.AbstractBaseLinkedListNode;
 
 /**
@@ -59,21 +59,6 @@ public class ConditionalBranchNode extends LeftTupleSource implements LeftTupleS
 
         hashcode = calculateHashCode();
     }
-
-    @Override
-    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        super.readExternal(in);
-        tupleMemoryEnabled = in.readBoolean();
-        branchEvaluator = (ConditionalBranchEvaluator) in.readObject();
-    }
-
-    @Override
-    public void writeExternal(ObjectOutput out) throws IOException {
-        super.writeExternal(out);
-        out.writeBoolean(tupleMemoryEnabled);
-        out.writeObject(branchEvaluator);
-    }
-    
 
     public ConditionalBranchEvaluator getBranchEvaluator() {
         return branchEvaluator;
@@ -116,7 +101,7 @@ public class ConditionalBranchNode extends LeftTupleSource implements LeftTupleS
                 this.branchEvaluator.equals( other.branchEvaluator );
     }
 
-    public ConditionalBranchMemory createMemory(final RuleBaseConfiguration config, InternalWorkingMemory wm) {
+    public ConditionalBranchMemory createMemory(final RuleBaseConfiguration config, ReteEvaluator reteEvaluator) {
         return new ConditionalBranchMemory( branchEvaluator.createContext() );
     }
 

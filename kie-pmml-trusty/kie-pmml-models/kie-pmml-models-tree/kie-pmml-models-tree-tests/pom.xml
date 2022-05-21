@@ -3,7 +3,7 @@
   <parent>
     <groupId>org.kie</groupId>
     <artifactId>kie-pmml-models-tree</artifactId>
-    <version>7.58.0-SNAPSHOT</version>
+    <version>8.22.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
@@ -15,6 +15,11 @@
   <dependencies>
     <!-- TEST -->
     <!-- PMML -->
+    <dependency>
+      <groupId>org.drools</groupId>
+      <artifactId>drools-wiring-dynamic</artifactId>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>org.kie</groupId>
       <artifactId>kie-pmml-models-tree-model</artifactId>
@@ -90,17 +95,17 @@
       <dependency>
         <groupId>org.kie</groupId>
         <artifactId>kie-pmml-models-tree-model</artifactId>
-        <version>${version.org.kie}</version>
+        <version>${project.version}</version>
       </dependency>
       <dependency>
         <groupId>org.kie</groupId>
         <artifactId>kie-pmml-models-tree-compiler</artifactId>
-        <version>${version.org.kie}</version>
+        <version>${project.version}</version>
       </dependency>
       <dependency>
         <groupId>org.kie</groupId>
         <artifactId>kie-pmml-models-tree-evaluator</artifactId>
-        <version>${version.org.kie}</version>
+        <version>${project.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

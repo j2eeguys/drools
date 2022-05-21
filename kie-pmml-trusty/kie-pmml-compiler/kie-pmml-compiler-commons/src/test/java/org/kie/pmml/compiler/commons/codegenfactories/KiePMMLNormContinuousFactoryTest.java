@@ -16,6 +16,7 @@
 
 package org.kie.pmml.compiler.commons.codegenfactories;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -23,77 +24,60 @@ import java.util.List;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.Statement;
-import org.dmg.pmml.FieldName;
 import org.dmg.pmml.LinearNorm;
 import org.dmg.pmml.NormContinuous;
-import org.dmg.pmml.OutlierTreatmentMethod;
 import org.junit.Test;
 import org.kie.pmml.api.enums.OUTLIER_TREATMENT_METHOD;
 import org.kie.pmml.commons.model.expressions.KiePMMLLinearNorm;
 import org.kie.pmml.commons.model.expressions.KiePMMLNormContinuous;
 import org.kie.pmml.compiler.commons.utils.JavaParserUtils;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.kie.pmml.compiler.api.testutils.PMMLModelTestUtils.getRandomLinearNorm;
+import static org.kie.pmml.compiler.api.testutils.PMMLModelTestUtils.getRandomNormContinuous;
 import static org.kie.pmml.compiler.commons.testutils.CodegenTestUtils.commonValidateCompilationWithImports;
+import static org.kie.test.util.filesystem.FileUtils.getFileContent;
 
 public class KiePMMLNormContinuousFactoryTest {
 
+    private static final String TEST_01_SOURCE = "KiePMMLNormContinuousFactoryTest_01.txt";
+    private static final String TEST_02_SOURCE = "KiePMMLNormContinuousFactoryTest_02.txt";
+
     @Test
-    public void getNormContinuousVariableDeclaration() {
+    public void getNormContinuousVariableDeclaration() throws IOException {
         String variableName = "variableName";
-        String fieldName = "fieldName";
-        double mapMissingTo = 45.32;
-        LinearNorm ln0 = new LinearNorm(24, 26);
-        LinearNorm ln1 = new LinearNorm(30, 32);
-        LinearNorm ln2 = new LinearNorm(36, 34);
-        LinearNorm ln3 = new LinearNorm(40, 39);
-        NormContinuous normContinuous = new NormContinuous();
-        normContinuous.setField(FieldName.create(fieldName));
-        normContinuous.addLinearNorms(ln0, ln1, ln2, ln3);
-        normContinuous.setOutliers(OutlierTreatmentMethod.AS_EXTREME_VALUES);
-        normContinuous.setMapMissingTo(mapMissingTo);
+        NormContinuous normContinuous = getRandomNormContinuous();
+        List<LinearNorm> linearNorms = normContinuous.getLinearNorms();
 
         BlockStmt retrieved = KiePMMLNormContinuousFactory.getNormContinuousVariableDeclaration(variableName,
                                                                                                 normContinuous);
         String outlierString =
                 OUTLIER_TREATMENT_METHOD.class.getName() + "." + OUTLIER_TREATMENT_METHOD.byName(normContinuous.getOutliers().value()).name();
-        Statement expected = JavaParserUtils.parseBlock(String.format("{\n" +
-                                                                              "    KiePMMLNormContinuous " +
-                                                                              "%s = new " +
-                                                                              "KiePMMLNormContinuous(\"%s\", " +
-                                                                              "Collections.emptyList(), Arrays" +
-                                                                              ".asList(new KiePMMLLinearNorm" +
-                                                                              "(\"LinearNorm-0\", Collections" +
-                                                                              ".emptyList(), 24, 26), new " +
-                                                                              "KiePMMLLinearNorm(\"LinearNorm-0\", " +
-                                                                              "Collections.emptyList(), 30, 32), new" +
-                                                                              " KiePMMLLinearNorm(\"LinearNorm-0\", " +
-                                                                              "Collections.emptyList(), 36, 34), new" +
-                                                                              " KiePMMLLinearNorm(\"LinearNorm-0\", " +
-                                                                              "Collections.emptyList(), 40, 39)), " +
-                                                                              "%s, " +
-                                                                              "%s);\n" +
-                                                                              "}", variableName, fieldName,
-                                                                      outlierString, mapMissingTo));
-        assertEquals(expected.toString(), retrieved.toString());
-        assertTrue(JavaParserUtils.equalsNode(expected, retrieved));
+        String text = getFileContent(TEST_01_SOURCE);
+        Statement expected = JavaParserUtils.parseBlock(String.format(text, variableName,
+                                                                      normContinuous.getField().getValue(),
+                                                                      linearNorms.get(0).getOrig(),
+                                                                      linearNorms.get(0).getNorm(),
+                                                                      linearNorms.get(1).getOrig(),
+                                                                      linearNorms.get(1).getNorm(),
+                                                                      linearNorms.get(2).getOrig(),
+                                                                      linearNorms.get(2).getNorm(),
+                                                                      outlierString, normContinuous.getMapMissingTo()));
+        assertThat(JavaParserUtils.equalsNode(expected, retrieved)).isTrue();
         List<Class<?>> imports = Arrays.asList(Arrays.class, Collections.class, KiePMMLLinearNorm.class,
                                                KiePMMLNormContinuous.class, OUTLIER_TREATMENT_METHOD.class);
         commonValidateCompilationWithImports(retrieved, imports);
     }
 
     @Test
-    public void getNewKiePMMLLinearNormExpression() {
-        double orig = 324.3;
-        double norm = 325;
+    public void getNewKiePMMLLinearNormExpression() throws IOException {
         String name = "name";
-        LinearNorm linearNorm = new LinearNorm(orig, norm);
+        LinearNorm linearNorm = getRandomLinearNorm();
         Expression retrieved = KiePMMLNormContinuousFactory.getNewKiePMMLLinearNormExpression(linearNorm, name);
-        Expression expected = JavaParserUtils.parseExpression(String.format("new KiePMMLLinearNorm(\"%s\", " +
-                                                                                    "Collections" +
-                                                                                    ".emptyList(), %s, %s)", name,
-                                                                            orig, norm));
-        assertTrue(JavaParserUtils.equalsNode(expected, retrieved));
+        String text = getFileContent(TEST_02_SOURCE);
+        Expression expected = JavaParserUtils.parseExpression(String.format(text, name,
+                                                                            linearNorm.getOrig(),
+                                                                            linearNorm.getNorm()));
+        assertThat(JavaParserUtils.equalsNode(expected, retrieved)).isTrue();
     }
 }

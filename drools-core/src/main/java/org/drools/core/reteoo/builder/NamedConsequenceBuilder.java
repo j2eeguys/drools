@@ -60,10 +60,10 @@ public class NamedConsequenceBuilder implements ReteooComponentBuilder {
         RuleImpl rule = context.getRule();
         GroupElement subrule = (GroupElement) context.peek();
 
-        ActivationListenerFactory factory = context.getKnowledgeBase().getConfiguration().getActivationListenerFactory( rule.getActivationListener() );
+        ActivationListenerFactory factory = context.getRuleBase().getConfiguration().getActivationListenerFactory( rule.getActivationListener() );
 
         context.setConsequenceName( namedConsequence.getConsequenceName() );
-        TerminalNode terminal = factory.createActivationListener( context.getNextId(),
+        TerminalNode terminal = factory.createActivationListener( context.getNextNodeId(),
                                                                   context.getTupleSource(),
                                                                   rule,
                                                                   subrule,

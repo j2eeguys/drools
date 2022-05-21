@@ -18,6 +18,7 @@
 package org.drools.modelcompiler.builder.generator.drlxparse;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -41,13 +42,14 @@ import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.NullLiteralExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.type.PrimitiveType;
-import org.drools.core.util.MethodUtils;
+import org.drools.util.MethodUtils;
 import org.drools.modelcompiler.builder.errors.InvalidExpressionErrorResult;
 import org.drools.modelcompiler.builder.generator.TypedExpression;
 import org.drools.modelcompiler.builder.generator.UnificationTypedExpression;
 
 import static org.drools.modelcompiler.builder.generator.DrlxParseUtil.toClassOrInterfaceType;
 import static org.drools.modelcompiler.builder.generator.DrlxParseUtil.toJavaParserType;
+import static org.drools.modelcompiler.builder.generator.DrlxParseUtil.toStringLiteral;
 import static org.drools.modelcompiler.util.ClassUtil.toNonPrimitiveType;
 
 public class CoercedExpression {
@@ -63,7 +65,7 @@ public class CoercedExpression {
     private final TypedExpression right;
     private final boolean equalityExpr;
 
-    private static Map<Class, List<Class<?>>> narrowingTypes = new HashMap<>();
+    private static final Map<Class, List<Class<?>>> narrowingTypes = new HashMap<>();
 
     static {
         // https://docs.oracle.com/javase/specs/jls/se7/html/jls-5.html#jls-5.1.3
@@ -100,7 +102,11 @@ public class CoercedExpression {
         }
 
         if ((nonPrimitiveLeftClass == Integer.class || nonPrimitiveLeftClass == Long.class) && nonPrimitiveRightClass == Double.class) {
-            return new CoercedExpressionResult(new TypedExpression( new CastExpr( PrimitiveType.doubleType(), left.getExpression()), double.class ), right, false);
+            CastExpr castExpression = new CastExpr(PrimitiveType.doubleType(), this.left.getExpression());
+            return new CoercedExpressionResult(
+                    new TypedExpression(castExpression, double.class, left.getType()),
+                    right,
+                    false);
         }
 
         final boolean leftIsPrimitive = leftClass.isPrimitive() || Number.class.isAssignableFrom( leftClass );
@@ -161,15 +167,12 @@ public class CoercedExpression {
             return true;
         }
 
-        final boolean leftIsPrimitive = leftClass.isPrimitive();
-        final boolean canCoerceLiteralNumberExpr = canCoerceLiteralNumberExpr(leftClass);
-
         final Class<?> rightClass = right.getRawClass();
         return rightClass.isPrimitive()
                 || Number.class.isAssignableFrom(rightClass)
                 || Boolean.class == rightClass
                 || String.class == rightClass
-                || (Object.class == rightClass && equalityExpr)
+                || Object.class == rightClass
                 || (Map.class.isAssignableFrom(leftClass) || Map.class.isAssignableFrom(rightClass));
     }
 
@@ -181,15 +184,15 @@ public class CoercedExpression {
         final Expression expression = typedExpression.getExpression();
         TypedExpression coercedExpression;
         if (expression instanceof CharLiteralExpr) {
-            coercedExpression = typedExpression.cloneWithNewExpression(new StringLiteralExpr(((CharLiteralExpr) expression).getValue()));
+            coercedExpression = typedExpression.cloneWithNewExpression(toStringLiteral(((CharLiteralExpr) expression).getValue()));
         } else if (typedExpression.isPrimitive()) {
             coercedExpression = typedExpression.cloneWithNewExpression(new MethodCallExpr(new NameExpr("String"), "valueOf", NodeList.nodeList(expression)));
         } else if (typedExpression.getType() == Object.class) {
             coercedExpression = typedExpression.cloneWithNewExpression(new MethodCallExpr(expression, "toString"));
         } else if (expression instanceof NameExpr) {
-                coercedExpression = typedExpression.cloneWithNewExpression(new CastExpr(toClassOrInterfaceType(String.class), expression));
+            coercedExpression = typedExpression.cloneWithNewExpression(new CastExpr(toClassOrInterfaceType(String.class), expression));
         } else {
-            coercedExpression = typedExpression.cloneWithNewExpression(new StringLiteralExpr(expression.toString()));
+            coercedExpression = typedExpression.cloneWithNewExpression(toStringLiteral(expression.toString()));
         }
         return coercedExpression.setType(String.class);
     }
@@ -238,14 +241,15 @@ public class CoercedExpression {
     }
 
     private static boolean shouldCoerceBToString(TypedExpression a, TypedExpression b) {
-        boolean aIsString = a.getType() == String.class;
-        boolean bIsNotString = b.getType() != String.class;
-        boolean bIsNotObject = b.getType() != Object.class; // Don't coerce Object yet. EvaluationUtil will handle it dynamically later
-        boolean bIsNotMap = !(Map.class.isAssignableFrom(b.getRawClass()));
-        boolean bIsNotNull = !(b.getExpression() instanceof NullLiteralExpr);
-        boolean bIsNotSerializable = b.getType() != Serializable.class;
-        boolean bExpressionExists = b.getExpression() != null;
-        return bExpressionExists && isNotBinaryExpression(b) && aIsString && (bIsNotString && bIsNotMap && bIsNotNull && bIsNotSerializable && bIsNotObject);
+        return b.getExpression() != null &&
+                isNotBinaryExpression(b) &&
+                a.getType() == String.class &&
+                b.getType() != String.class &&
+                b.getType() != Object.class &&
+                b.getType() != BigDecimal.class &&
+                !(Map.class.isAssignableFrom(b.getRawClass())) &&
+                !(b.getExpression() instanceof NullLiteralExpr) &&
+                b.getType() != Serializable.class;
     }
 
     private static boolean isNotBinaryExpression(TypedExpression e) {

@@ -16,9 +16,13 @@
 
 package org.drools.testcoverage.regression;
 
-import org.assertj.core.api.Assertions;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.Serializable;
+import java.util.concurrent.TimeUnit;
+
 import org.drools.core.ClockType;
-import org.drools.core.impl.KnowledgeBaseFactory;
+import org.drools.core.impl.RuleBaseFactory;
 import org.drools.core.time.impl.PseudoClockScheduler;
 import org.junit.Test;
 import org.kie.api.KieBase;
@@ -32,10 +36,7 @@ import org.kie.api.runtime.conf.ClockTypeOption;
 import org.kie.internal.marshalling.MarshallerFactory;
 import org.kie.internal.utils.KieHelper;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.Serializable;
-import java.util.concurrent.TimeUnit;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Reproducer for BZ 1205666, BZ 1205671 (DROOLS-749).
@@ -61,7 +62,7 @@ public class EventDeserializationInPastTest {
                 " System.out.println($evt.getCode());\n" +
                 "end\n";
 
-        final KieSessionConfiguration sessionConfig = KnowledgeBaseFactory.newKnowledgeSessionConfiguration();
+        final KieSessionConfiguration sessionConfig = RuleBaseFactory.newKnowledgeSessionConfiguration();
         sessionConfig.setOption(ClockTypeOption.get(ClockType.PSEUDO_CLOCK.getId()));
         final KieHelper helper = new KieHelper();
         helper.addContent(drl, ResourceType.DRL);
@@ -92,7 +93,7 @@ public class EventDeserializationInPastTest {
                 ksession = marshaller.unmarshall(bais, sessionConfig, null);
             }
         } catch (Exception e) {
-            Assertions.fail("Unexpected exception: ", e);
+            fail("Unexpected exception: ", e);
         }
         return ksession;
     }

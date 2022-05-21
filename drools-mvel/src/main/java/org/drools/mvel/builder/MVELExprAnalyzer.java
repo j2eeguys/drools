@@ -24,10 +24,10 @@ import java.util.Set;
 import org.antlr.runtime.RecognitionException;
 import org.drools.compiler.compiler.BoundIdentifiers;
 import org.drools.compiler.compiler.DescrBuildError;
-import org.drools.compiler.lang.descr.BaseDescr;
+import org.drools.drl.ast.descr.BaseDescr;
 import org.drools.compiler.rule.builder.PackageBuildContext;
 import org.drools.compiler.rule.builder.RuleBuildContext;
-import org.drools.core.base.EvaluatorWrapper;
+import org.drools.compiler.rule.builder.EvaluatorWrapper;
 import org.drools.core.common.InternalWorkingMemory;
 import org.drools.core.rule.Declaration;
 import org.drools.core.rule.RuleConditionElement;
@@ -43,7 +43,7 @@ import org.mvel2.util.PropertyTools;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.drools.core.rule.constraint.EvaluatorHelper.WM_ARGUMENT;
+import static org.drools.compiler.lang.DescrDumper.WM_ARGUMENT;
 
 /**
  * Expression analyzer.

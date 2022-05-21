@@ -21,18 +21,18 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.lang.reflect.Method;
 
-import org.drools.core.base.ClassFieldReader;
+import org.drools.core.base.AccessorKeySupplier;
 import org.drools.core.base.ValueType;
 import org.drools.core.common.DroolsObjectInputStream;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.InternalWorkingMemory;
-import org.drools.core.spi.AcceptsReadAccessor;
-import org.drools.core.spi.InternalReadAccessor;
-import org.drools.core.spi.Tuple;
-import org.drools.core.spi.TupleValueExtractor;
+import org.drools.core.common.ReteEvaluator;
+import org.drools.core.rule.accessor.AcceptsReadAccessor;
+import org.drools.core.rule.accessor.ReadAccessor;
+import org.drools.core.reteoo.Tuple;
+import org.drools.core.rule.accessor.TupleValueExtractor;
 
-import static org.drools.core.util.ClassUtils.canonicalName;
-import static org.drools.core.util.ClassUtils.convertFromPrimitiveType;
+import static org.drools.util.ClassUtils.canonicalName;
+import static org.drools.util.ClassUtils.convertFromPrimitiveType;
 
 public class Declaration implements Externalizable, AcceptsReadAccessor, TupleValueExtractor {
 
@@ -47,7 +47,7 @@ public class Declaration implements Externalizable, AcceptsReadAccessor, TupleVa
 
     private String               bindingName;
 
-    private InternalReadAccessor readAccessor;
+    private ReadAccessor         readAccessor;
 
     private Pattern              pattern;
 
@@ -93,7 +93,7 @@ public class Declaration implements Externalizable, AcceptsReadAccessor, TupleVa
      *            The pattern this variable is declared in
      */
     public Declaration(final String identifier,
-                       final InternalReadAccessor extractor,
+                       final ReadAccessor extractor,
                        final Pattern pattern) {
         this( identifier,
               extractor,
@@ -115,7 +115,7 @@ public class Declaration implements Externalizable, AcceptsReadAccessor, TupleVa
      *            of a collect CE
      */
     public Declaration(final String identifier,
-                       final InternalReadAccessor extractor,
+                       final ReadAccessor extractor,
                        final Pattern pattern,
                        final boolean internalFact) {
         this.identifier = identifier;
@@ -138,8 +138,8 @@ public class Declaration implements Externalizable, AcceptsReadAccessor, TupleVa
     public void writeExternal(ObjectOutput out) throws IOException {
         out.writeObject( identifier );
 
-        if (readAccessor instanceof ClassFieldReader ) {
-            out.writeObject( ( (ClassFieldReader) readAccessor ).getAccessorKey() );
+        if (readAccessor instanceof AccessorKeySupplier) {
+            out.writeObject( ( (AccessorKeySupplier) readAccessor ).getAccessorKey() );
         } else {
             out.writeObject( readAccessor );
         }
@@ -221,14 +221,14 @@ public class Declaration implements Externalizable, AcceptsReadAccessor, TupleVa
         return ( this.pattern != null && this.pattern.getDeclaration() == this ) || this.getIdentifier().equals( "this" ) ;
     }
 
-    public void setReadAccessor(InternalReadAccessor readAccessor) {
+    public void setReadAccessor(ReadAccessor readAccessor) {
         this.readAccessor = readAccessor;
     }
 
     /**
      * Returns the Extractor expression
      */
-    public InternalReadAccessor getExtractor() {
+    public ReadAccessor getExtractor() {
         return this.readAccessor;
     }
 
@@ -244,62 +244,62 @@ public class Declaration implements Externalizable, AcceptsReadAccessor, TupleVa
     }
 
     @Override
-    public Object getValue(InternalWorkingMemory workingMemory, Tuple tuple) {
-        return getValue( workingMemory, tuple.get( this ) );
+    public Object getValue(ReteEvaluator reteEvaluator, Tuple tuple) {
+        return getValue( reteEvaluator, tuple.get( this ) );
     }
 
-    public Object getValue(InternalWorkingMemory workingMemory, InternalFactHandle fh) {
-        return getValue( workingMemory, fh.getObject() );
+    public Object getValue(ReteEvaluator reteEvaluator, InternalFactHandle fh) {
+        return getValue( reteEvaluator, fh.getObject() );
     }
 
-    public Object getValue(InternalWorkingMemory workingMemory,
+    public Object getValue(ReteEvaluator reteEvaluator,
                            final Object object) {
-        return this.readAccessor.getValue( workingMemory, object );
+        return this.readAccessor.getValue( reteEvaluator, object );
     }
 
-    public char getCharValue(InternalWorkingMemory workingMemory,
-                             final Object object) {
-        return this.readAccessor.getCharValue(workingMemory, object);
-    }
-
-    public int getIntValue(InternalWorkingMemory workingMemory,
+    public char getCharValue(ReteEvaluator reteEvaluator,
                            final Object object) {
-        return this.readAccessor.getIntValue(workingMemory, object);
+        return this.readAccessor.getCharValue(reteEvaluator, object);
     }
 
-    public byte getByteValue(InternalWorkingMemory workingMemory,
+    public int getIntValue(ReteEvaluator reteEvaluator,
+                           final Object object) {
+        return this.readAccessor.getIntValue(reteEvaluator, object);
+    }
+
+    public byte getByteValue(ReteEvaluator reteEvaluator,
                              final Object object) {
-        return this.readAccessor.getByteValue(workingMemory, object);
+        return this.readAccessor.getByteValue(reteEvaluator, object);
     }
 
-    public short getShortValue(InternalWorkingMemory workingMemory,
+    public short getShortValue(ReteEvaluator reteEvaluator,
                                final Object object) {
-        return this.readAccessor.getShortValue(workingMemory, object);
+        return this.readAccessor.getShortValue(reteEvaluator, object);
     }
 
-    public long getLongValue(InternalWorkingMemory workingMemory,
+    public long getLongValue(ReteEvaluator reteEvaluator,
                              final Object object) {
-        return this.readAccessor.getLongValue(workingMemory, object);
+        return this.readAccessor.getLongValue(reteEvaluator, object);
     }
 
-    public float getFloatValue(InternalWorkingMemory workingMemory,
+    public float getFloatValue(ReteEvaluator reteEvaluator,
                                final Object object) {
-        return this.readAccessor.getFloatValue(workingMemory, object);
+        return this.readAccessor.getFloatValue(reteEvaluator, object);
     }
 
-    public double getDoubleValue(InternalWorkingMemory workingMemory,
+    public double getDoubleValue(ReteEvaluator reteEvaluator,
                                  final Object object) {
-        return this.readAccessor.getDoubleValue(workingMemory, object);
+        return this.readAccessor.getDoubleValue(reteEvaluator, object);
     }
 
-    public boolean getBooleanValue(InternalWorkingMemory workingMemory,
+    public boolean getBooleanValue(ReteEvaluator reteEvaluator,
                                    final Object object) {
-        return this.readAccessor.getBooleanValue(workingMemory, object);
+        return this.readAccessor.getBooleanValue(reteEvaluator, object);
     }
 
-    public int getHashCode(InternalWorkingMemory workingMemory,
+    public int getHashCode(ReteEvaluator reteEvaluator,
                            final Object object) {
-        return this.readAccessor.getHashCode(workingMemory, object);
+        return this.readAccessor.getHashCode(reteEvaluator, object);
     }
 
     public boolean isGlobal() {
@@ -314,7 +314,7 @@ public class Declaration implements Externalizable, AcceptsReadAccessor, TupleVa
             // return getValue to avoid null pointers, so rest of drl can attempt to build
             try {
                 return this.getClass().getDeclaredMethod( "getValue",
-                                                          new Class[]{InternalWorkingMemory.class, Object.class} );
+                                                          new Class[]{ReteEvaluator.class, Object.class} );
             } catch ( final Exception e ) {
                 throw new RuntimeException( "This is a bug. Please report to development team: " + e.getMessage(),
                                             e );

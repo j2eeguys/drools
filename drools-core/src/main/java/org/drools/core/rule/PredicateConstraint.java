@@ -26,14 +26,14 @@ import java.util.Collections;
 import java.util.List;
 
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.InternalWorkingMemory;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.reteoo.LeftTuple;
-import org.drools.core.spi.Evaluator;
-import org.drools.core.spi.InternalReadAccessor;
-import org.drools.core.spi.PredicateExpression;
-import org.drools.core.spi.Restriction;
-import org.drools.core.spi.Tuple;
-import org.drools.core.spi.Wireable;
+import org.drools.core.rule.accessor.CompiledInvoker;
+import org.drools.core.rule.accessor.Evaluator;
+import org.drools.core.rule.accessor.PredicateExpression;
+import org.drools.core.rule.accessor.ReadAccessor;
+import org.drools.core.reteoo.Tuple;
+import org.drools.core.rule.accessor.Wireable;
 import org.kie.internal.security.KiePolicyHelper;
 
 /**
@@ -43,7 +43,6 @@ import org.kie.internal.security.KiePolicyHelper;
  */
 public class PredicateConstraint extends MutableTypeConstraint
     implements
-    Restriction,
     Wireable,
     Externalizable {
 
@@ -122,7 +121,7 @@ public class PredicateConstraint extends MutableTypeConstraint
 
     public void writeExternal(ObjectOutput out) throws IOException {
         super.writeExternal( out );
-        if ( PredicateExpression.isCompiledInvoker(this.expression) ) {
+        if ( CompiledInvoker.isCompiledInvoker(this.expression) ) {
             out.writeObject( null );
         } else {
             out.writeObject( this.expression );
@@ -233,13 +232,13 @@ public class PredicateConstraint extends MutableTypeConstraint
     }
 
     public boolean isAllowed(final InternalFactHandle handle,
-                             final InternalWorkingMemory workingMemory) {
+                             final ReteEvaluator reteEvaluator) {
         try {
             return this.expression.evaluate( handle,
                                              null,
                                              this.previousDeclarations,
                                              this.localDeclarations,
-                                             workingMemory,
+                                             reteEvaluator,
                                              null ); //((PredicateContextEntry) ctx).dialectContext );
         } catch ( final Exception e ) {
             throw new RuntimeException( "Exception executing predicate " + this.expression,
@@ -247,9 +246,9 @@ public class PredicateConstraint extends MutableTypeConstraint
         }
     }
 
-    public boolean isAllowed(InternalReadAccessor extractor,
+    public boolean isAllowed(ReadAccessor extractor,
                              InternalFactHandle handle,
-                             InternalWorkingMemory workingMemory,
+                             ReteEvaluator reteEvaluator,
                              ContextEntry context) {
         throw new UnsupportedOperationException( "Method not supported. Please contact development team." );
     }
@@ -262,7 +261,7 @@ public class PredicateConstraint extends MutableTypeConstraint
                                              ctx.tuple,
                                              this.previousDeclarations,
                                              this.localDeclarations,
-                                             ctx.workingMemory,
+                                             ctx.reteEvaluator,
                                              ctx.dialectContext );
         } catch ( final Exception e ) {
             throw new RuntimeException( "Exception executing predicate " + this.expression,
@@ -278,7 +277,7 @@ public class PredicateConstraint extends MutableTypeConstraint
                                              tuple,
                                              this.previousDeclarations,
                                              this.localDeclarations,
-                                             ctx.workingMemory,
+                                             ctx.reteEvaluator,
                                              ctx.dialectContext );
         } catch ( final Exception e ) {
             throw new RuntimeException( "Exception executing predicate " + this.expression,
@@ -319,7 +318,7 @@ public class PredicateConstraint extends MutableTypeConstraint
 
         public Tuple                 tuple;
         public InternalFactHandle    rightHandle;
-        public InternalWorkingMemory workingMemory;
+        public ReteEvaluator reteEvaluator;
 
         public Object                dialectContext;
 
@@ -332,7 +331,7 @@ public class PredicateConstraint extends MutableTypeConstraint
                                                 ClassNotFoundException {
             tuple = (LeftTuple) in.readObject();
             rightHandle = (InternalFactHandle) in.readObject();
-            workingMemory = (InternalWorkingMemory) in.readObject();
+            reteEvaluator = (ReteEvaluator) in.readObject();
             dialectContext = in.readObject();
             entry = (ContextEntry) in.readObject();
         }
@@ -340,7 +339,7 @@ public class PredicateConstraint extends MutableTypeConstraint
         public void writeExternal(ObjectOutput out) throws IOException {
             out.writeObject( tuple );
             out.writeObject( rightHandle );
-            out.writeObject( workingMemory );
+            out.writeObject( reteEvaluator );
             out.writeObject( dialectContext );
             out.writeObject( entry );
         }
@@ -353,15 +352,15 @@ public class PredicateConstraint extends MutableTypeConstraint
             this.entry = entry;
         }
 
-        public void updateFromFactHandle(final InternalWorkingMemory workingMemory,
+        public void updateFromFactHandle(final ReteEvaluator reteEvaluator,
                                          final InternalFactHandle handle) {
-            this.workingMemory = workingMemory;
+            this.reteEvaluator = reteEvaluator;
             this.rightHandle = handle;
         }
 
-        public void updateFromTuple(final InternalWorkingMemory workingMemory,
+        public void updateFromTuple(final ReteEvaluator reteEvaluator,
                                     final Tuple tuple) {
-            this.workingMemory = workingMemory;
+            this.reteEvaluator = reteEvaluator;
             this.tuple = tuple;
         }
 

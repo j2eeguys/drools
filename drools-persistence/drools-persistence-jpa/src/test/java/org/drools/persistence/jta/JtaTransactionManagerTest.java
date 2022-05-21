@@ -15,11 +15,6 @@
  */
 package org.drools.persistence.jta;
 
-import static org.drools.persistence.util.DroolsPersistenceUtil.DROOLS_PERSISTENCE_UNIT_NAME;
-import static org.drools.persistence.util.DroolsPersistenceUtil.createEnvironment;
-import static org.drools.persistence.util.DroolsPersistenceUtil.setupWithPoolingDataSource;
-import static org.junit.Assert.*;
-
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
@@ -29,9 +24,10 @@ import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.transaction.RollbackException;
 import javax.transaction.UserTransaction;
-import org.drools.core.command.impl.CommandBasedStatefulKnowledgeSession;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
+
+import org.drools.commands.impl.CommandBasedStatefulKnowledgeSessionImpl;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
 import org.drools.persistence.PersistableRunner;
 import org.drools.persistence.api.TransactionManager;
 import org.drools.persistence.jpa.JpaPersistenceContextManager;
@@ -52,6 +48,13 @@ import org.kie.internal.io.ResourceFactory;
 import org.kie.test.util.db.PersistenceUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.drools.persistence.util.DroolsPersistenceUtil.DROOLS_PERSISTENCE_UNIT_NAME;
+import static org.drools.persistence.util.DroolsPersistenceUtil.createEnvironment;
+import static org.drools.persistence.util.DroolsPersistenceUtil.setupWithPoolingDataSource;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class JtaTransactionManagerTest {
 
@@ -257,7 +260,7 @@ public class JtaTransactionManagerTest {
         KieSession commandKSession = KieServices.get().getStoreServices().newKieSession( kbase, null, env );
 //        StatefulKnowledgeSession commandKSession = JPAKnowledgeService.newStatefulKnowledgeSession( kbase, null, env );
         commandKSession.getIdentifier(); // initialize CSEM
-        PersistableRunner commandService = (PersistableRunner) ((CommandBasedStatefulKnowledgeSession) commandKSession).getRunner();
+        PersistableRunner commandService = (PersistableRunner) ((CommandBasedStatefulKnowledgeSessionImpl) commandKSession).getRunner();
         JpaPersistenceContextManager jpm = (JpaPersistenceContextManager) getValueOfField("jpm", commandService);
         
         TransactionTestObject mainObject = new TransactionTestObject();
@@ -302,7 +305,7 @@ public class JtaTransactionManagerTest {
             fail("Unable to retrieve " + fieldname + " field from " + sourceClassName + ": " + e.getCause());
         }
     
-        assertNotNull("." + fieldname + " field is null!?!", field);
+        assertThat(field).as("." + fieldname + " field is null!?!").isNotNull();
         Object fieldValue = null;
         try {
             fieldValue = field.get(source);

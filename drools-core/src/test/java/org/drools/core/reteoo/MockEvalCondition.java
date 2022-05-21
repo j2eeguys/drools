@@ -20,11 +20,10 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
-import org.drools.core.WorkingMemory;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.rule.Declaration;
 import org.drools.core.rule.EvalCondition;
-import org.drools.core.spi.EvalExpression;
-import org.drools.core.spi.Tuple;
+import org.drools.core.rule.accessor.EvalExpression;
 
 public class MockEvalCondition extends EvalCondition {
 
@@ -39,7 +38,7 @@ public class MockEvalCondition extends EvalCondition {
 
                                                       public boolean evaluate(Tuple tuple,
                                                                               Declaration[] requiredDeclarations,
-                                                                              WorkingMemory workingMemory,
+                                                                              ReteEvaluator reteEvaluator,
                                                                               Object context ) {
                                                           return MockEvalCondition.this.isAllowed.booleanValue();
                                                       }

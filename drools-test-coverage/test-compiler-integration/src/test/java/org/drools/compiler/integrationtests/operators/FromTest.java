@@ -25,9 +25,8 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
-import org.assertj.core.api.Assertions;
 import org.drools.core.base.ClassObjectType;
-import org.drools.core.impl.InternalKnowledgeBase;
+import org.drools.core.event.DebugAgendaEventListener;
 import org.drools.core.reteoo.EntryPointNode;
 import org.drools.core.reteoo.FromNode;
 import org.drools.core.reteoo.LeftInputAdapterNode;
@@ -35,6 +34,7 @@ import org.drools.core.reteoo.LeftTupleSink;
 import org.drools.core.reteoo.ObjectTypeNode;
 import org.drools.core.reteoo.Sink;
 import org.drools.core.rule.EntryPointId;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
 import org.drools.testcoverage.common.model.Address;
 import org.drools.testcoverage.common.model.Cheese;
 import org.drools.testcoverage.common.model.Cheesery;
@@ -66,6 +66,7 @@ import org.kie.api.runtime.rule.FactHandle;
 import org.kie.internal.builder.conf.LanguageLevelOption;
 import org.kie.internal.builder.conf.PropertySpecificOption;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
@@ -346,7 +347,7 @@ public class FromTest {
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration,
                                                                     false,
                                                                     drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
     }
 
     public static class Container2 {
@@ -475,7 +476,7 @@ public class FromTest {
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration,
                                                                     false,
                                                                     drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
     }
 
     @Test
@@ -889,7 +890,7 @@ public class FromTest {
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration,
                                                                     false,
                                                                     drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
     }
 
     @Test
@@ -1011,6 +1012,119 @@ public class FromTest {
 
             ksession.fireAllRules();
             assertEquals(3, list.size());
+        } finally {
+            ksession.dispose();
+        }
+    }
+
+    @Test
+    public void testUpdateFromCollect() {
+        // DROOLS-6504
+        final String drl =
+                "import " + List.class.getCanonicalName() + ";\n" +
+                "import " + ClassWithValues.class.getCanonicalName() + ";\n" +
+                "rule R when\n" +
+                "      $cwvs: List(size > 0) from collect (ClassWithValues(values.size == 0))\n" +
+                "      $values: List(size > 0) from collect (String())\n" +
+                "    then\n" +
+                "      \n" +
+                "      for (ClassWithValues cwv: (List<ClassWithValues>)$cwvs) {\n" +
+                "        cwv.add(\"not in memory\");\n" +
+                "        ((List<String>)$values).forEach(cwv::add);\n" +
+                "        update(cwv);\n" +
+                "      }\n" +
+                "end\n";
+
+        final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("from-test",
+                                                                         kieBaseTestConfiguration,
+                                                                         drl);
+        final KieSession ksession = kbase.newKieSession();
+        ksession.insert(new ClassWithValues());
+        ksession.insert("test");
+        assertEquals(1, ksession.fireAllRules());
+    }
+
+    public static class ClassWithValues {
+        private List<String> values = new ArrayList<>();
+
+        public void add(String value) {
+            this.values.add(value);
+        }
+
+        public List<String> getValues() {
+            return this.values;
+        }
+    }
+
+    private final String RULE_HEAD = "package org.drools.compiler.integrationtests.operators;\n" +
+                                     "import " + Person.class.getCanonicalName() + ";\n" +
+                                     "global java.util.List list\n";
+
+    private final String RULE_WITH_JOIN = "rule R1\n" +
+                                          "agenda-group \"group2\"\n" +
+                                          "no-loop true\n" +
+                                          "    when\n" +
+                                          "        $p1 : Person ( )\n" +
+                                          "        $s : String(this == \"ABC\")\n" +
+                                          "    then\n" +
+                                          "end\n";
+
+    private final String RULE_WITH_FROM = "rule R2\n" +
+                                          "salience -70\n" +
+                                          "agenda-group \"group1\"\n" +
+                                          "no-loop true\n" + // no-loop is required for eager activation creation
+                                          "    when\n" +
+                                          "        $p1 : Person ( )\n" +
+                                          "        $p2 : Person ( age < 2 ) from $p1\n" + // meaningless use of "from" but valid syntax
+                                          "    then\n" +
+                                          "       list.add( $p2.getName() );\n" +
+                                          "end\n" +
+                                          "rule R3\n" +
+                                          "agenda-group \"group1\"\n" +
+                                          "salience -30\n" +
+                                          "no-loop true\n" +
+                                          "    when\n" +
+                                          "        $p : Person ( age == 1 )\n" +
+                                          "    then\n" +
+                                          "       modify($p){setAge(10)};\n" +
+                                          "end\n";
+
+    @Test
+    public void testJoinAndFrom() {
+        // DROOLS-6821
+        // Add JoinNode first
+        runKSessionWithAgendaGroup(RULE_HEAD +
+                                   RULE_WITH_JOIN +
+                                   RULE_WITH_FROM);
+    }
+
+    @Test
+    public void testFromAndJoin() {
+        // DROOLS-6821
+        // Add FromNode first
+        runKSessionWithAgendaGroup(RULE_HEAD +
+                                   RULE_WITH_FROM +
+                                   RULE_WITH_JOIN);
+    }
+
+    private void runKSessionWithAgendaGroup(String drl) {
+        final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("from-test",
+                                                                         kieBaseTestConfiguration,
+                                                                         drl);
+
+        final KieSession ksession = kbase.newKieSession();
+        ksession.addEventListener(new DebugAgendaEventListener());
+        try {
+            final List<String> list = new ArrayList<>();
+            ksession.setGlobal("list", list);
+
+            final Person p = new Person("John", 1);
+            ksession.insert(p);
+            ksession.fireAllRules();
+            ksession.getAgenda().getAgendaGroup("group1").setFocus();
+            ksession.fireAllRules();
+
+            assertEquals(0, list.size()); // R2 should not be fired
         } finally {
             ksession.dispose();
         }

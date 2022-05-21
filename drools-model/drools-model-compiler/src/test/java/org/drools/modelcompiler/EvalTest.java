@@ -18,15 +18,14 @@ package org.drools.modelcompiler;
 
 import java.util.Collection;
 
-import org.assertj.core.api.Assertions;
 import org.drools.modelcompiler.domain.CalcFact;
 import org.drools.modelcompiler.domain.Overloaded;
 import org.drools.modelcompiler.domain.Person;
 import org.drools.modelcompiler.domain.Result;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.kie.api.runtime.KieSession;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 
 public class EvalTest extends BaseModelTest {
@@ -436,7 +435,7 @@ public class EvalTest extends BaseModelTest {
 
         Person first = new Person("First", 10);
         ksession.insert(first);
-        Assertions.assertThat(ksession.fireAllRules()).isEqualTo(1);
+        assertThat(ksession.fireAllRules()).isEqualTo(1);
     }
 
     public static class GlobalFunctions {
@@ -462,5 +461,19 @@ public class EvalTest extends BaseModelTest {
 
         int fired = ksession.fireAllRules();
         assertEquals(0, fired);
+    }
+
+    @Test
+    public void testParseIntStringConcatenation() throws Exception {
+        String str =
+                "rule R when\n" +
+                     "  $s : String()\n" +
+                     "  eval(Integer.parseInt('1' + $s) > 3)\n" +
+                     "then\n" +
+                     "end\n";
+
+        KieSession ksession = getKieSession(str);
+        ksession.insert("5");
+        assertEquals(1, ksession.fireAllRules());
     }
 }

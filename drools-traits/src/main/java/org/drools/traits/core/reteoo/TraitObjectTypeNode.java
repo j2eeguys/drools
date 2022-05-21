@@ -16,29 +16,26 @@
 
 package org.drools.traits.core.reteoo;
 
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
 import java.util.BitSet;
 import java.util.Collection;
 
-import org.drools.core.base.ClassObjectType;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.InternalWorkingMemory;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.factmodel.traits.Thing;
+import org.drools.core.factmodel.traits.TraitType;
 import org.drools.core.reteoo.EntryPointNode;
 import org.drools.core.reteoo.ModifyPreviousTuples;
 import org.drools.core.reteoo.ObjectTypeNode;
 import org.drools.core.reteoo.PropertySpecificUtil;
-import org.drools.traits.core.factmodel.TraitProxyImpl;
-import org.drools.core.factmodel.traits.TraitType;
-import org.drools.traits.core.factmodel.TraitTypeMapImpl;
+import org.drools.core.reteoo.RuntimeComponentFactory;
 import org.drools.core.reteoo.builder.BuildContext;
-import org.drools.core.spi.ObjectType;
-import org.drools.core.spi.PropagationContext;
+import org.drools.core.base.ObjectType;
+import org.drools.core.common.PropagationContext;
 import org.drools.core.util.bitmask.BitMask;
+import org.drools.traits.core.factmodel.TraitProxyImpl;
+import org.drools.traits.core.factmodel.TraitTypeMapImpl;
 
-import static org.drools.core.factmodel.traits.TraitUtils.supersetOrEqualset;
+import static org.drools.traits.core.base.TraitUtils.supersetOrEqualset;
 
 public class TraitObjectTypeNode extends ObjectTypeNode {
 
@@ -49,26 +46,13 @@ public class TraitObjectTypeNode extends ObjectTypeNode {
     public TraitObjectTypeNode(int id, EntryPointNode source, ObjectType objectType, BuildContext context ) {
         super( id, source, objectType, context );
 
-        typeMask = context.getKnowledgeBase().getConfiguration().getComponentFactory().getTraitRegistry().getHierarchy().getCode(
-                ((ClassObjectType) objectType).getClassName()
-        );
+        typeMask = ((TraitRuntimeComponentFactory) RuntimeComponentFactory.get()).getTraitRegistry(context.getRuleBase()).getHierarchy().getCode( objectType.getClassName() );
     }
-
-    public void readExternal( ObjectInput in ) throws IOException, ClassNotFoundException {
-        super.readExternal( in );
-        typeMask = (BitSet) in.readObject();
-    }
-
-    public void writeExternal( ObjectOutput out ) throws IOException {
-        super.writeExternal( out );
-        out.writeObject( typeMask );
-    }
-
 
     @Override
-    public void propagateAssert( InternalFactHandle factHandle, PropagationContext context, InternalWorkingMemory workingMemory ) {
+    public void propagateAssert( InternalFactHandle factHandle, PropagationContext context, ReteEvaluator reteEvaluator ) {
         if ( isAssertAllowed( factHandle ) ) {
-            super.propagateAssert( factHandle, context, workingMemory );
+            super.propagateAssert( factHandle, context, reteEvaluator );
         }
     }
 
@@ -134,7 +118,7 @@ public class TraitObjectTypeNode extends ObjectTypeNode {
     public void modifyObject( InternalFactHandle factHandle,
                               ModifyPreviousTuples modifyPreviousTuples,
                               PropagationContext context,
-                              InternalWorkingMemory workingMemory ) {
+                              ReteEvaluator reteEvaluator ) {
 
         if (!isModifyAllowed( factHandle )) {
             return;
@@ -146,8 +130,8 @@ public class TraitObjectTypeNode extends ObjectTypeNode {
             if (isModifyAllowed(factHandle)) {
                 this.sink.propagateModifyObject(factHandle,
                                                 modifyPreviousTuples,
-                                                context.adaptModificationMaskForObjectType(objectType, workingMemory),
-                                                workingMemory);
+                                                context.adaptModificationMaskForObjectType(objectType, reteEvaluator),
+                                                reteEvaluator);
             } else {
                 //System.err.println( ((ClassObjectType) this.getObjectType()).getClassName() + " : MODIFY BLOCK !! " + ( (TraitProxy) factHandle.getObject() ).getTraitName() + " " + ( (TraitProxy) factHandle.getObject() )._getTypeCode() + " >> " + " checks in " + typeMask );
             }
@@ -155,9 +139,9 @@ public class TraitObjectTypeNode extends ObjectTypeNode {
             this.sink.propagateModifyObject(factHandle,
                                             modifyPreviousTuples,
                                             !context.getModificationMask().isSet(PropertySpecificUtil.TRAITABLE_BIT) ?
-                                                    context.adaptModificationMaskForObjectType(objectType, workingMemory) :
+                                                    context.adaptModificationMaskForObjectType(objectType, reteEvaluator) :
                                                     context,
-                                            workingMemory);
+                                            reteEvaluator);
         }
     }
 

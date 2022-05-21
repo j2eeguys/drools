@@ -106,8 +106,6 @@ public class GraphCollapsionTest extends AbstractGraphTest {
 
         Graph collapsedGraph = new GraphCollapsionHelper().collapseWithRuleNamePrefix(graph);
 
-        generatePng(collapsedGraph);
-
         assertEquals(3, collapsedGraph.getNodeMap().size());
 
         assertLink(collapsedGraph, "mypkg.CustomerCheck", "mypkg.PriceCheck", ReactivityType.POSITIVE, ReactivityType.NEGATIVE);
@@ -121,10 +119,6 @@ public class GraphCollapsionTest extends AbstractGraphTest {
         ImpactAnalysisHelper impactFilter = new ImpactAnalysisHelper();
         Graph impactedSubGraph = impactFilter.filterImpactedNodes(collapsedGraph, changedNode);
 
-        generatePng(impactedSubGraph, "_impactedSubGraph");
-
-        generatePng(collapsedGraph, "_impacted");
-
         assertNull(impactedSubGraph.getNodeMap().get("mypkg.CustomerCheck"));
         assertEquals(Status.CHANGED, impactedSubGraph.getNodeMap().get("mypkg.PriceCheck").getStatus());
         assertEquals(Status.IMPACTED, impactedSubGraph.getNodeMap().get("mypkg.StatusCheck").getStatus());
@@ -135,7 +129,7 @@ public class GraphCollapsionTest extends AbstractGraphTest {
         KieServices ks = KieServices.Factory.get();
         ReleaseId releaseId = ks.newReleaseId("org.drools.impact.analysis.integrationtests", "spreadsheet-test", "1.0.0");
         KieFileSystem kfs = createKieFileSystemWithClassPathResourceNames(releaseId, getClass(),
-                                                                          "collapsion01.xls", "collapsion02.xls", "collapsion03.xls");
+                                                                          "collapsion01.drl.xls", "collapsion02.drl.xls", "collapsion03.drl.xls");
 
         KieBuilder kieBuilder = ks.newKieBuilder(kfs).buildAll(ImpactAnalysisProject.class);
         ImpactAnalysisKieModule analysisKieModule = (ImpactAnalysisKieModule) kieBuilder.getKieModule();
@@ -145,8 +139,6 @@ public class GraphCollapsionTest extends AbstractGraphTest {
         Graph graph = converter.toGraph(analysisModel);
 
         Graph collapsedGraph = new GraphCollapsionHelper().collapseWithRuleNamePrefix(graph);
-
-        generatePng(collapsedGraph, "_collapsed");
 
         assertEquals(3, collapsedGraph.getNodeMap().size());
 
@@ -160,10 +152,6 @@ public class GraphCollapsionTest extends AbstractGraphTest {
 
         ImpactAnalysisHelper impactFilter = new ImpactAnalysisHelper();
         Graph impactedSubGraph = impactFilter.filterImpactedNodes(collapsedGraph, changedNode);
-
-        generatePng(impactedSubGraph, "_impactedSubGraph");
-
-        generatePng(collapsedGraph, "_impacted");
 
         assertNull(impactedSubGraph.getNodeMap().get("mypkg2.CustomerCheck"));
         assertEquals(Status.CHANGED, impactedSubGraph.getNodeMap().get("mypkg2.PriceCheck").getStatus());

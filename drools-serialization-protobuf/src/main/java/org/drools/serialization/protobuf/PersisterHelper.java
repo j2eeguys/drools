@@ -32,25 +32,25 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.ByteString.Output;
 import com.google.protobuf.ExtensionRegistry;
 import com.google.protobuf.Message;
-import org.drools.core.beliefsystem.simple.BeliefSystemLogicalCallback;
+import org.drools.tms.beliefsystem.simple.BeliefSystemLogicalCallback;
 import org.drools.core.common.DroolsObjectInputStream;
 import org.drools.core.common.DroolsObjectOutputStream;
 import org.drools.core.common.WorkingMemoryAction;
 import org.drools.core.factmodel.traits.TraitFactory;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.StatefulKnowledgeSessionImpl.WorkingMemoryReteAssertAction;
-import org.drools.core.impl.StatefulKnowledgeSessionImpl.WorkingMemoryReteExpireAction;
-import org.drools.core.marshalling.impl.ActivationKey;
-import org.drools.core.marshalling.impl.MarshallerReaderContext;
-import org.drools.core.marshalling.impl.MarshallerWriteContext;
-import org.drools.core.marshalling.impl.MarshallingHelper;
-import org.drools.core.marshalling.impl.ProcessMarshaller;
-import org.drools.core.marshalling.impl.TupleKey;
+import org.drools.core.impl.RuleBase;
+import org.drools.core.impl.WorkingMemoryReteExpireAction;
+import org.drools.serialization.protobuf.marshalling.ActivationKey;
+import org.drools.core.marshalling.MarshallerReaderContext;
+import org.drools.core.marshalling.MarshallerWriteContext;
+import org.drools.serialization.protobuf.marshalling.MarshallingHelper;
+import org.drools.serialization.protobuf.marshalling.ProcessMarshaller;
+import org.drools.core.marshalling.TupleKey;
+import org.drools.core.reteoo.RuntimeComponentFactory;
 import org.drools.core.rule.SlidingTimeWindow.BehaviorExpireWMAction;
-import org.drools.core.spi.Tuple;
+import org.drools.core.reteoo.Tuple;
 import org.drools.core.util.Drools;
 import org.drools.core.util.KeyStoreHelper;
-import org.drools.reflective.classloader.ProjectClassLoader;
+import org.drools.wiring.api.classloader.ProjectClassLoader;
 import org.drools.serialization.protobuf.ProtobufMessages.Header;
 import org.drools.serialization.protobuf.ProtobufMessages.Header.StrategyIndex.Builder;
 import org.drools.serialization.protobuf.actions.ProtobufBehaviorExpireWMAction;
@@ -158,9 +158,9 @@ public class PersisterHelper extends MarshallingHelper {
         
         writeStrategiesIndex( context, _header );
 
-        InternalKnowledgeBase kBase = context.getKnowledgeBase();
+        RuleBase kBase = context.getKnowledgeBase();
         if (kBase != null) {
-            TraitFactory traitFactory = kBase.getConfiguration().getComponentFactory().getTraitFactory();
+            TraitFactory traitFactory = RuntimeComponentFactory.get().getTraitFactory(kBase);
             if (traitFactory != null) {
                 writeRuntimeDefinedClasses(traitFactory, context, _header);
             }
@@ -216,7 +216,7 @@ public class PersisterHelper extends MarshallingHelper {
 
     private static void sign(ProtobufMessages.Header.Builder _header,
                              byte[] buff ) {
-        KeyStoreHelper helper = new KeyStoreHelper();
+        KeyStoreHelper helper = KeyStoreHelper.get();
         if (helper.isSigned()) {
             try {
                 _header.setSignature( ProtobufMessages.Signature.newBuilder()
@@ -304,7 +304,7 @@ public class PersisterHelper extends MarshallingHelper {
 
     private static void checkSignature(Header _header,
                                        byte[] sessionbuff) {
-        KeyStoreHelper helper = new KeyStoreHelper();
+        KeyStoreHelper helper = KeyStoreHelper.get();
         boolean signed = _header.hasSignature();
         if ( helper.isSigned() != signed ) {
             throw new RuntimeException( "This environment is configured to work with " +

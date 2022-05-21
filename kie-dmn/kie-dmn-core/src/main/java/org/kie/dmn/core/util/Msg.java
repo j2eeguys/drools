@@ -61,6 +61,8 @@ public final class Msg {
     public static final Message2 VARIABLE_NAME_MISMATCH_FOR_BKM                      = new Message2( DMNMessageType.VARIABLE_NAME_MISMATCH, "Variable name '%s' does not match the Business Knowledge Model node name '%s'" );
     public static final Message2 VARIABLE_NAME_MISMATCH_FOR_DECISION                 = new Message2( DMNMessageType.VARIABLE_NAME_MISMATCH, "Variable name '%s' does not match the Decision node name '%s'" );
     public static final Message2 VARIABLE_NAME_MISMATCH_FOR_INPUT                    = new Message2( DMNMessageType.VARIABLE_NAME_MISMATCH, "Variable name '%s' does not match the Input Data node name '%s'" );
+    public static final Message2 VARIABLE_TYPE_MISMATCH_FOR_BKM_EL                   = new Message2( DMNMessageType.TYPEREF_MISMATCH, "Encapsulated logic type '%s' does not match the Business Knowledge Model variable type '%s'. Compilation will consider only the variable type." );
+    public static final Message2 VARIABLE_TYPE_MISMATCH_FOR_BKM_EL_BODY              = new Message2( DMNMessageType.TYPEREF_MISMATCH, "Encapsulated logic's expression type '%s' does not match the Business Knowledge Model variable's return type (was expecting '%s'). Compilation will refer only the BKM variable type." );
     public static final Message1 DUPLICATE_CONTEXT_ENTRY                             = new Message1( DMNMessageType.DUPLICATE_NAME, "Duplicate context entry with variables named '%s'" );
     public static final Message2 MISSING_TYPEREF_FOR_VARIABLE                        = new Message2( DMNMessageType.MISSING_TYPE_REF, "Variable named '%s' is missing its type reference on node '%s'" );
     public static final Message2 VARIABLE_LEADING_TRAILING_SPACES                    = new Message2( DMNMessageType.INVALID_NAME, "Variable name contains leading or traling spaces '%s' on node '%s'" );
@@ -68,6 +70,7 @@ public final class Msg {
     public static final Message2 MISSING_TYPEREF_FOR_COLUMN                          = new Message2( DMNMessageType.MISSING_TYPE_REF, "Column named '%s' is missing its type reference on node '%s'" );
     public static final Message3 WRONG_TYPEREF_FOR_COLUMN                            = new Message3( DMNMessageType.MISSING_TYPE_REF, "Column #%s named '%s' defines a type reference '%s' which does not exists");
     public static final Message1 DUPLICATE_DRG_ELEMENT                               = new Message1( DMNMessageType.DUPLICATE_NAME, "Duplicate node name '%s' in the model" );
+    public static final Message1 IMPORT_NAME_NOT_UNIQUE                              = new Message1( DMNMessageType.DUPLICATE_NAME, "Import name '%s' is not unique in the model, the DMN Spec mandates the Import's name must be distinct from the names of other imports, decisions, input data, business knowledge models, decision services, and item definitions within the importing model only." );
     public static final Message1 MISSING_NAME_FOR_DT_OUTPUT                          = new Message1( DMNMessageType.MISSING_NAME, "Decision table with multiple outputs on node '%s' requires a name for each output" );
     public static final Message1 MISSING_TYPEREF_FOR_DT_OUTPUT                       = new Message1( DMNMessageType.MISSING_TYPE_REF, "Decision table with multiple outputs on node '%s' requires a type reference for each output" );
     public static final Message1 MISSING_OUTPUT_VALUES                               = new Message1( DMNMessageType.MISSING_OUTPUT_VALUES, "Decision table '%s' with hit policy Priority requires output elements to specify the output values list" );
@@ -131,6 +134,7 @@ public final class Msg {
     public static final Message1 FUNC_DEF_PMML_MISSING_MODEL_NAME                    = new Message1( DMNMessageType.INVALID_SYNTAX, "The PMML function definition did not provide 'model' attribute, while the PMML resource defines the following model names: %s" );
     public static final Message1 FUNC_DEF_PMML_ERR_LOCATIONURI                       = new Message1( DMNMessageType.IMPORT_NOT_FOUND, "Unable to locate pmml model from locationURI '%s'");
     public static final Message2 ERROR_CHECKING_ALLOWED_VALUES                       = new Message2( DMNMessageType.FEEL_EVALUATION_ERROR, "Error checking allowed values for node '%s': %s" );
+    public static final Message1 DTMULTIPLEOUTPUTCOLLECTOPERATOR                     = new Message1( DMNMessageType.INVALID_SYNTAX, "Decision Table '%s' is using Collect with Operator for compound outputs; this is partially supported beyond the specification requirements.");
     public static final Message1 DTANALYSISRESULT                                    = new Message1( DMNMessageType.DECISION_TABLE_ANALYSIS, "Decision Table Analysis results: %s");
     public static final Message1 DTANALYSIS_EMPTY                                    = new Message1( DMNMessageType.DECISION_TABLE_ANALYSIS_EMPTY, "Decision Table Analysis of table '%s' finished with no messages to be reported.");
     public static final Message2 DTANALYSIS_ERROR_ANALYSIS_SKIPPED                   = new Message2( DMNMessageType.DECISION_TABLE_ANALYSIS_ERROR, "Skipped Decision Table Analysis of table '%s' because: %s");
@@ -158,6 +162,12 @@ public final class Msg {
     public static final Message1 DMNDI_MISSING_EDGE                                  = new Message1( DMNMessageType.DMNDI_MISSING_DIAGRAM, "Missing DMNEdge for '%s'" );
     public static final Message2 DMNDI_UNKNOWN_REF                                   = new Message2( DMNMessageType.DMNDI_UNKNOWN_REF, "Unable to resolve dmnElementRef '%s' on '%s'" );
     public static final Message1 UNABLE_TO_RETRIEVE_PMML_RESULT                      = new Message1( DMNMessageType.INVOCATION_ERROR, "Unable to retrieve result from PMML model '%s'" );
+    public static final Message2 MISSING_EXPRESSION_FOR_CONDITION                    = new Message2( DMNMessageType.MISSING_EXPRESSION, "Missing %s expression for Conditional node '%s'" );
+    public static final Message2 MISSING_EXPRESSION_FOR_ITERATOR                     = new Message2( DMNMessageType.MISSING_EXPRESSION, "Missing %s expression for Iterator node '%s'" );
+    public static final Message2 MISSING_EXPRESSION_FOR_FILTER                       = new Message2( DMNMessageType.MISSING_EXPRESSION, "Missing %s expression for Filter node '%s'" );
+    public static final Message2 CONDITION_RESULT_NOT_BOOLEAN                        = new Message2( DMNMessageType.ERROR_EVAL_NODE, "The if condition on node %s returned a non boolean result: '%s'" );
+    public static final Message1 IN_RESULT_NULL                                      = new Message1( DMNMessageType.ERROR_EVAL_NODE, "The in condition on node %s returned null.");
+    public static final Message2 INDEX_OUT_OF_BOUND                                  = new Message2( DMNMessageType.ERROR_EVAL_NODE, "Index out of bound: list of %s elements, index %s; will evaluate as FEEL null");
 
 
     public static interface Message {

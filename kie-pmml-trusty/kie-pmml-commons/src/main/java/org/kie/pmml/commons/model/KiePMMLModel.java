@@ -17,7 +17,6 @@ package org.kie.pmml.commons.model;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -27,6 +26,7 @@ import org.kie.pmml.api.enums.PMML_MODEL;
 import org.kie.pmml.api.models.MiningField;
 import org.kie.pmml.api.models.OutputField;
 import org.kie.pmml.api.models.PMMLModel;
+import org.kie.pmml.api.runtime.PMMLContext;
 import org.kie.pmml.commons.model.abstracts.AbstractKiePMMLComponent;
 import org.kie.pmml.commons.transformations.KiePMMLLocalTransformations;
 import org.kie.pmml.commons.transformations.KiePMMLTransformationDictionary;
@@ -41,15 +41,13 @@ public abstract class KiePMMLModel extends AbstractKiePMMLComponent implements P
     protected PMML_MODEL pmmlMODEL;
     protected MINING_FUNCTION miningFunction;
     protected String targetField;
-    protected Map<String, Object> outputFieldsMap = new HashMap<>();
-    protected Map<String, Object> missingValueReplacementMap = new HashMap<>();
     protected List<MiningField> miningFields = new ArrayList<>();
     protected List<OutputField> outputFields = new ArrayList<>();
+    protected List<KiePMMLMiningField> kiePMMLMiningFields = new ArrayList<>();
     protected List<KiePMMLOutputField> kiePMMLOutputFields = new ArrayList<>();
     protected List<KiePMMLTarget> kiePMMLTargets = new ArrayList<>();
     protected KiePMMLTransformationDictionary transformationDictionary;
     protected KiePMMLLocalTransformations localTransformations;
-
 
     protected KiePMMLModel(String name, List<KiePMMLExtension> extensions) {
         super(name, extensions);
@@ -65,14 +63,6 @@ public abstract class KiePMMLModel extends AbstractKiePMMLComponent implements P
 
     public String getTargetField() {
         return targetField;
-    }
-
-    public Map<String, Object> getOutputFieldsMap() {
-        return Collections.unmodifiableMap(outputFieldsMap);
-    }
-
-    public Map<String, Object> getMissingValueReplacementMap() {
-        return Collections.unmodifiableMap(missingValueReplacementMap);
     }
 
     /**
@@ -92,33 +82,23 @@ public abstract class KiePMMLModel extends AbstractKiePMMLComponent implements P
         return miningFields;
     }
 
-    public void setMiningFields(final List<MiningField> miningFields) {
-        this.miningFields = Collections.unmodifiableList(miningFields);
-    }
-
     @Override
     public List<OutputField> getOutputFields() {
         return outputFields;
-    }
-
-    public void setOutputFields(List<OutputField> outputFields) {
-        this.outputFields = Collections.unmodifiableList(outputFields);
-    }
-
-    public void setKiePMMLOutputFields(List<KiePMMLOutputField> kiePMMLOutputFields) {
-        this.kiePMMLOutputFields = Collections.unmodifiableList(kiePMMLOutputFields);
     }
 
     public List<KiePMMLTarget> getKiePMMLTargets() {
         return kiePMMLTargets;
     }
 
-    public void setKiePMMLTargets(List<KiePMMLTarget> kiePMMLTargets) {
-        this.kiePMMLTargets = Collections.unmodifiableList(kiePMMLTargets);
+    public List<KiePMMLMiningField> getKiePMMLMiningFields() {
+        return kiePMMLMiningFields != null ? Collections.unmodifiableList(kiePMMLMiningFields) :
+                Collections.emptyList();
     }
 
     public List<KiePMMLOutputField> getKiePMMLOutputFields() {
-        return Collections.unmodifiableList(kiePMMLOutputFields);
+        return kiePMMLOutputFields != null ? Collections.unmodifiableList(kiePMMLOutputFields) :
+                Collections.emptyList();
     }
 
     public KiePMMLTransformationDictionary getTransformationDictionary() {
@@ -134,9 +114,11 @@ public abstract class KiePMMLModel extends AbstractKiePMMLComponent implements P
      * dependency. It is needed only by <b>Drools-dependent</b>
      * models, so it may be <b>ignored</b> by others
      * @param requestData
+     * @param context used to accumulate additional evaluated values
      * @return
      */
-    public abstract Object evaluate(final Object knowledgeBase, final Map<String, Object> requestData);
+    public abstract Object evaluate(final Object knowledgeBase, final Map<String, Object> requestData,
+                                    final PMMLContext context);
 
     public abstract static class Builder<T extends KiePMMLModel> extends AbstractKiePMMLComponent.Builder<T> {
 
@@ -151,13 +133,48 @@ public abstract class KiePMMLModel extends AbstractKiePMMLComponent implements P
             return this;
         }
 
-        public Builder<T> withOutputFieldsMap(Map<String, Object> outputFieldsMap) {
-            toBuild.outputFieldsMap.putAll(outputFieldsMap);
+        public Builder<T> withMiningFields(List<MiningField> miningFields) {
+            if (miningFields != null) {
+                toBuild.miningFields = miningFields;
+            }
             return this;
         }
 
-        public Builder<T> withMissingValueReplacementMap(Map<String, Object> missingValueReplacementMap) {
-            toBuild.missingValueReplacementMap.putAll(missingValueReplacementMap);
+        public Builder<T> withOutputFields(List<OutputField> outputFields) {
+            if (outputFields != null) {
+                toBuild.outputFields = outputFields;
+            }
+            return this;
+        }
+
+        public Builder<T> withKiePMMLMiningFields(List<KiePMMLMiningField> kiePMMLMiningFields) {
+            if (kiePMMLMiningFields != null) {
+                toBuild.kiePMMLMiningFields = kiePMMLMiningFields;
+            }
+            return this;
+        }
+
+        public Builder<T> withKiePMMLOutputFields(List<KiePMMLOutputField> kiePMMLOutputFields) {
+            if (kiePMMLOutputFields != null) {
+                toBuild.kiePMMLOutputFields = kiePMMLOutputFields;
+            }
+            return this;
+        }
+
+        public Builder<T> withKiePMMLTargets(List<KiePMMLTarget> kiePMMLTargets) {
+            if (kiePMMLTargets != null) {
+                toBuild.kiePMMLTargets = kiePMMLTargets;
+            }
+            return this;
+        }
+
+        public Builder<T> withKiePMMLTransformationDictionary(KiePMMLTransformationDictionary transformationDictionary) {
+            toBuild.transformationDictionary = transformationDictionary;
+            return this;
+        }
+
+        public Builder<T> withKiePMMLLocalTransformations(KiePMMLLocalTransformations localTransformations) {
+            toBuild.localTransformations = localTransformations;
             return this;
         }
     }

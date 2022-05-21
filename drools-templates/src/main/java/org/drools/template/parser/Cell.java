@@ -16,27 +16,29 @@
 
 package org.drools.template.parser;
 
-import org.kie.api.runtime.KieSession;
-
 import java.util.Map;
+
+import org.kie.api.runtime.KieSession;
 
 /**
  * A cell in a decision table
  */
-public interface Cell {
-    public Row getRow();
+public interface Cell<T> {
+    Row getRow();
 
-    public Column getColumn();
+    Column getColumn();
 
-    public void setValue(String value);
+    void setValue(String value);
 
-    public void addValue(Map<String, Object> vars);
+    T getValue();
 
-    public void insert(KieSession session);
+    void addValue(Map<String, Object> vars);
 
-    public void setIndex(int i);
+    void insert(KieSession session);
 
-    public int getIndex();
+    void setIndex(int i);
 
-    public boolean isEmpty();
+    int getIndex();
+
+    boolean isEmpty();
 }

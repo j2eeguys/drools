@@ -20,6 +20,7 @@ package org.drools.modelcompiler.builder.generator.declaredtype.generator;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -49,7 +50,7 @@ import static java.text.MessageFormat.format;
 import static com.github.javaparser.StaticJavaParser.parseExpression;
 import static com.github.javaparser.StaticJavaParser.parseType;
 import static com.github.javaparser.ast.NodeList.nodeList;
-import static org.drools.core.util.ClassUtils.getGetter;
+import static org.drools.util.ClassUtils.getGetterMethod;
 import static org.drools.modelcompiler.builder.generator.DrlxParseUtil.createSimpleAnnotation;
 import static org.drools.modelcompiler.builder.generator.declaredtype.POJOGenerator.quote;
 
@@ -69,6 +70,10 @@ public class GeneratedClassDeclaration {
 
         this.typeDefinition = typeDefinition;
         this.markerInterfaceAnnotations = markerInterfaceAnnotations;
+    }
+
+    public GeneratedClassDeclaration(TypeDefinition typeDefinition) {
+        this(typeDefinition, Collections.emptyList());
     }
 
     public ClassOrInterfaceDeclaration toClassDeclaration() {
@@ -172,7 +177,7 @@ public class GeneratedClassDeclaration {
 
         if (fieldDefinition.isOverride()) {
             if (fieldDefinition.createAccessors()) {
-                String getterName = getGetter(fieldName);
+                String getterName = getGetterMethod(fieldName);
                 MethodDeclaration getter = generatedClass.addMethod( getterName, Modifier.Keyword.PUBLIC );
                 getter.addAnnotation( createSimpleAnnotation(Override.class) );
                 getter.setType( fieldDefinition.getObjectType() );

@@ -22,8 +22,9 @@ import org.drools.core.RuleBaseConfiguration;
 import org.drools.core.reteoo.builder.BuildContext;
 import org.drools.core.rule.ContextEntry;
 import org.drools.core.rule.MutableTypeConstraint;
-import org.drools.core.spi.BetaNodeFieldConstraint;
-import org.drools.core.spi.Tuple;
+import org.drools.core.rule.constraint.BetaNodeFieldConstraint;
+import org.drools.core.base.ObjectType;
+import org.drools.core.reteoo.Tuple;
 import org.drools.core.util.bitmask.BitMask;
 import org.kie.internal.conf.IndexPrecedenceOption;
 
@@ -69,11 +70,11 @@ public class DoubleBetaConstraints extends MultipleBetaConstraint {
      * @see org.kie.common.BetaNodeConstraints#updateFromTuple(org.kie.reteoo.ReteTuple)
      */
     public void updateFromTuple(final ContextEntry[] context,
-                                final InternalWorkingMemory workingMemory,
+                                final ReteEvaluator reteEvaluator,
                                 final Tuple tuple) {
-        context[0].updateFromTuple( workingMemory,
+        context[0].updateFromTuple( reteEvaluator,
                                     tuple );
-        context[1].updateFromTuple( workingMemory,
+        context[1].updateFromTuple( reteEvaluator,
                                     tuple );
     }
 
@@ -81,11 +82,11 @@ public class DoubleBetaConstraints extends MultipleBetaConstraint {
      * @see org.kie.common.BetaNodeConstraints#updateFromFactHandle(org.kie.common.InternalFactHandle)
      */
     public void updateFromFactHandle(final ContextEntry[] context,
-                                     final InternalWorkingMemory workingMemory,
+                                     final ReteEvaluator reteEvaluator,
                                      final InternalFactHandle handle) {
-        context[0].updateFromFactHandle( workingMemory,
+        context[0].updateFromFactHandle( reteEvaluator,
                                          handle );
-        context[1].updateFromFactHandle( workingMemory,
+        context[1].updateFromFactHandle( reteEvaluator,
                                          handle );
     }
 
@@ -156,9 +157,9 @@ public class DoubleBetaConstraints extends MultipleBetaConstraint {
         throw new UnsupportedOperationException();
     }
 
-    public BitMask getListenedPropertyMask(Class modifiedClass, List<String> settableProperties) {
-        return constraints[0].getListenedPropertyMask(modifiedClass, settableProperties)
-                             .setAll(constraints[1].getListenedPropertyMask(modifiedClass, settableProperties));
+    public BitMask getListenedPropertyMask(ObjectType modifiedType, List<String> settableProperties) {
+        return constraints[0].getListenedPropertyMask(modifiedType, settableProperties)
+                             .setAll(constraints[1].getListenedPropertyMask(modifiedType, settableProperties));
     }
 
     public void registerEvaluationContext(BuildContext buildContext) {

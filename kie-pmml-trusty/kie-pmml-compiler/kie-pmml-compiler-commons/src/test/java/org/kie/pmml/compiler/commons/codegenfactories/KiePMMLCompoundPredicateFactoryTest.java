@@ -16,6 +16,7 @@
 
 package org.kie.pmml.compiler.commons.codegenfactories;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -28,6 +29,7 @@ import org.dmg.pmml.CompoundPredicate;
 import org.dmg.pmml.DataDictionary;
 import org.dmg.pmml.DataField;
 import org.dmg.pmml.DataType;
+import org.dmg.pmml.Field;
 import org.dmg.pmml.SimplePredicate;
 import org.dmg.pmml.SimpleSetPredicate;
 import org.junit.Test;
@@ -37,11 +39,13 @@ import org.kie.pmml.commons.model.predicates.KiePMMLSimplePredicate;
 import org.kie.pmml.commons.model.predicates.KiePMMLSimpleSetPredicate;
 import org.kie.pmml.compiler.commons.utils.JavaParserUtils;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.kie.pmml.compiler.api.CommonTestingUtils.getFieldsFromDataDictionary;
+import static org.kie.pmml.compiler.api.testutils.PMMLModelTestUtils.getSimplePredicate;
+import static org.kie.pmml.compiler.api.testutils.PMMLModelTestUtils.getStringObjects;
 import static org.kie.pmml.compiler.commons.codegenfactories.KiePMMLSimpleSetPredicateFactoryTest.getSimpleSetPredicate;
 import static org.kie.pmml.compiler.commons.testutils.CodegenTestUtils.commonValidateCompilationWithImports;
-import static org.kie.pmml.compiler.commons.testutils.PMMLModelTestUtils.getSimplePredicate;
-import static org.kie.pmml.compiler.commons.testutils.PMMLModelTestUtils.getStringObjects;
+import static org.kie.test.util.filesystem.FileUtils.getFileContent;
 
 public class KiePMMLCompoundPredicateFactoryTest {
 
@@ -51,9 +55,10 @@ public class KiePMMLCompoundPredicateFactoryTest {
     private static final Double value2 = 5.0;
     private static final SimplePredicate.Operator operator1 = SimplePredicate.Operator.EQUAL;
     private static final SimplePredicate.Operator operator2 = SimplePredicate.Operator.GREATER_THAN;
+    private static final String TEST_01_SOURCE = "KiePMMLCompoundPredicateFactoryTest_01.txt";
 
     @Test
-    public void getCompoundPredicateVariableDeclaration() {
+    public void getCompoundPredicateVariableDeclaration() throws IOException {
         String variableName = "variableName";
         SimplePredicate simplePredicate1 = getSimplePredicate(PARAM_1, value1, operator1);
         SimplePredicate simplePredicate2 = getSimplePredicate(PARAM_2, value2, operator2);
@@ -80,53 +85,22 @@ public class KiePMMLCompoundPredicateFactoryTest {
         DataDictionary dataDictionary = new DataDictionary();
         dataDictionary.addDataFields(dataField1, dataField2, dataField3);
 
-
-
         String booleanOperatorString =
                 BOOLEAN_OPERATOR.class.getName() + "." + BOOLEAN_OPERATOR.byName(compoundPredicate.getBooleanOperator().value()).name();
         String valuesString = values.stream()
                 .map(valueString -> "\"" + valueString + "\"")
                 .collect(Collectors.joining(","));
 
+        final List<Field<?>> fields = getFieldsFromDataDictionary(dataDictionary);
         BlockStmt retrieved = KiePMMLCompoundPredicateFactory.getCompoundPredicateVariableDeclaration(variableName,
-                                                                                                      compoundPredicate, Collections.emptyList(), dataDictionary);
-        Statement expected = JavaParserUtils.parseBlock(String.format("{\n" +
-                                                                              "    KiePMMLSimplePredicate " +
-                                                                              "%1$s_0 = " +
-                                                                              "KiePMMLSimplePredicate.builder" +
-                                                                              "(\"PARAM_1\", Collections.emptyList()," +
-                                                                              " org.kie.pmml.api.enums.OPERATOR" +
-                                                                              ".EQUAL).withValue(100.0).build();\n" +
-                                                                              "    KiePMMLSimplePredicate " +
-                                                                              "%1$s_1 = " +
-                                                                              "KiePMMLSimplePredicate.builder" +
-                                                                              "(\"PARAM_2\", Collections.emptyList()," +
-                                                                              " org.kie.pmml.api.enums.OPERATOR" +
-                                                                              ".GREATER_THAN).withValue(5.0).build();" +
-                                                                              "\n" +
-                                                                              "    KiePMMLSimpleSetPredicate " +
-                                                                              "%1$s_2 = " +
-                                                                              "KiePMMLSimpleSetPredicate.builder" +
-                                                                              "(\"SIMPLESETPREDICATENAME\", " +
-                                                                              "Collections.emptyList(), org.kie.pmml" +
-                                                                              ".api.enums.ARRAY_TYPE.STRING, org.kie" +
-                                                                              ".pmml.api.enums.IN_NOTIN.IN)" +
-                                                                              ".withValues(Arrays.asList(%2$s))" +
-                                                                              ".build();\n" +
-                                                                              "    KiePMMLCompoundPredicate " +
-                                                                              "%1$s = " +
-                                                                              "KiePMMLCompoundPredicate.builder" +
-                                                                              "(Collections.emptyList(), %3$s)" +
-                                                                              ".withKiePMMLPredicates(Arrays.asList" +
-                                                                              "(%1$s_0, %1$s_1, " +
-                                                                              "%1$s_2)).build();\n" +
-                                                                              "}", variableName,
+                                                                                                      compoundPredicate, fields);
+        String text = getFileContent(TEST_01_SOURCE);
+        Statement expected = JavaParserUtils.parseBlock(String.format(text, variableName,
                                                                       valuesString,
                                                                       booleanOperatorString));
-        assertTrue(JavaParserUtils.equalsNode(expected, retrieved));
-        List<Class<?>> imports = Arrays.asList(KiePMMLCompoundPredicate.class, KiePMMLSimplePredicate.class, KiePMMLSimpleSetPredicate.class, Arrays.class, Collections.class);
+        assertThat(JavaParserUtils.equalsNode(expected, retrieved)).isTrue();
+        List<Class<?>> imports = Arrays.asList(KiePMMLCompoundPredicate.class, KiePMMLSimplePredicate.class,
+                                               KiePMMLSimpleSetPredicate.class, Arrays.class, Collections.class);
         commonValidateCompilationWithImports(retrieved, imports);
     }
-
-
 }

@@ -21,15 +21,13 @@ import java.io.ObjectOutput;
 import java.util.Arrays;
 import java.util.Map;
 
-import org.drools.core.WorkingMemory;
-import org.drools.core.common.InternalWorkingMemory;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.definitions.InternalKnowledgePackage;
 import org.drools.core.definitions.rule.impl.RuleImpl;
-import org.drools.core.reteoo.LeftTuple;
 import org.drools.core.reteoo.RuleTerminalNode;
 import org.drools.core.rule.Declaration;
-import org.drools.core.spi.Enabled;
-import org.drools.core.spi.Tuple;
+import org.drools.core.rule.accessor.Enabled;
+import org.drools.core.reteoo.Tuple;
 import org.drools.mvel.MVELDialectRuntimeData;
 import org.mvel2.integration.VariableResolverFactory;
 
@@ -83,12 +81,12 @@ public class MVELEnabledExpression
     public boolean getValue(final Tuple tuple,
                             final Declaration[] declarations,
                             final RuleImpl rule,
-                            final WorkingMemory workingMemory) {
+                            final ReteEvaluator reteEvaluator) {
         VariableResolverFactory factory = unit.getFactory( null, declarations,
-                                                           rule, null, (LeftTuple) tuple, null, (InternalWorkingMemory) workingMemory, workingMemory.getGlobalResolver()  );
+                                                           rule, null, tuple, null, reteEvaluator, reteEvaluator.getGlobalResolver()  );
 
         // do we have any functions for this namespace?
-        InternalKnowledgePackage pkg = workingMemory.getKnowledgeBase().getPackage( "MAIN" );
+        InternalKnowledgePackage pkg = reteEvaluator.getKnowledgeBase().getPackage( "MAIN" );
         if ( pkg != null ) {
             MVELDialectRuntimeData data = ( MVELDialectRuntimeData ) pkg.getDialectRuntimeRegistry().getDialectData( this.id );
             factory.setNextFactory( data.getFunctionFactory() );

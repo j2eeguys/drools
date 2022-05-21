@@ -16,26 +16,26 @@
 
 package org.drools.traits.compiler.factmodel.traits;
 
-import org.drools.traits.core.factmodel.MapWrapper;
-import org.drools.traits.core.factmodel.TraitProxyImpl;
-import org.drools.core.spi.InternalReadAccessor;
-import org.drools.core.spi.WriteAccessor;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.drools.core.rule.accessor.ReadAccessor;
+import org.drools.core.rule.accessor.WriteAccessor;
+import org.drools.traits.core.factmodel.MapWrapper;
+import org.drools.traits.core.factmodel.TraitProxyImpl;
+
 public class StudentProxyWrapper2 implements Map<String, Object>, MapWrapper {
 
         Imp2 object;
         Map<String, Object> map;
 
-        public static InternalReadAccessor name_reader;
+        public static ReadAccessor name_reader;
         public static WriteAccessor name_writer;
 
-        public static InternalReadAccessor bit_reader;
+        public static ReadAccessor bit_reader;
         public static WriteAccessor bit_writer;
 
 
@@ -130,7 +130,7 @@ public class StudentProxyWrapper2 implements Map<String, Object>, MapWrapper {
             if ( "bol".equals( key ) ) {
 //                val = object.isBl();
 //                object.setBl( true );
-                val = bit_reader.getIntValue( object );
+                val = bit_reader.getValue( object );
                 bit_writer.setIntValue( object, 0 );
                 return val;
             }

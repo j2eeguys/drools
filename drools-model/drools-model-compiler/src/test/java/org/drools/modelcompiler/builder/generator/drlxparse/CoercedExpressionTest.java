@@ -1,17 +1,32 @@
+/*
+ * Copyright 2021 Red Hat, Inc. and/or its affiliates.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.drools.modelcompiler.builder.generator.drlxparse;
 
 import java.util.Map;
 
 import com.github.javaparser.ast.expr.StringLiteralExpr;
-import org.assertj.core.api.Assertions;
-import org.drools.core.util.MethodUtils;
+import org.drools.util.MethodUtils;
 import org.drools.modelcompiler.builder.generator.DrlxParseUtil;
 import org.drools.modelcompiler.builder.generator.TypedExpression;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.drools.modelcompiler.builder.generator.DrlxParseUtil.THIS_PLACEHOLDER;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 public class CoercedExpressionTest {
 
@@ -170,13 +185,6 @@ public class CoercedExpressionTest {
         assertEquals(expr("null", MethodUtils.NullType.class), coerce.getCoercedRight());
     }
 
-    @Test(expected = CoercedExpression.CoercedExpressionException.class)
-    public void testException() {
-        final TypedExpression left = expr(THIS_PLACEHOLDER + ".getAge()", int.class);
-        final TypedExpression right = expr("rage", java.lang.Object.class);
-        new CoercedExpression(left, right, false).coerce();
-    }
-
     private TypedExpression expr(String exprString, Class<?> exprClass) {
         return new TypedExpression(DrlxParseUtil.parseExpression(exprString).getExpr(), exprClass);
     }
@@ -210,7 +218,7 @@ public class CoercedExpressionTest {
     public void testStringToBooleanRandomStringError() {
         final TypedExpression left = expr(THIS_PLACEHOLDER + ".getBooleanValue", Boolean.class);
         final TypedExpression right = expr("\"randomString\"", String.class);
-        Assertions.assertThatThrownBy(() -> new CoercedExpression(left, right, false).coerce())
+        assertThatThrownBy(() -> new CoercedExpression(left, right, false).coerce())
                 .isInstanceOf(CoercedExpression.CoercedExpressionException.class);
     }
 
@@ -218,7 +226,15 @@ public class CoercedExpressionTest {
     public void testIntegerToBooleanError() {
         final TypedExpression left = expr(THIS_PLACEHOLDER + ".getBooleanValue", Boolean.class);
         final TypedExpression right = expr("1", Integer.class);
-        Assertions.assertThatThrownBy(() -> new CoercedExpression(left, right, false).coerce())
+        assertThatThrownBy(() -> new CoercedExpression(left, right, false).coerce())
                 .isInstanceOf(CoercedExpression.CoercedExpressionException.class);
+    }
+
+    @Test
+    public void testNameExprToString() {
+        final TypedExpression left = expr(THIS_PLACEHOLDER + ".getName", String.class);
+        final TypedExpression right = expr("$maxName", Comparable.class);
+        final CoercedExpression.CoercedExpressionResult coerce = new CoercedExpression(left, right, true).coerce();
+        assertEquals(expr("(java.lang.String) $maxName", String.class), coerce.getCoercedRight());
     }
 }

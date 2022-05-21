@@ -22,8 +22,8 @@ import java.util.Map;
 
 import org.drools.core.common.EventFactHandle;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.marshalling.impl.MarshallerWriteContext;
-import org.drools.core.process.instance.WorkItem;
+import org.drools.core.marshalling.MarshallerWriteContext;
+import org.drools.core.process.WorkItem;
 import org.kie.api.marshalling.ObjectMarshallingStrategy;
 import org.kie.api.marshalling.ObjectMarshallingStrategyStore;
 
@@ -33,7 +33,7 @@ public class OldOutputMarshallerMethods {
     public static void writeWorkItem_v1(MarshallerWriteContext context, WorkItem workItem) throws IOException {
         ObjectOutputStream stream = (ObjectOutputStream) context;
         stream.writeLong( workItem.getId() );
-        stream.writeLong( workItem.getProcessInstanceId() );
+        stream.writeUTF( workItem.getProcessInstanceId() );
         stream.writeUTF( workItem.getName() );
         stream.writeInt( workItem.getState() );
 

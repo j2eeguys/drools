@@ -21,8 +21,6 @@ import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import org.appformer.maven.support.DependencyFilter;
-import org.appformer.maven.support.PomModel;
 import org.drools.compiler.compiler.io.memory.MemoryFileSystem;
 import org.drools.compiler.kie.builder.impl.BuildContext;
 import org.drools.compiler.kie.builder.impl.InternalKieModule;
@@ -33,11 +31,11 @@ import org.drools.compiler.kie.builder.impl.ResultsImpl;
 import org.drools.compiler.kie.util.KieJarChangeSet;
 import org.drools.compiler.kproject.models.KieBaseModelImpl;
 import org.drools.core.definitions.InternalKnowledgePackage;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.io.internal.InternalResource;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.util.io.InternalResource;
 import org.drools.impact.analysis.model.AnalysisModel;
-import org.drools.reflective.ResourceProvider;
-import org.drools.reflective.classloader.ProjectClassLoader;
+import org.drools.wiring.api.ResourceProvider;
+import org.drools.wiring.api.classloader.ProjectClassLoader;
 import org.kie.api.KieBaseConfiguration;
 import org.kie.api.builder.ReleaseId;
 import org.kie.api.builder.Results;
@@ -49,6 +47,8 @@ import org.kie.internal.builder.CompositeKnowledgeBuilder;
 import org.kie.internal.builder.KnowledgeBuilder;
 import org.kie.internal.builder.KnowledgeBuilderConfiguration;
 import org.kie.internal.builder.ResourceChangeSet;
+import org.kie.util.maven.support.DependencyFilter;
+import org.kie.util.maven.support.PomModel;
 
 public class ImpactAnalysisKieModule implements InternalKieModule {
 

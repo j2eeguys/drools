@@ -17,7 +17,6 @@
 package org.drools.compiler.builder.impl;
 
 import java.io.File;
-import java.net.URL;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,34 +27,20 @@ import java.util.Set;
 import org.drools.compiler.compiler.Dialect;
 import org.drools.compiler.compiler.DialectCompiletimeRegistry;
 import org.drools.compiler.compiler.DialectConfiguration;
-import org.drools.compiler.compiler.DrlParser;
 import org.drools.compiler.compiler.PackageRegistry;
-import org.drools.compiler.compiler.xml.RulesSemanticModule;
 import org.drools.compiler.kie.builder.impl.InternalKieModule.CompilationCache;
 import org.drools.compiler.rule.builder.ConstraintBuilder;
-import org.drools.compiler.rule.builder.DroolsCompilerComponentFactory;
+import org.drools.compiler.rule.builder.EvaluatorDefinition;
 import org.drools.compiler.rule.builder.util.AccumulateUtil;
-import org.drools.core.base.evaluators.EvaluatorDefinition;
-import org.drools.core.base.evaluators.EvaluatorRegistry;
 import org.drools.core.definitions.InternalKnowledgePackage;
-import org.drools.core.factmodel.ClassBuilderFactory;
-import org.drools.core.reteoo.KieComponentFactory;
-import org.drools.core.util.ClassUtils;
-import org.drools.core.util.ConfFileUtils;
-import org.drools.core.util.StringUtils;
-import org.drools.core.xml.ChangeSetSemanticModule;
-import org.drools.core.xml.DefaultSemanticModule;
-import org.drools.core.xml.Handler;
-import org.drools.core.xml.SemanticModule;
-import org.drools.core.xml.SemanticModules;
-import org.drools.core.xml.WrapperSemanticModule;
-import org.drools.reflective.classloader.ProjectClassLoader;
+import org.drools.drl.parser.DrlParser;
+import org.drools.util.StringUtils;
+import org.drools.wiring.api.classloader.ProjectClassLoader;
 import org.kie.api.runtime.rule.AccumulateFunction;
 import org.kie.internal.builder.KnowledgeBuilderConfiguration;
 import org.kie.internal.builder.ResultSeverity;
 import org.kie.internal.builder.conf.AccumulateFunctionOption;
 import org.kie.internal.builder.conf.AlphaNetworkCompilerOption;
-import org.kie.internal.builder.conf.ClassLoaderCacheOption;
 import org.kie.internal.builder.conf.DefaultDialectOption;
 import org.kie.internal.builder.conf.DefaultPackageNameOption;
 import org.kie.internal.builder.conf.DumpDirOption;
@@ -75,8 +60,6 @@ import org.kie.internal.builder.conf.TrimCellsInDTableOption;
 import org.kie.internal.utils.ChainedProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static org.drools.core.reteoo.KieComponentFactory.createKieComponentFactory;
 
 /**
  * This class configures the package compiler.
@@ -130,12 +113,9 @@ public class KnowledgeBuilderConfigurationImpl
 
     private EvaluatorRegistry                 evaluatorRegistry;
 
-    private SemanticModules                   semanticModules;
-
     private File                              dumpDirectory;
 
     private boolean                           processStringEscapes                  = true;
-    private boolean                           classLoaderCache                      = true;
     private boolean                           trimCellsInDTable                     = true;
     private boolean                           groupDRLsInKieBasesByFolder           = false;
 
@@ -151,10 +131,6 @@ public class KnowledgeBuilderConfigurationImpl
 
     private Map<String, ResultSeverity>       severityMap;
 
-    private DroolsCompilerComponentFactory    componentFactory;
-
-    private KieComponentFactory               kieComponentFactory;
-
     private LanguageLevelOption               languageLevel           = DrlParser.DEFAULT_LANGUAGE_LEVEL;
 
     private CompilationCache                  compilationCache        = null;
@@ -163,41 +139,31 @@ public class KnowledgeBuilderConfigurationImpl
 
      /**
      * Constructor that sets the parent class loader for the package being built/compiled
-     * @param classLoaders
      */
-    public KnowledgeBuilderConfigurationImpl(ClassLoader... classLoaders) {
-        init(null,
-                classLoaders);
+    public KnowledgeBuilderConfigurationImpl(ClassLoader classLoader) {
+        init(null, classLoader);
     }
 
     /**
      * Programmatic properties file, added with lease precedence
      */
     public KnowledgeBuilderConfigurationImpl(Properties properties) {
-        init(properties,
-                (ClassLoader[]) null);
+        init(properties, null);
     }
 
     /**
      * Programmatic properties file, added with lease precedence
      */
-    public KnowledgeBuilderConfigurationImpl(Properties properties,
-            ClassLoader... classLoaders) {
-        init(properties,
-                classLoaders);
+    public KnowledgeBuilderConfigurationImpl(Properties properties, ClassLoader classLoader) {
+        init(properties, classLoader);
     }
 
     public KnowledgeBuilderConfigurationImpl() {
-        init(null,
-                (ClassLoader[]) null);
+        init(null, null);
     }
 
-    private void init(Properties properties,
-            ClassLoader... classLoaders) {
-        if (classLoaders != null && classLoaders.length > 1) {
-            throw new RuntimeException("Multiple classloaders are no longer supported");
-        }
-        setClassLoader(classLoaders == null || classLoaders.length == 0 ? null : classLoaders[0]);
+    private void init(Properties properties, ClassLoader classLoader) {
+        this.classLoader = ProjectClassLoader.getClassLoader(classLoader, getClass());
         init(properties);
     }
 
@@ -219,10 +185,6 @@ public class KnowledgeBuilderConfigurationImpl
         if (properties != null) {
             this.chainedProperties.addProperties(properties);
         }
-
-        setProperty(ClassLoaderCacheOption.PROPERTY_NAME,
-                    this.chainedProperties.getProperty(ClassLoaderCacheOption.PROPERTY_NAME,
-                                                       "true"));
 
         setProperty( TrimCellsInDTableOption.PROPERTY_NAME,
                     this.chainedProperties.getProperty(TrimCellsInDTableOption.PROPERTY_NAME,
@@ -267,10 +229,6 @@ public class KnowledgeBuilderConfigurationImpl
 
         setProperty(ParallelLambdaExternalizationOption.PROPERTY_NAME,
                     this.chainedProperties.getProperty(ParallelLambdaExternalizationOption.PROPERTY_NAME,"true"));
-
-        this.componentFactory = new DroolsCompilerComponentFactory();
-
-        this.kieComponentFactory = createKieComponentFactory();
     }
 
     protected ClassLoader getFunctionFactoryClassLoader() {
@@ -312,8 +270,6 @@ public class KnowledgeBuilderConfigurationImpl
             setDefaultPackageName(value);
         } else if (name.equals(ProcessStringEscapesOption.PROPERTY_NAME)) {
             setProcessStringEscapes(Boolean.parseBoolean(value));
-        } else if (name.equals(ClassLoaderCacheOption.PROPERTY_NAME)) {
-            setClassLoaderCacheEnabled(Boolean.parseBoolean(value));
         } else if (name.equals(TrimCellsInDTableOption.PROPERTY_NAME)) {
             setTrimCellsInDTable(Boolean.parseBoolean(value));
         } else if (name.equals(GroupDRLsInKieBasesByFolderOption.PROPERTY_NAME)) {
@@ -375,8 +331,6 @@ public class KnowledgeBuilderConfigurationImpl
             return this.dumpDirectory != null ? this.dumpDirectory.toString() : null;
         } else if (name.equals(ProcessStringEscapesOption.PROPERTY_NAME)) {
             return String.valueOf(isProcessStringEscapes());
-        } else if (name.equals(ClassLoaderCacheOption.PROPERTY_NAME)) {
-            return String.valueOf(isClassLoaderCacheEnabled());
         } else if (name.equals(TrimCellsInDTableOption.PROPERTY_NAME)) {
             return String.valueOf(isTrimCellsInDTable());
         } else if (name.equals(GroupDRLsInKieBasesByFolderOption.PROPERTY_NAME)) {
@@ -402,17 +356,17 @@ public class KnowledgeBuilderConfigurationImpl
     }
 
     private void buildDialectConfigurationMap() {
-        DialectConfiguration mvel = ConstraintBuilder.get().createMVELDialectConfiguration();
+        DialectConfiguration mvel = ConstraintBuilder.get().createMVELDialectConfiguration(this);
         if (mvel != null) {
             mvel.init( this );
             dialectConfigurations.put( "mvel", mvel );
         }
 
-        DialectConfiguration java = ConstraintBuilder.get().createJavaDialectConfiguration();
+        DialectConfiguration java = ConstraintBuilder.get().createJavaDialectConfiguration(this);
         java.init(this);
         dialectConfigurations.put("java", java);
 
-        Map<String, String> dialectProperties = new HashMap<String, String>();
+        Map<String, String> dialectProperties = new HashMap<>();
         this.chainedProperties.mapStartsWith(dialectProperties, "drools.dialect", false);
         setDefaultDialect(dialectProperties.get(DefaultDialectOption.PROPERTY_NAME));
     }
@@ -453,106 +407,6 @@ public class KnowledgeBuilderConfigurationImpl
         return this.classLoader;
     }
 
-    /** Use this to override the classLoader that will be used for the rules. */
-    private void setClassLoader(ClassLoader classLoader) {
-        this.classLoader = ProjectClassLoader.getClassLoader(classLoader,
-                getClass(),
-                isClassLoaderCacheEnabled());
-    }
-
-    public void addSemanticModule(SemanticModule module) {
-        if (this.semanticModules == null) {
-            initSemanticModules();
-        }
-        this.semanticModules.addSemanticModule(module);
-    }
-
-    public SemanticModules getSemanticModules() {
-        if (this.semanticModules == null) {
-            initSemanticModules();
-        }
-        return this.semanticModules;
-    }
-
-    public void initSemanticModules() {
-        this.semanticModules = new SemanticModules();
-
-        RulesSemanticModule ruleModule = new RulesSemanticModule("http://ddefault");
-
-        this.semanticModules.addSemanticModule(new WrapperSemanticModule("http://drools.org/drools-5.0", ruleModule));
-        this.semanticModules.addSemanticModule(new WrapperSemanticModule("http://drools.org/drools-5.2", ruleModule));
-        this.semanticModules.addSemanticModule(new ChangeSetSemanticModule());
-
-        // split on each space
-        String locations[] = this.chainedProperties.getProperty("semanticModules", "").split("\\s");
-
-        // load each SemanticModule
-        for (String moduleLocation : locations) {
-            // trim leading/trailing spaces and quotes
-            moduleLocation = moduleLocation.trim();
-            if (moduleLocation.startsWith("\"")) {
-                moduleLocation = moduleLocation.substring(1);
-            }
-            if (moduleLocation.endsWith("\"")) {
-                moduleLocation = moduleLocation.substring(0, moduleLocation.length() - 1);
-            }
-            if (!moduleLocation.equals("")) {
-                loadSemanticModule(moduleLocation);
-            }
-        }
-    }
-
-    public void loadSemanticModule(String moduleLocation) {
-        URL url = ConfFileUtils.getURL(moduleLocation, getClassLoader(), getClass());
-        if (url == null) {
-            throw new IllegalArgumentException(moduleLocation + " is specified but cannot be found.'");
-        }
-
-        Properties properties = ConfFileUtils.getProperties(url);
-        if (properties == null) {
-            throw new IllegalArgumentException(moduleLocation + " is specified but cannot be found.'");
-        }
-
-        loadSemanticModule(properties);
-    }
-
-    public void loadSemanticModule(Properties properties) {
-        String uri = properties.getProperty("uri", null);
-        if (uri == null || uri.trim().equals("")) {
-            throw new RuntimeException("Semantic Module URI property must not be empty");
-        }
-
-        DefaultSemanticModule module = new DefaultSemanticModule(uri);
-
-        for (Entry<Object, Object> entry : properties.entrySet()) {
-            String elementName = (String) entry.getKey();
-
-            //uri is processed above, so skip
-            if ("uri".equals(elementName)) {
-                continue;
-            }
-
-            if (elementName == null || elementName.trim().equals("")) {
-                throw new RuntimeException("Element name must be specified for Semantic Module handler");
-            }
-            String handlerName = (String) entry.getValue();
-            if (handlerName == null || handlerName.trim().equals("")) {
-                throw new RuntimeException("Handler name must be specified for Semantic Module");
-            }
-
-            Handler handler = (Handler) ClassUtils.instantiateObject(handlerName,
-                    getClassLoader());
-
-            if (handler == null) {
-                throw new RuntimeException("Unable to load Semantic Module handler '" + elementName + ":" + handlerName + "'");
-            } else {
-                module.addHandler(elementName,
-                        handler);
-            }
-        }
-        this.semanticModules.addSemanticModule(module);
-    }
-
     public void addAccumulateFunction(String identifier, String className) {
         this.accumulateFunctions.put(identifier,
                                      AccumulateUtil.loadAccumulateFunction(getClassLoader(), identifier,
@@ -584,7 +438,7 @@ public class KnowledgeBuilderConfigurationImpl
 
     private void buildEvaluatorRegistry() {
         this.evaluatorRegistry = new EvaluatorRegistry( getFunctionFactoryClassLoader() );
-        Map<String, String> temp = new HashMap<String, String>();
+        Map<String, String> temp = new HashMap<>();
         this.chainedProperties.mapStartsWith(temp,
                 EvaluatorOption.PROPERTY_NAME,
                 true);
@@ -665,16 +519,6 @@ public class KnowledgeBuilderConfigurationImpl
         this.processStringEscapes = processStringEscapes;
     }
 
-    @Deprecated
-    public boolean isClassLoaderCacheEnabled() {
-        return classLoaderCache;
-    }
-
-    @Deprecated
-    public void setClassLoaderCacheEnabled(boolean classLoaderCacheEnabled) {
-        this.classLoaderCache = classLoaderCacheEnabled;
-    }
-
     public boolean isTrimCellsInDTable() {
         return trimCellsInDTable;
     }
@@ -705,22 +549,6 @@ public class KnowledgeBuilderConfigurationImpl
 
     public void setDefaultPackageName(String defaultPackageName) {
         this.defaultPackageName = defaultPackageName;
-    }
-
-    public DroolsCompilerComponentFactory getComponentFactory() {
-        return componentFactory;
-    }
-
-    public void setComponentFactory(DroolsCompilerComponentFactory componentFactory) {
-        this.componentFactory = componentFactory;
-    }
-
-    public ClassBuilderFactory getClassBuilderFactory() {
-        return kieComponentFactory.getClassBuilderFactory();
-    }
-
-    public KieComponentFactory getKieComponentFactory() {
-        return kieComponentFactory;
     }
 
     public LanguageLevelOption getLanguageLevel() {
@@ -773,8 +601,6 @@ public class KnowledgeBuilderConfigurationImpl
             return (T) (this.processStringEscapes ? ProcessStringEscapesOption.YES : ProcessStringEscapesOption.NO);
         } else if (DefaultPackageNameOption.class.equals(option)) {
             return (T) DefaultPackageNameOption.get(this.defaultPackageName);
-        } else if (ClassLoaderCacheOption.class.equals(option)) {
-            return (T) (this.classLoaderCache ? ClassLoaderCacheOption.ENABLED : ClassLoaderCacheOption.DISABLED);
         } else if (TrimCellsInDTableOption.class.equals(option)) {
             return (T) (this.trimCellsInDTable ? TrimCellsInDTableOption.ENABLED : TrimCellsInDTableOption.DISABLED);
         } else if (GroupDRLsInKieBasesByFolderOption.class.equals(option)) {
@@ -836,8 +662,6 @@ public class KnowledgeBuilderConfigurationImpl
             this.processStringEscapes = ((ProcessStringEscapesOption) option).isProcessStringEscapes();
         } else if (option instanceof DefaultPackageNameOption) {
             setDefaultPackageName(((DefaultPackageNameOption) option).getPackageName());
-        } else if (option instanceof ClassLoaderCacheOption) {
-            setClassLoaderCacheEnabled(((ClassLoaderCacheOption) option).isClassLoaderCacheEnabled());
         } else if (option instanceof TrimCellsInDTableOption) {
             setTrimCellsInDTable(((TrimCellsInDTableOption) option).isTrimCellsInDTable());
         } else if (option instanceof GroupDRLsInKieBasesByFolderOption) {

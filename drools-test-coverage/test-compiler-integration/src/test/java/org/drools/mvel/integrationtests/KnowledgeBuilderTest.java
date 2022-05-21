@@ -22,11 +22,10 @@ import java.util.List;
 
 import org.drools.core.definitions.impl.KnowledgePackageImpl;
 import org.drools.core.definitions.rule.impl.RuleImpl;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
 import org.drools.core.rule.TypeDeclaration;
-import org.drools.core.util.DroolsStreamUtils;
 import org.drools.core.util.FileManager;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -34,7 +33,6 @@ import org.junit.Test;
 import org.kie.api.definition.KiePackage;
 import org.kie.api.definition.rule.Rule;
 import org.kie.api.definition.type.FactType;
-import org.kie.api.internal.utils.ServiceRegistry;
 import org.kie.api.io.Resource;
 import org.kie.api.io.ResourceType;
 import org.kie.api.runtime.KieSession;
@@ -42,9 +40,9 @@ import org.kie.internal.builder.KnowledgeBuilder;
 import org.kie.internal.builder.KnowledgeBuilderFactory;
 import org.kie.internal.io.ResourceFactory;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -354,63 +352,6 @@ public class KnowledgeBuilderTest {
     }
 
     @Test
-    public void testAddKPackageSingle() throws Exception {
-        String rule = "package org.drools.mvel.compiler.test\n" +
-                      "import org.drools.mvel.compiler.StockTick\n" +
-                      "rule R1 when\n" +
-                      "   StockTick()\n" +
-                      "then\n" +
-                      "end\n";
-
-        KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
-        kbuilder.add( ResourceFactory.newByteArrayResource( rule.getBytes() ), ResourceType.DRL );
-        assertFalse( kbuilder.getErrors().toString(), kbuilder.hasErrors() );
-
-        Collection<KiePackage> kpkgs = kbuilder.getKnowledgePackages();
-        assertEquals( 2, kpkgs.size() );
-
-        KiePackage kpkg = kpkgs.iterator().next();
-
-        byte[] skpkg = DroolsStreamUtils.streamOut( kpkg );
-
-        kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
-        kbuilder.add( ResourceFactory.newByteArrayResource( skpkg ), ResourceType.PKG );
-        assertFalse( kbuilder.getErrors().toString(), kbuilder.hasErrors() );
-
-        kpkgs = kbuilder.getKnowledgePackages();
-        assertEquals( 1, kpkgs.size() );
-        kpkg = kpkgs.iterator().next();
-        assertEquals( 1, kpkg.getRules().size() );
-    }
-
-    @Test
-    public void testAddKPackageCollection() throws Exception {
-        String rule = "package org.drools.mvel.compiler.test\n" +
-                      "import org.drools.mvel.compiler.StockTick\n" +
-                      "declare StockTick @role(event) end\n" +
-                      "rule R1 when\n" +
-                      "   StockTick()\n" +
-                      "then\n" +
-                      "end\n";
-
-        KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
-        kbuilder.add( ResourceFactory.newByteArrayResource( rule.getBytes() ), ResourceType.DRL );
-        assertFalse( kbuilder.getErrors().toString(), kbuilder.hasErrors() );
-
-        Collection<KiePackage> kpkgs = kbuilder.getKnowledgePackages();
-        assertEquals( 2, kpkgs.size() );
-
-        byte[] skpkg = DroolsStreamUtils.streamOut( kpkgs );
-
-        kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
-        kbuilder.add( ResourceFactory.newByteArrayResource( skpkg ), ResourceType.PKG );
-        assertFalse( kbuilder.getErrors().toString(), kbuilder.hasErrors() );
-
-        kpkgs = kbuilder.getKnowledgePackages();
-        assertEquals( 2, kpkgs.size() );
-    }
-
-    @Test
     public void testAddPackageSingle() throws Exception {
         String rule = "package org.drools.mvel.compiler.test\n" +
                       "import org.drools.mvel.compiler.StockTick\n" +
@@ -453,11 +394,6 @@ public class KnowledgeBuilderTest {
     @Ignore
     @Test
     public void testResourceMapping() throws Exception {
-        ServiceRegistry.Impl serviceRegistry = (ServiceRegistry.Impl) ServiceRegistry.getInstance();
-        serviceRegistry.reset();
-
-        serviceRegistry.reload();
-
         String rule = "package org.drools.mvel.compiler.test\n" +
                 "rule R1 when\n" +
                 " \n" +
@@ -515,7 +451,7 @@ public class KnowledgeBuilderTest {
             KnowledgePackageImpl kpi = (KnowledgePackageImpl) kp;
             TypeDeclaration cheez = kpi.getTypeDeclaration( "Cheese" );
             if ( "org.drools.mvel.compiler".equals( kpi.getName() ) ) {
-                assertNotNull( cheez );
+                assertThat(cheez).isNotNull();
             } else {
                 assertNull( cheez );
             }

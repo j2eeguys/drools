@@ -17,8 +17,8 @@ package org.drools.mvel;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
-import java.io.Serializable;
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
@@ -29,43 +29,59 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import org.drools.compiler.builder.impl.KnowledgeBuilderConfigurationImpl;
 import org.drools.compiler.compiler.AnalysisResult;
 import org.drools.compiler.compiler.BoundIdentifiers;
 import org.drools.compiler.compiler.DescrBuildError;
 import org.drools.compiler.compiler.Dialect;
 import org.drools.compiler.compiler.DialectConfiguration;
 import org.drools.compiler.kie.util.BeanCreator;
-import org.drools.compiler.lang.descr.BaseDescr;
-import org.drools.compiler.lang.descr.BindingDescr;
-import org.drools.compiler.lang.descr.LiteralRestrictionDescr;
-import org.drools.compiler.lang.descr.OperatorDescr;
-import org.drools.compiler.lang.descr.PredicateDescr;
-import org.drools.compiler.lang.descr.RelationalExprDescr;
 import org.drools.compiler.rule.builder.ConstraintBuilder;
 import org.drools.compiler.rule.builder.PatternBuilder;
 import org.drools.compiler.rule.builder.RuleBuildContext;
 import org.drools.core.base.ClassObjectType;
 import org.drools.core.base.DroolsQuery;
-import org.drools.core.base.EvaluatorWrapper;
+import org.drools.compiler.rule.builder.EvaluatorWrapper;
+import org.drools.mvel.evaluators.AfterEvaluatorDefinition;
+import org.drools.mvel.evaluators.BeforeEvaluatorDefinition;
+import org.drools.mvel.evaluators.CoincidesEvaluatorDefinition;
+import org.drools.mvel.evaluators.DuringEvaluatorDefinition;
+import org.drools.mvel.evaluators.FinishedByEvaluatorDefinition;
+import org.drools.mvel.evaluators.FinishesEvaluatorDefinition;
+import org.drools.mvel.evaluators.IncludesEvaluatorDefinition;
+import org.drools.mvel.evaluators.MeetsEvaluatorDefinition;
+import org.drools.mvel.evaluators.MetByEvaluatorDefinition;
+import org.drools.mvel.evaluators.OverlappedByEvaluatorDefinition;
+import org.drools.mvel.evaluators.OverlapsEvaluatorDefinition;
+import org.drools.mvel.evaluators.StartedByEvaluatorDefinition;
+import org.drools.mvel.evaluators.StartsEvaluatorDefinition;
+import org.drools.mvel.evaluators.StrEvaluatorDefinition;
+import org.drools.mvel.field.FieldFactory;
 import org.drools.core.base.ValueType;
-import org.drools.core.base.evaluators.EvaluatorDefinition;
-import org.drools.core.base.evaluators.Operator;
+import org.drools.compiler.rule.builder.EvaluatorDefinition;
+import org.drools.drl.parser.impl.Operator;
 import org.drools.core.common.InternalWorkingMemory;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.reteoo.LeftTuple;
 import org.drools.core.reteoo.RuleTerminalNode;
 import org.drools.core.rule.Declaration;
 import org.drools.core.rule.Pattern;
 import org.drools.core.rule.QueryArgument;
-import org.drools.core.rule.constraint.EvaluatorConstraint;
-import org.drools.core.spi.Constraint;
-import org.drools.core.spi.DeclarationScopeResolver;
-import org.drools.core.spi.Evaluator;
-import org.drools.core.spi.FieldValue;
-import org.drools.core.spi.InternalReadAccessor;
-import org.drools.core.spi.KnowledgeHelper;
-import org.drools.core.spi.ObjectType;
+import org.drools.core.rule.constraint.Constraint;
+import org.drools.core.rule.accessor.DeclarationScopeResolver;
+import org.drools.core.rule.accessor.Evaluator;
+import org.drools.core.rule.accessor.FieldValue;
+import org.drools.core.rule.accessor.ReadAccessor;
+import org.drools.core.rule.consequence.KnowledgeHelper;
+import org.drools.core.base.ObjectType;
 import org.drools.core.time.TimerExpression;
 import org.drools.core.util.index.IndexUtil;
+import org.drools.drl.ast.descr.BaseDescr;
+import org.drools.drl.ast.descr.BindingDescr;
+import org.drools.drl.ast.descr.LiteralRestrictionDescr;
+import org.drools.drl.ast.descr.OperatorDescr;
+import org.drools.drl.ast.descr.PredicateDescr;
+import org.drools.drl.ast.descr.RelationalExprDescr;
 import org.drools.mvel.asm.AsmUtil;
 import org.drools.mvel.builder.MVELAnalysisResult;
 import org.drools.mvel.builder.MVELBeanCreator;
@@ -74,6 +90,7 @@ import org.drools.mvel.builder.MVELDialectConfiguration;
 import org.drools.mvel.expr.MVELCompilationUnit;
 import org.drools.mvel.expr.MVELCompileable;
 import org.drools.mvel.expr.MVELObjectExpression;
+import org.drools.mvel.expr.MvelEvaluator;
 import org.drools.mvel.java.JavaForMvelDialectConfiguration;
 import org.kie.api.definition.rule.Rule;
 import org.mvel2.ConversionHandler;
@@ -85,6 +102,7 @@ import org.mvel2.util.CompatibilityStrategy;
 import org.mvel2.util.NullType;
 import org.mvel2.util.PropertyTools;
 
+import static org.drools.compiler.lang.DescrDumper.WM_ARGUMENT;
 import static org.drools.compiler.rule.builder.PatternBuilder.buildAnalysis;
 import static org.drools.compiler.rule.builder.PatternBuilder.buildOperators;
 import static org.drools.compiler.rule.builder.PatternBuilder.getOperators;
@@ -93,11 +111,10 @@ import static org.drools.compiler.rule.builder.PatternBuilder.registerDescrBuild
 import static org.drools.compiler.rule.builder.util.PatternBuilderUtil.getNormalizeDate;
 import static org.drools.compiler.rule.builder.util.PatternBuilderUtil.normalizeEmptyKeyword;
 import static org.drools.compiler.rule.builder.util.PatternBuilderUtil.normalizeStringOperator;
-import static org.drools.core.rule.constraint.EvaluatorHelper.WM_ARGUMENT;
-import static org.drools.core.util.ClassUtils.convertFromPrimitiveType;
-import static org.drools.core.util.StringUtils.extractFirstIdentifier;
+import static org.drools.util.ClassUtils.convertFromPrimitiveType;
 import static org.drools.mvel.asm.AsmUtil.copyErrorLocation;
 import static org.drools.mvel.builder.MVELExprAnalyzer.analyze;
+import static org.drools.mvel.expr.MvelEvaluator.createMvelEvaluator;
 
 public class MVELConstraintBuilder implements ConstraintBuilder {
 
@@ -129,12 +146,12 @@ public class MVELConstraintBuilder implements ConstraintBuilder {
     }
 
     @Override
-    public DialectConfiguration createJavaDialectConfiguration() {
-        return new JavaForMvelDialectConfiguration();
+    public DialectConfiguration createJavaDialectConfiguration(KnowledgeBuilderConfigurationImpl conf) {
+        return new JavaForMvelDialectConfiguration(conf);
     }
 
-    public DialectConfiguration createMVELDialectConfiguration() {
-        return new MVELDialectConfiguration();
+    public DialectConfiguration createMVELDialectConfiguration(KnowledgeBuilderConfigurationImpl conf) {
+        return new MVELDialectConfiguration(conf);
     }
 
     public boolean isMvelOperator(String operator) {
@@ -152,7 +169,7 @@ public class MVELConstraintBuilder implements ConstraintBuilder {
                                                String leftValue,
                                                OperatorDescr operatorDescr,
                                                String rightValue,
-                                               InternalReadAccessor extractor,
+                                               ReadAccessor extractor,
                                                Declaration requiredDeclaration,
                                                RelationalExprDescr relDescr,
                                                Map<String, OperatorDescr> aliases) {
@@ -180,7 +197,7 @@ public class MVELConstraintBuilder implements ConstraintBuilder {
 
         boolean isUnification = requiredDeclaration != null &&
                                 requiredDeclaration.getPattern().getObjectType().equals( new ClassObjectType( DroolsQuery.class ) ) &&
-                                Operator.EQUAL.getOperatorString().equals( operatorDescr.getOperator() );
+                                Operator.BuiltInOperator.EQUAL.getSymbol().equals( operatorDescr.getOperator() );
         if (isUnification && leftValue.equals(rightValue)) {
             expression = resolveUnificationAmbiguity(expression, declarations, leftValue, rightValue);
         }
@@ -216,15 +233,14 @@ public class MVELConstraintBuilder implements ConstraintBuilder {
                                              String operator,
                                              boolean negated,
                                              String rightValue,
-                                             InternalReadAccessor extractor,
+                                             ReadAccessor extractor,
                                              LiteralRestrictionDescr restrictionDescr,
                                              Map<String, OperatorDescr> aliases) {
         if (!isMvelOperator(operator)) {
             Evaluator evaluator = buildLiteralEvaluator(context, extractor, restrictionDescr, vtype);
             if (evaluator != null && evaluator.isTemporal()) {
                 try {
-                    field = context.getCompilerFactory().getFieldFactory().getFieldValue(field.getValue(),
-                                                                                         ValueType.DATE_TYPE);
+                    field = FieldFactory.getInstance().getFieldValue(field.getValue(), ValueType.DATE_TYPE);
                 } catch (Exception e) {
                     context.addError( new DescrBuildError( context.getParentDescr(),
                                                            restrictionDescr,
@@ -310,7 +326,7 @@ public class MVELConstraintBuilder implements ConstraintBuilder {
     }
 
     private Evaluator buildLiteralEvaluator( RuleBuildContext context,
-                                                   InternalReadAccessor extractor,
+                                                   ReadAccessor extractor,
                                                    LiteralRestrictionDescr literalRestrictionDescr,
                                                    ValueType vtype) {
         EvaluatorDefinition.Target right = getRightTarget( extractor );
@@ -325,7 +341,7 @@ public class MVELConstraintBuilder implements ConstraintBuilder {
                              right );
     }
 
-    private EvaluatorDefinition.Target getRightTarget( final InternalReadAccessor extractor ) {
+    private EvaluatorDefinition.Target getRightTarget( final ReadAccessor extractor ) {
         return ( extractor.isSelfReference() &&
                  !(Date.class.isAssignableFrom( extractor.getExtractToClass() ) ||
                          Number.class.isAssignableFrom( extractor.getExtractToClass() ))) ? EvaluatorDefinition.Target.HANDLE : EvaluatorDefinition.Target.FACT;
@@ -666,13 +682,13 @@ public class MVELConstraintBuilder implements ConstraintBuilder {
     }
 
     @Override
-    public InternalReadAccessor buildMvelFieldReadAccessor( RuleBuildContext context,
+    public ReadAccessor buildMvelFieldReadAccessor( RuleBuildContext context,
                                                             BaseDescr descr,
                                                             Pattern pattern,
                                                             ObjectType objectType,
                                                             String fieldName,
                                                             boolean reportError) {
-        InternalReadAccessor reader;
+        ReadAccessor reader;
         Dialect dialect = context.getDialect();
         try {
             MVELDialect mvelDialect = (MVELDialect) context.getDialect("mvel");
@@ -681,8 +697,7 @@ public class MVELConstraintBuilder implements ConstraintBuilder {
             final AnalysisResult analysis = context.getDialect().analyzeExpression(context,
                     descr,
                     fieldName,
-                    new BoundIdentifiers(pattern, context, Collections.EMPTY_MAP,
-                            objectType.getClassType()));
+                    new BoundIdentifiers(pattern, context, Collections.EMPTY_MAP, objectType));
 
             if (analysis == null) {
                 // something bad happened
@@ -706,7 +721,7 @@ public class MVELConstraintBuilder implements ConstraintBuilder {
                 return null;
             }
 
-            reader = context.getPkg().getClassFieldAccessorStore().getMVELReader(context.getPkg().getName(),
+            reader = ((MVELKnowledgePackageImpl) context.getPkg()).getClassFieldAccessorStore().getMVELReader(context.getPkg().getName(),
                     objectType.getClassName(),
                     fieldName,
                     context.isTypesafe(),
@@ -793,7 +808,7 @@ public class MVELConstraintBuilder implements ConstraintBuilder {
                 vtype = ValueType.determineValueType(o.getClass());
             }
 
-            return context.getCompilerFactory().getFieldFactory().getFieldValue(o, vtype);
+            return FieldFactory.getInstance().getFieldValue(o, vtype);
         } catch (final Exception e) {
             // we will fallback to regular preducates, so don't raise an error
         }
@@ -820,7 +835,7 @@ public class MVELConstraintBuilder implements ConstraintBuilder {
         private ParserContext parserContext;
 
         private transient Class<?> argumentClass;
-        private transient Serializable mvelExpr;
+        private transient MvelEvaluator<Object> evaluator;
 
         public Expression() { }
 
@@ -832,23 +847,23 @@ public class MVELConstraintBuilder implements ConstraintBuilder {
         }
 
         private void init() {
-            Map<String, Class> inputs = new HashMap<String, Class>();
+            Map<String, Class> inputs = new HashMap<>();
             for (Declaration d : declarations) {
                 inputs.put(d.getBindingName(), d.getDeclarationClass());
             }
             parserContext.setInputs(inputs);
 
             this.argumentClass = MVEL.analyze( expression, parserContext );
-            this.mvelExpr = MVEL.compileExpression( expression, parserContext );
+            this.evaluator = createMvelEvaluator(MVEL.compileExpression( expression, parserContext ));
         }
 
         @Override
-        public Object getValue( InternalWorkingMemory wm, LeftTuple leftTuple ) {
-            Map<String, Object> vars = new HashMap<String, Object>();
+        public Object getValue(ReteEvaluator reteEvaluator, LeftTuple leftTuple ) {
+            Map<String, Object> vars = new HashMap<>();
             for (Declaration d : declarations) {
-                vars.put(d.getBindingName(), QueryArgument.evaluateDeclaration( wm, leftTuple, d ));
+                vars.put(d.getBindingName(), QueryArgument.evaluateDeclaration( reteEvaluator, leftTuple, d ));
             }
-            return MVELSafeHelper.getEvaluator().executeExpression( this.mvelExpr, vars );
+            return evaluator.evaluate( null, vars );
         }
 
         @Override
@@ -879,5 +894,28 @@ public class MVELConstraintBuilder implements ConstraintBuilder {
 
             init();
         }
+    }
+
+    private final static List<EvaluatorDefinition> EVALUATOR_DEFINITIONS = new ArrayList<>();
+
+    static {
+        EVALUATOR_DEFINITIONS.add( new BeforeEvaluatorDefinition() );
+        EVALUATOR_DEFINITIONS.add( new AfterEvaluatorDefinition() );
+        EVALUATOR_DEFINITIONS.add( new MeetsEvaluatorDefinition() );
+        EVALUATOR_DEFINITIONS.add( new MetByEvaluatorDefinition() );
+        EVALUATOR_DEFINITIONS.add( new OverlapsEvaluatorDefinition() );
+        EVALUATOR_DEFINITIONS.add( new OverlappedByEvaluatorDefinition() );
+        EVALUATOR_DEFINITIONS.add( new IncludesEvaluatorDefinition() );
+        EVALUATOR_DEFINITIONS.add( new DuringEvaluatorDefinition() );
+        EVALUATOR_DEFINITIONS.add( new FinishesEvaluatorDefinition() );
+        EVALUATOR_DEFINITIONS.add( new FinishedByEvaluatorDefinition() );
+        EVALUATOR_DEFINITIONS.add( new StartsEvaluatorDefinition() );
+        EVALUATOR_DEFINITIONS.add( new StartedByEvaluatorDefinition() );
+        EVALUATOR_DEFINITIONS.add( new CoincidesEvaluatorDefinition() );
+        EVALUATOR_DEFINITIONS.add( new StrEvaluatorDefinition() );
+    }
+
+    public List<EvaluatorDefinition> getEvaluatorDefinitions() {
+        return EVALUATOR_DEFINITIONS;
     }
 }

@@ -27,8 +27,7 @@ import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import org.dmg.pmml.CompoundPredicate;
-import org.dmg.pmml.DataDictionary;
-import org.dmg.pmml.DerivedField;
+import org.dmg.pmml.Field;
 import org.dmg.pmml.Predicate;
 import org.kie.pmml.api.enums.BOOLEAN_OPERATOR;
 import org.kie.pmml.api.exceptions.KiePMMLException;
@@ -37,6 +36,7 @@ import org.kie.pmml.compiler.commons.utils.JavaParserUtils;
 import static org.kie.pmml.commons.Constants.MISSING_BODY_TEMPLATE;
 import static org.kie.pmml.commons.Constants.MISSING_VARIABLE_INITIALIZER_TEMPLATE;
 import static org.kie.pmml.commons.Constants.MISSING_VARIABLE_IN_BODY;
+import static org.kie.pmml.commons.Constants.VARIABLE_NAME_TEMPLATE;
 import static org.kie.pmml.compiler.commons.codegenfactories.KiePMMLPredicateFactory.getKiePMMLPredicate;
 import static org.kie.pmml.compiler.commons.utils.CommonCodegenUtils.getChainedMethodCallExprFrom;
 import static org.kie.pmml.compiler.commons.utils.CommonCodegenUtils.getVariableDeclarator;
@@ -67,8 +67,7 @@ public class KiePMMLCompoundPredicateFactory {
 
     static BlockStmt getCompoundPredicateVariableDeclaration(final String variableName,
                                                              final CompoundPredicate compoundPredicate,
-                                                             final List<DerivedField> derivedFields,
-                                                             final DataDictionary dataDictionary) {
+                                                             final List<Field<?>> fields) {
         final MethodDeclaration methodDeclaration =
                 COMPOUND_PREDICATE_TEMPLATE.getMethodsByName(GETKIEPMMLCOMPOUNDPREDICATE).get(0).clone();
         final BlockStmt compoundPredicateBody =
@@ -80,9 +79,9 @@ public class KiePMMLCompoundPredicateFactory {
         int counter = 0;
         final NodeList<Expression> arguments = new NodeList<>();
         for (Predicate predicate : compoundPredicate.getPredicates()) {
-            String nestedVariableName = String.format("%s_%s", variableName, counter);
+            String nestedVariableName = String.format(VARIABLE_NAME_TEMPLATE, variableName, counter);
             arguments.add(new NameExpr(nestedVariableName));
-            BlockStmt toAdd = getKiePMMLPredicate(nestedVariableName, predicate, derivedFields, dataDictionary);
+            BlockStmt toAdd = getKiePMMLPredicate(nestedVariableName, predicate, fields);
             toAdd.getStatements().forEach(toReturn::addStatement);
             counter ++;
         }

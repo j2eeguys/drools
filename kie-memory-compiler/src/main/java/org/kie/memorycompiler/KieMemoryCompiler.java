@@ -20,8 +20,11 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.drools.util.PortablePath;
 import org.kie.memorycompiler.resources.MemoryResourceReader;
 import org.kie.memorycompiler.resources.MemoryResourceStore;
+
+import static org.kie.memorycompiler.JavaConfiguration.findJavaVersion;
 
 public class KieMemoryCompiler {
 
@@ -123,7 +126,7 @@ public class KieMemoryCompiler {
         }
         JavaConfiguration javaConfiguration = new JavaConfiguration();
         javaConfiguration.setCompiler(compilerType);
-        javaConfiguration.setJavaLanguageLevel("1.8");
+        javaConfiguration.setJavaLanguageLevel(findJavaVersion());
         JavaCompiler compiler = JavaCompilerFactory.loadCompiler(javaConfiguration);
         CompilationResult res = compilerSettings == null ?
                 compiler.compile( classNames, reader, store, classLoader) :
@@ -134,8 +137,8 @@ public class KieMemoryCompiler {
         }
 
         Map<String, byte[]> toReturn = new HashMap<>();
-        for (Map.Entry<String, byte[]> entry : store.getResources().entrySet()) {
-            toReturn.put(toClassName( entry.getKey() ), entry.getValue());
+        for (Map.Entry<PortablePath, byte[]> entry : store.getResources().entrySet()) {
+            toReturn.put(toClassName( entry.getKey().asString() ), entry.getValue());
         }
 
         return toReturn;
@@ -143,10 +146,6 @@ public class KieMemoryCompiler {
 
     private static String toJavaSource( String s ) {
         return s.replace( '.', '/' ) + ".java";
-    }
-
-    private static String toClassSource( String s ) {
-        return s.replace( '.', '/' ) + ".class";
     }
 
     private static String toClassName( String s ) {

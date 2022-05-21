@@ -21,7 +21,7 @@ import java.util.List;
 
 import org.drools.core.base.ClassObjectType;
 import org.drools.core.base.DroolsQuery;
-import org.drools.core.common.InstanceNotEqualsConstraint;
+import org.drools.core.reteoo.CoreComponentFactory;
 import org.drools.core.reteoo.EntryPointNode;
 import org.drools.core.reteoo.ObjectTypeNode;
 import org.drools.core.reteoo.WindowNode;
@@ -38,10 +38,10 @@ import org.drools.core.rule.RuleConditionElement;
 import org.drools.core.rule.TypeDeclaration;
 import org.drools.core.rule.WindowReference;
 import org.drools.core.rule.constraint.XpathConstraint;
-import org.drools.core.spi.AlphaNodeFieldConstraint;
-import org.drools.core.spi.BetaNodeFieldConstraint;
-import org.drools.core.spi.Constraint;
-import org.drools.core.spi.ObjectType;
+import org.drools.core.rule.constraint.AlphaNodeFieldConstraint;
+import org.drools.core.rule.constraint.BetaNodeFieldConstraint;
+import org.drools.core.rule.constraint.Constraint;
+import org.drools.core.base.ObjectType;
 import org.drools.core.time.impl.CompositeMaxDurationTimer;
 import org.drools.core.time.impl.DurationTimer;
 import org.drools.core.time.impl.Timer;
@@ -117,10 +117,10 @@ public class PatternBuilder
         buildBehaviors(context, utils, pattern, constraints);
 
         if ( context.getObjectSource() != null ) {
-            attachAlphaNodes( context, utils, pattern, constraints.alphaConstraints );
+            attachAlphaNodes( context, utils, constraints.alphaConstraints );
         }
 
-        buildXpathConstraints(context, utils, pattern, constraints);
+        buildXpathConstraints(context, utils, constraints);
     }
 
     private void buildBehaviors(BuildContext context, BuildUtils utils, Pattern pattern, Constraints constraints) {
@@ -133,7 +133,7 @@ public class PatternBuilder
 
         if( ! behaviors.isEmpty() ) {
             // build the window node:
-            WindowNode wn = context.getComponentFactory().getNodeFactoryService().buildWindowNode( context.getNextId(),
+            WindowNode wn = CoreComponentFactory.get().getNodeFactoryService().buildWindowNode( context.getNextNodeId(),
                                                                                                    constraints.alphaConstraints,
                                                                                                    behaviors,
                                                                                                    context.getObjectSource(),
@@ -145,7 +145,7 @@ public class PatternBuilder
         }
     }
 
-    private void buildXpathConstraints(BuildContext context, BuildUtils utils, Pattern pattern, Constraints constraints) {
+    private void buildXpathConstraints(BuildContext context, BuildUtils utils, Constraints constraints) {
         if (!constraints.xpathConstraints.isEmpty()) {
             buildTupleSource(context, utils, false);
 
@@ -186,7 +186,7 @@ public class PatternBuilder
                     break;
                 case BETA:
                     linkBetaConstraint( (BetaNodeFieldConstraint) constraint, constraints.betaConstraints );
-                    if ( isNegative && context.getKnowledgeBase().getConfiguration().getEventProcessingMode() == EventProcessingOption.STREAM && pattern.getObjectType().isEvent() && constraint.isTemporal() ) {
+                    if ( isNegative && context.getRuleBase().getConfiguration().getEventProcessingMode() == EventProcessingOption.STREAM && pattern.getObjectType().isEvent() && constraint.isTemporal() ) {
                         checkDelaying( context, constraint );
                     }
                     break;
@@ -265,7 +265,7 @@ public class PatternBuilder
         long offset = NEVER_EXPIRES;
         boolean hard = false;
 
-        for (TypeDeclaration type : context.getKnowledgeBase().getTypeDeclarations()) {
+        for (TypeDeclaration type : context.getRuleBase().getTypeDeclarations()) {
             if (type.getObjectType().isAssignableFrom( objectType )) {
                 if ( hard ) {
                     if ( type.getExpirationPolicy() == Policy.TIME_HARD && type.getExpirationOffset() > offset ) {
@@ -301,15 +301,14 @@ public class PatternBuilder
 
     public void attachAlphaNodes(final BuildContext context,
                                  final BuildUtils utils,
-                                 final Pattern pattern,
                                  final List<AlphaNodeFieldConstraint> alphaConstraints) throws InvalidPatternException {
 
         // Drools Query ObjectTypeNode never has memory, but other ObjectTypeNode/AlphaNoesNodes may (if not in sequential), 
         //so need to preserve, so we can restore after this node is added. LeftMemory  and Terminal remain the same once set.
 
-        buildAlphaNodeChain( context, utils, pattern, alphaConstraints );
+        buildAlphaNodeChain( context, utils, alphaConstraints );
 
-        NodeFactory nfactory = context.getComponentFactory().getNodeFactoryService();
+        NodeFactory nfactory = CoreComponentFactory.get().getNodeFactoryService();
         
         if ( context.getCurrentEntryPoint() != EntryPointId.DEFAULT && context.isAttachPQN() ) {
             // the entry-point specific network nodes are attached, so, set context to default entry-point
@@ -317,11 +316,11 @@ public class PatternBuilder
         }
     }
 
-    protected void buildAlphaNodeChain( BuildContext context, BuildUtils utils, Pattern pattern, List<AlphaNodeFieldConstraint> alphaConstraints ) {
+    private void buildAlphaNodeChain( BuildContext context, BuildUtils utils, List<AlphaNodeFieldConstraint> alphaConstraints ) {
         for ( final AlphaNodeFieldConstraint constraint : alphaConstraints ) {
             context.pushRuleComponent( constraint );
             context.setObjectSource( utils.attachNode( context,
-                                                       context.getComponentFactory().getNodeFactoryService().buildAlphaNode( context.getNextId(),
+                    CoreComponentFactory.get().getNodeFactoryService().buildAlphaNode( context.getNextNodeId(),
                                                                                                                              constraint,
                                                                                                                              context.getObjectSource(),
                                                                                                                              context) ) );
@@ -341,11 +340,11 @@ public class PatternBuilder
             }
         }
 
-        ObjectTypeNode otn = context.getComponentFactory().getNodeFactoryService().buildObjectTypeNode( context.getNextId(),
+        ObjectTypeNode otn = CoreComponentFactory.get().getNodeFactoryService().buildObjectTypeNode( context.getNextNodeId(),
                                                  (EntryPointNode) context.getObjectSource(),
                                                  objectType,
                                                  context );
-        if ( objectType.isEvent() && EventProcessingOption.STREAM.equals( context.getKnowledgeBase().getConfiguration().getEventProcessingMode() ) ) {
+        if ( objectType.isEvent() && EventProcessingOption.STREAM.equals( context.getRuleBase().getConfiguration().getEventProcessingMode() ) ) {
             ExpirationSpec expirationSpec = getExpirationForType( context, objectType );
 
             if( expirationSpec.offset != NEVER_EXPIRES && expirationSpec.hard ) {
@@ -391,13 +390,13 @@ public class PatternBuilder
     private void checkRemoveIdentities(final BuildContext context,
                                        final Pattern pattern,
                                        final List<BetaNodeFieldConstraint> betaConstraints) {
-        if ( context.getKnowledgeBase().getConfiguration().isRemoveIdentities() && pattern.getObjectType().getClass() == ClassObjectType.class ) {
+        if ( context.getRuleBase().getConfiguration().isRemoveIdentities() && pattern.getObjectType().getClass() == ClassObjectType.class ) {
             // Check if this object type exists before
             // If it does we need stop instance equals cross product
-            final Class< ? > thisClass = ((ClassObjectType) pattern.getObjectType()).getClassType();
+            final ObjectType thisObjectType = pattern.getObjectType();
             for ( final Pattern previousPattern : context.getPatterns() ) {
-                final Class< ? > previousClass = ((ClassObjectType) previousPattern.getObjectType()).getClassType();
-                if ( thisClass.isAssignableFrom( previousClass ) ) {
+                final ObjectType previousObjectType = previousPattern.getObjectType();
+                if ( thisObjectType.isAssignableFrom( previousObjectType ) ) {
                     betaConstraints.add( new InstanceNotEqualsConstraint( previousPattern ) );
                 }
             }

@@ -26,14 +26,15 @@ import java.util.Properties;
 
 import org.drools.compiler.compiler.io.memory.MemoryFileSystem;
 import org.drools.compiler.kproject.models.KieModuleModelImpl;
-import org.drools.core.io.internal.InternalResource;
-import org.drools.core.util.IoUtils;
+import org.drools.util.io.InternalResource;
+import org.drools.util.IoUtils;
 import org.kie.api.builder.KieFileSystem;
 import org.kie.api.builder.ReleaseId;
 import org.kie.api.io.Resource;
 import org.kie.api.io.ResourceConfiguration;
 import org.kie.api.io.ResourceType;
 import org.kie.internal.io.ResourceTypeImpl;
+import org.drools.util.PortablePath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,11 +63,25 @@ public class KieFileSystemImpl
         return this;
     }
 
+    public KieFileSystem write(PortablePath path, byte[] content) {
+        mfs.write( path, content, true );
+        return this;
+    }
+
     public KieFileSystem write(String path, String text) {
         return write( path, text.getBytes( IoUtils.UTF8_CHARSET ) );
     }
 
+    public KieFileSystem write(PortablePath path, String text) {
+        return write( path, text.getBytes( IoUtils.UTF8_CHARSET ) );
+    }
+
     public KieFileSystem write(String path, Resource resource) {
+        mfs.write( PortablePath.of(path), resource );
+        return this;
+    }
+
+    public KieFileSystem write(PortablePath path, Resource resource) {
         mfs.write( path, resource );
         return this;
     }

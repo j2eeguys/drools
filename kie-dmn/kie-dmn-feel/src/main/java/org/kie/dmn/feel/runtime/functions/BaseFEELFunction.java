@@ -17,9 +17,9 @@
 package org.kie.dmn.feel.runtime.functions;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Array;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -267,12 +267,15 @@ public abstract class BaseFEELFunction
                 } else {
                     if (cm.getScore() > candidate.getScore()) {
                         candidate = cm;
-                    } else if (cm.getScore() == candidate.getScore() 
-                            && candidate.getApply().getParameterTypes().length == 1
-                            && cm.getApply().getParameterTypes().length == 1
-                            && candidate.getApply().getParameterTypes()[0].equals(Object.class)
-                            && !cm.getApply().getParameterTypes()[0].equals(Object.class)) {
-                        candidate = cm; // `cm` is more narrowed, hence reflect `candidate` to be now `cm`.
+                    } else if (cm.getScore() == candidate.getScore()) {
+                        if (isNamedParams && nullCount(cm.actualParams)<nullCount(candidate.actualParams)) {
+                            candidate = cm; // `cm` narrower for named parameters without need of passing nulls.
+                        } else if (candidate.getApply().getParameterTypes().length == 1
+                                && cm.getApply().getParameterTypes().length == 1
+                                && candidate.getApply().getParameterTypes()[0].equals(Object.class)
+                                && !cm.getApply().getParameterTypes()[0].equals(Object.class)) {
+                            candidate = cm; // `cm` is more narrowed, hence reflect `candidate` to be now `cm`.
+                        }
                     } else {
                         // do nothing.
                     }
@@ -280,6 +283,10 @@ public abstract class BaseFEELFunction
             }
         }
         return candidate;
+    }
+    
+    private static long nullCount(Object[] params) {
+        return Stream.of(params).filter(x -> x == null).count();
     }
 
     @Override
@@ -362,7 +369,15 @@ public abstract class BaseFEELFunction
 
     private Object normalizeResult(Object result) {
         // this is to normalize types returned by external functions
-        return result != null && result instanceof Number && !(result instanceof BigDecimal) ? EvalHelper.getBigDecimalOrNull( result.toString() ) : result;
+        if (result != null && result.getClass().isArray()) {
+            List<Object> objs = new ArrayList<>();
+            for (int i = 0; i < Array.getLength(result); i++) {
+                objs.add(EvalHelper.coerceNumber(Array.get(result, i)));
+            }
+            return objs;
+        } else {
+            return EvalHelper.coerceNumber(result);
+        }
     }
 
     protected boolean isCustomFunction() {

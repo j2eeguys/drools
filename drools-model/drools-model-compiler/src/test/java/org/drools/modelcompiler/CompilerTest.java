@@ -30,7 +30,6 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-import org.assertj.core.api.Assertions;
 import org.drools.modelcompiler.domain.Address;
 import org.drools.modelcompiler.domain.Adult;
 import org.drools.modelcompiler.domain.Child;
@@ -42,7 +41,6 @@ import org.drools.modelcompiler.domain.Result;
 import org.drools.modelcompiler.domain.StockTick;
 import org.drools.modelcompiler.domain.Toy;
 import org.drools.modelcompiler.domain.Woman;
-import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -53,10 +51,9 @@ import org.kie.api.runtime.process.ProcessContext;
 import org.kie.api.runtime.rule.FactHandle;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.CoreMatchers.equalTo;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -246,6 +243,91 @@ public class CompilerTest extends BaseModelTest {
 
         ksession.fireAllRules();
         assertEquals("Edson is older than Mark", result.getValue());
+    }
+
+
+    @Test
+    public void testBetaMap() {
+
+        String str =
+                "import " + Result.class.getCanonicalName() + ";" +
+                "import " + Map.class.getCanonicalName() + ";" +
+                "rule R when\n" +
+                "  $r : Result()\n" +
+                "  $markV : Map(this['name'] == 'Mark')\n" +
+                "  $olderV : Map(this['name'] != 'Mark', this['age'] > $markV['age'])\n" +
+                "then\n" +
+                "  $r.setValue($olderV.get(\"name\") + \" is older than \" + $markV.get(\"name\"));\n" +
+                "end";
+
+        KieSession ksession = getKieSession( str );
+
+        Result result = new Result();
+        ksession.insert( result );
+
+
+        Map<String, Object> mark = mapPerson("Mark", 37);
+        Map<String, Object> edson = mapPerson("Edson", 35);
+        Map<String, Object> mario = mapPerson("Mario", 40);
+
+        FactHandle markFH = ksession.insert(mark);
+        ksession.insert(edson);
+        FactHandle marioFH = ksession.insert(mario);
+
+        ksession.fireAllRules();
+        assertEquals("Mario is older than Mark", result.getValue());
+
+        result.setValue( null );
+        ksession.delete( marioFH );
+        ksession.fireAllRules();
+        assertNull(result.getValue());
+
+        mark.put("age", 34 );
+        ksession.update( markFH, mark );
+
+        ksession.fireAllRules();
+        assertEquals("Edson is older than Mark", result.getValue());
+    }
+
+    @Test
+    public void testBetaMapComparisonWithLiteral() {
+        String str =
+                "import " + Result.class.getCanonicalName() + ";" +
+                "import " + Map.class.getCanonicalName() + ";" +
+                "rule R when\n" +
+                "  $r : Result()\n" +
+                "  $olderV : Map(this['name'] != 'Mark', this['age'] > 37)\n" +
+                "then\n" +
+                "  $r.setValue($olderV.get(\"name\") + \" is older than Mark\"\n);" +
+                "end";
+
+        KieSession ksession = getKieSession( str );
+
+        Result result = new Result();
+        ksession.insert( result );
+
+
+        Map<String, Object> mark = mapPerson("Mark", 37);
+        Map<String, Object> edson = mapPerson("Edson", 35);
+        Map<String, Object> mario = mapPerson("Mario", 40);
+
+        ksession.insert(edson);
+        FactHandle marioFH = ksession.insert(mario);
+
+        ksession.fireAllRules();
+        assertEquals("Mario is older than Mark", result.getValue());
+
+        result.setValue( null );
+        ksession.delete( marioFH );
+        ksession.fireAllRules();
+        assertNull(result.getValue());
+    }
+
+    private Map<String, Object> mapPerson(String name, int age) {
+        HashMap<String, Object> person = new HashMap<>();
+        person.put("name", name);
+        person.put("age", age);
+        return person;
     }
 
     @Test
@@ -1965,127 +2047,6 @@ public class CompilerTest extends BaseModelTest {
     }
 
     @Test
-    public void testHalfBinary() {
-        final String drl1 =
-                "rule R1 when\n" +
-                "    Integer(this > 2 && < 5)\n" +
-                "then\n" +
-                "end\n";
-
-        KieSession ksession = getKieSession( drl1 );
-
-        ksession.insert( 3 );
-        ksession.insert( 4 );
-        ksession.insert( 6 );
-        assertEquals( 2, ksession.fireAllRules() );
-    }
-
-    @Test
-    public void testHalfBinaryWithParenthesis() {
-        // DROOLS-6006
-        final String drl1 =
-                "rule R1 when\n" +
-                "    Integer(intValue (> 2 && < 5))\n" +
-                "then\n" +
-                "end\n";
-
-        KieSession ksession = getKieSession( drl1 );
-
-        ksession.insert( 3 );
-        ksession.insert( 4 );
-        ksession.insert( 6 );
-        assertEquals( 2, ksession.fireAllRules() );
-    }
-
-    @Test
-    public void testHalfBinaryOrWithParenthesis() {
-        // DROOLS-6006
-        final String drl1 =
-                "rule R1 when\n" +
-                "    Integer(intValue (< 2 || > 5))\n" +
-                "then\n" +
-                "end\n";
-
-        KieSession ksession = getKieSession( drl1 );
-
-        ksession.insert( 3 );
-        ksession.insert( 4 );
-        ksession.insert( 6 );
-        assertEquals( 1, ksession.fireAllRules() );
-    }
-
-    @Test
-    public void testComplexHalfBinary() {
-        // DROOLS-6006
-        final String drl1 =
-                "rule R1 when\n" +
-                "    Integer(intValue ((> 2 && < 4) || (> 5 && < 7)) )\n" +
-                "then\n" +
-                "end\n";
-
-        KieSession ksession = getKieSession( drl1 );
-
-        ksession.insert( 3 );
-        ksession.insert( 4 );
-        ksession.insert( 6 );
-        assertEquals( 2, ksession.fireAllRules() );
-    }
-
-    @Test
-    public void testHalfBinaryOnComparable() {
-        // DROOLS-6421
-        final String drl1 =
-                "rule R1 when\n" +
-                "    String(this (> \"C\" && < \"K\"))\n" +
-                "then\n" +
-                "end\n";
-
-        KieSession ksession = getKieSession( drl1 );
-
-        ksession.insert( "B" );
-        ksession.insert( "D" );
-        ksession.insert( "H" );
-        ksession.insert( "S" );
-        assertEquals( 2, ksession.fireAllRules() );
-    }
-
-    @Test
-    public void testHalfBinaryOrOnComparable() {
-        // DROOLS-6421
-        final String drl1 =
-                "rule R1 when\n" +
-                "    String(this (< \"C\" || > \"K\"))\n" +
-                "then\n" +
-                "end\n";
-
-        KieSession ksession = getKieSession( drl1 );
-
-        ksession.insert( "B" );
-        ksession.insert( "D" );
-        ksession.insert( "H" );
-        ksession.insert( "S" );
-        assertEquals( 2, ksession.fireAllRules() );
-    }
-
-    @Test
-    public void testComplexHalfBinaryOnComparable() {
-        // DROOLS-6421
-        final String drl1 =
-                "rule R1 when\n" +
-                "    String(this ((> \"C\" && < \"K\") || (> \"P\" && < \"R\")))\n" +
-                "then\n" +
-                "end\n";
-
-        KieSession ksession = getKieSession( drl1 );
-
-        ksession.insert( "B" );
-        ksession.insert( "D" );
-        ksession.insert( "Q" );
-        ksession.insert( "S" );
-        assertEquals( 2, ksession.fireAllRules() );
-    }
-
-    @Test
     public void testMapPrimitiveComparison() {
         final String drl1 =
                 "import java.util.Map;\n" +
@@ -2428,7 +2389,7 @@ public class CompilerTest extends BaseModelTest {
         ksession.insert(integerToShort);
         int rulesFired = ksession.fireAllRules();
 
-        Assert.assertEquals(1, rulesFired);
+        assertEquals(1, rulesFired);
         assertThat(integerToShort).isEqualTo(new IntegerToShort(true, Short.MAX_VALUE, Short.MAX_VALUE, (double)0));
     }
 
@@ -2456,7 +2417,7 @@ public class CompilerTest extends BaseModelTest {
         ksession.insert(integerToShort);
         int rulesFired = ksession.fireAllRules();
 
-        Assert.assertEquals(1, rulesFired);
+        assertEquals(1, rulesFired);
         assertThat(integerToShort).isEqualTo(new IntegerToShort(true, Short.MAX_VALUE, (short)-12, (double)0));
     }
 
@@ -2485,7 +2446,7 @@ public class CompilerTest extends BaseModelTest {
         ksession.insert(integerToShort);
         int rulesFired = ksession.fireAllRules();
 
-        Assert.assertEquals(1, rulesFired);
+        assertEquals(1, rulesFired);
         assertThat(integerToShort).isEqualTo(new IntegerToShort(true, Short.MAX_VALUE, (short)17, (double)1));
     }
 
@@ -2516,7 +2477,7 @@ public class CompilerTest extends BaseModelTest {
         ksession.setGlobal("functions", new GlobalFunctions());
         int rulesFired = ksession.fireAllRules();
 
-        Assert.assertEquals(1, rulesFired);
+        assertEquals(1, rulesFired);
         assertThat(integerToShort).isEqualTo(new IntegerToShort(true, 1, (short)0));
     }
 
@@ -2531,7 +2492,7 @@ public class CompilerTest extends BaseModelTest {
                 "end";
 
         KieSession ksession = getKieSession( str );
-        assertNotNull( ksession);
+        assertThat(ksession).isNotNull();
     }
 
     @Test // DROOLS-6034
@@ -2559,7 +2520,7 @@ public class CompilerTest extends BaseModelTest {
         kSession.insert( luca );
         assertEquals(1, kSession.fireAllRules());
 
-        Assertions.assertThat(children).containsOnly("Andrea");
+        assertThat(children).containsOnly("Andrea");
     }
 
     @Test // DROOLS-6034
@@ -2589,7 +2550,7 @@ public class CompilerTest extends BaseModelTest {
         kSession.insert( luca );
         assertEquals(1, kSession.fireAllRules());
 
-        Assertions.assertThat(children).containsOnly("Andrea");
+        assertThat(children).containsOnly("Andrea");
     }
 
     @Test // DROOLS-6034
@@ -2620,7 +2581,7 @@ public class CompilerTest extends BaseModelTest {
         kSession.insert( luca );
         assertEquals(1, kSession.fireAllRules());
 
-        Assertions.assertThat(children).containsOnly("Luca");
+        assertThat(children).containsOnly("Luca");
     }
 
     @Test
@@ -2851,9 +2812,6 @@ public class CompilerTest extends BaseModelTest {
 
     @Test
     public void testNPEOnConstraint() {
-        exceptionRule.expect(RuntimeException.class);
-        exceptionRule.expectMessage(equalTo("Error evaluating constraint 'money < salary * 20' in [Rule \"R\" in r0.drl]"));
-
         String str =
                 "import " + Person.class.getCanonicalName() + ";" +
                         "rule R when\n" +
@@ -2866,7 +2824,221 @@ public class CompilerTest extends BaseModelTest {
         Person me = new Person( "Luca");
         me.setMoney(null);
         ksession.insert( me );
-        ksession.fireAllRules();
+        assertThatExceptionOfType(RuntimeException.class)
+    		.isThrownBy(() -> ksession.fireAllRules())
+    		.withMessage("Error evaluating constraint 'money < salary * 20' in [Rule \"R\" in r0.drl]");    }
+
+    @Test
+    public void testSharedPredicateInformation() {
+        String str =
+                "import " + Person.class.getCanonicalName() + ";" +
+                     "rule R1 when\n" +
+                     "  $p : Person(money < salary * 20 )\n" +
+                     "then\n" +
+                     "end\n" +
+                     "rule R2 when\n" +
+                     "  $p : Person(money < salary * 20 )\n" +
+                     "then\n" +
+                     "end";
+
+        KieSession ksession = getKieSession(str);
+
+        Person me = new Person("Luca");
+        me.setSalary(null);
+        me.setMoney(null);
+        ksession.insert(me);
+        
+        assertThatExceptionOfType(RuntimeException.class)
+        	.isThrownBy(() -> ksession.fireAllRules())
+        	.withMessage("Error evaluating constraint 'money < salary * 20' in [Rule \"R1\", \"R2\" in r0.drl]");
+    }
+
+    @Test
+    public void testSharedPredicateInformationWithNonSharedRule() {
+
+        String str =
+                "import " + Person.class.getCanonicalName() + ";" +
+                     "rule R1 when\n" +
+                     "  $p : Person(money < salary * 20 )\n" +
+                     "then\n" +
+                     "end\n" +
+                     "rule R2 when\n" +
+                     "  $p : Person()\n" +
+                     "then\n" +
+                     "end\n" +
+                     "rule R3 when\n" +
+                     "  $p : Person(money < salary * 20 )\n" +
+                     "then\n" +
+                     "end";
+
+        KieSession ksession = getKieSession(str);
+
+        Person me = new Person("Luca");
+        me.setSalary(null);
+        me.setMoney(null);
+        ksession.insert(me);
+        
+        assertThatExceptionOfType(RuntimeException.class)
+    	.isThrownBy(() -> ksession.fireAllRules())
+    	.withMessage("Error evaluating constraint 'money < salary * 20' in [Rule \"R1\", \"R3\" in r0.drl]");
+    	
+    }
+
+    @Test
+    public void testSharedPredicateInformationWithMultipleFiles() {
+
+        String str1 =
+                "import " + Person.class.getCanonicalName() + ";" +
+                     "rule R1 when\n" +
+                     "  $p : Person(money < salary * 20 )\n" +
+                     "then\n" +
+                     "end\n" +
+                     "rule R2 when\n" +
+                     "  $p : Person(money < salary * 20 )\n" +
+                     "then\n" +
+                     "end";
+        String str2 =
+                "import " + Person.class.getCanonicalName() + ";" +
+                     "rule R3 when\n" +
+                     "  $p : Person(money < salary * 20 )\n" +
+                     "then\n" +
+                     "end\n" +
+                     "rule R4 when\n" +
+                     "  $p : Person(money < salary * 20 )\n" +
+                     "then\n" +
+                     "end";
+
+        KieSession ksession = getKieSession(str1, str2);
+
+        Person me = new Person("Luca");
+        me.setSalary(null);
+        me.setMoney(null);
+        ksession.insert(me);
+        
+        assertThatExceptionOfType(RuntimeException.class)
+    		.isThrownBy(() -> ksession.fireAllRules())
+    		.withMessage("Error evaluating constraint 'money < salary * 20' in [Rule \"R1\", \"R2\" in r0.drl] [Rule \"R3\", \"R4\" in r1.drl]");   
+        
+    }
+
+    @Test
+    public void testSharedBetaPredicateInformationWithMultipleFiles() {
+        String str1 =
+                "import " + Person.class.getCanonicalName() + ";" +
+                     "rule R1 when\n" +
+                     "  $i : Integer()\n" +
+                     "  $p : Person($i < salary * 20 )\n" +
+                     "then\n" +
+                     "end\n" +
+                     "rule R2 when\n" +
+                     "  $i : Integer()\n" +
+                     "  $p : Person($i < salary * 20 )\n" +
+                     "then\n" +
+                     "end";
+        String str2 =
+                "import " + Person.class.getCanonicalName() + ";" +
+                     "rule R3 when\n" +
+                     "  $i : Integer()\n" +
+                     "  $p : Person($i < salary * 20 )\n" +
+                     "then\n" +
+                     "end\n" +
+                     "rule R4 when\n" +
+                     "  $i : Integer()\n" +
+                     "  $p : Person($i < salary * 20 )\n" +
+                     "then\n" +
+                     "end";
+
+        KieSession ksession = getKieSession(str1, str2);
+
+        Person me = new Person("Luca");
+        me.setSalary(null);
+        me.setMoney(null);
+        ksession.insert(Integer.valueOf(10));
+        ksession.insert(me);
+
+        assertThatExceptionOfType(RuntimeException.class)
+    		.isThrownBy(() -> ksession.fireAllRules())
+    		.withMessage("Error evaluating constraint '$i < salary * 20' in [Rule \"R1\", \"R2\" in r0.drl] [Rule \"R3\", \"R4\" in r1.drl]");   
+    }
+
+    @Test
+    public void testSharedPredicateInformationExceedMaxRuleDefs() {
+        // shared by 11 rules
+        String str1 =
+                "import " + Person.class.getCanonicalName() + ";" +
+                      "rule R1 when\n" +
+                      "  $i : Integer()\n" +
+                      "  $p : Person($i < salary * 20 )\n" +
+                      "then\n" +
+                      "end\n" +
+                      "rule R2 when\n" +
+                      "  $i : Integer()\n" +
+                      "  $p : Person($i < salary * 20 )\n" +
+                      "then\n" +
+                      "end";
+        String str2 =
+                "import " + Person.class.getCanonicalName() + ";" +
+                      "rule R3 when\n" +
+                      "  $i : Integer()\n" +
+                      "  $p : Person($i < salary * 20 )\n" +
+                      "then\n" +
+                      "end\n" +
+                      "rule R4 when\n" +
+                      "  $i : Integer()\n" +
+                      "  $p : Person($i < salary * 20 )\n" +
+                      "then\n" +
+                      "end";
+        String str3 =
+                "import " + Person.class.getCanonicalName() + ";" +
+                      "rule R5 when\n" +
+                      "  $i : Integer()\n" +
+                      "  $p : Person($i < salary * 20 )\n" +
+                      "then\n" +
+                      "end\n" +
+                      "rule R6 when\n" +
+                      "  $i : Integer()\n" +
+                      "  $p : Person($i < salary * 20 )\n" +
+                      "then\n" +
+                      "end\n" +
+                      "rule R7 when\n" +
+                      "  $i : Integer()\n" +
+                      "  $p : Person($i < salary * 20 )\n" +
+                      "then\n" +
+                      "end\n" +
+                      "rule R8 when\n" +
+                      "  $i : Integer()\n" +
+                      "  $p : Person($i < salary * 20 )\n" +
+                      "then\n" +
+                      "end\n" +
+                      "rule R9 when\n" +
+                      "  $i : Integer()\n" +
+                      "  $p : Person($i < salary * 20 )\n" +
+                      "then\n" +
+                      "end\n" +
+                      "rule R10 when\n" +
+                      "  $i : Integer()\n" +
+                      "  $p : Person($i < salary * 20 )\n" +
+                      "then\n" +
+                      "end\n" +
+                      "rule R11 when\n" +
+                      "  $i : Integer()\n" +
+                      "  $p : Person($i < salary * 20 )\n" +
+                      "then\n" +
+                      "end";
+
+        KieSession ksession = getKieSession(str1, str2, str3);
+
+        Person me = new Person("Luca");
+        me.setSalary(null);
+        me.setMoney(null);
+        ksession.insert(Integer.valueOf(10));
+        ksession.insert(me);
+        
+        assertThatExceptionOfType(RuntimeException.class)
+    		.isThrownBy(() -> ksession.fireAllRules())
+    		.withMessageContaining("Error evaluating constraint '$i < salary * 20' in ")
+    		.withMessageContaining(" and in more rules");       
+        
     }
 
     @Test
@@ -2964,46 +3136,31 @@ public class CompilerTest extends BaseModelTest {
     }
 
     @Test
-    public void testEnclosedBinding() {
-        String str =
+    public void testSharedConstraintWithExtraParenthesis() {
+        // DROOLS-6548
+        final String str =
+                "package org.drools.mvel.compiler\n" +
+                "global java.util.List list;\n" +
                 "import " + Person.class.getCanonicalName() + ";" +
-                     "global java.util.List result;\n" +
-                     "rule R when\n" +
-                     "  $p : Person( ($n : name == \"Mario\") )\n" +
-                     "then\n" +
-                     "  result.add($n);\n" +
-                     "end";
+                "rule r1 when\n" +
+                "    Person( ( name == \"A\" ) )\n" +
+                "then\n" +
+                "    list.add(\"r1\");" +
+                "end\n" +
+                "rule r2 when\n" +
+                "    Person( name == \"B\" )\n" +
+                "    Person( name == \"A\" )\n" +
+                "then\n" +
+                "    list.add(\"r2\");" +
+                "end\n";
 
-        KieSession ksession = getKieSession(str);
-        List<String> result = new ArrayList<>();
-        ksession.setGlobal("result", result);
+        KieSession ksession = getKieSession( str );
+        final List<String> list = new ArrayList<>();
+        ksession.setGlobal("list", list);
 
-        Person me = new Person("Mario", 40);
-        ksession.insert(me);
+        ksession.insert(new Person("A"));
         ksession.fireAllRules();
-
-        assertThat(result).containsExactly("Mario");
-    }
-
-    @Test
-    public void testComplexEnclosedBinding() {
-        String str =
-                "import " + Person.class.getCanonicalName() + ";" +
-                     "global java.util.List result;\n" +
-                     "rule R when\n" +
-                     "  $p : Person( ($n : name == \"Mario\") && (age > 20) )\n" +
-                     "then\n" +
-                     "  result.add($n);\n" +
-                     "end";
-
-        KieSession ksession = getKieSession(str);
-        List<Object> result = new ArrayList<>();
-        ksession.setGlobal("result", result);
-
-        Person me = new Person("Mario", 40);
-        ksession.insert(me);
-        ksession.fireAllRules();
-
-        assertThat(result).containsExactly("Mario");
+        assertEquals(1, list.size());
+        assertEquals("r1", list.get(0));
     }
 }

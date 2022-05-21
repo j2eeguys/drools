@@ -15,11 +15,6 @@
  */
 package org.drools.persistence.session;
 
-import static org.drools.persistence.util.DroolsPersistenceUtil.DROOLS_PERSISTENCE_UNIT_NAME;
-import static org.drools.persistence.util.DroolsPersistenceUtil.createEnvironment;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -27,9 +22,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.drools.core.command.impl.CommandBasedStatefulKnowledgeSession;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
+import org.drools.commands.impl.CommandBasedStatefulKnowledgeSessionImpl;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
 import org.drools.persistence.PersistableRunner;
 import org.drools.persistence.jpa.OptimisticLockRetryInterceptor;
 import org.drools.persistence.util.DroolsPersistenceUtil;
@@ -47,6 +42,11 @@ import org.kie.internal.persistence.jpa.JPAKnowledgeService;
 import org.kie.internal.runtime.StatefulKnowledgeSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.drools.persistence.util.DroolsPersistenceUtil.DROOLS_PERSISTENCE_UNIT_NAME;
+import static org.drools.persistence.util.DroolsPersistenceUtil.createEnvironment;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 
 public class JpaOptLockPersistentStatefulSessionTest {
@@ -97,7 +97,7 @@ public class JpaOptLockPersistentStatefulSessionTest {
         final AtomicInteger attempts = new AtomicInteger(0);
 
         final StatefulKnowledgeSession ksession1 = JPAKnowledgeService.newStatefulKnowledgeSession(kbase, null, env);
-        PersistableRunner sscs1 = (PersistableRunner) ((CommandBasedStatefulKnowledgeSession) ksession1).getRunner();
+        PersistableRunner sscs1 = (PersistableRunner) ((CommandBasedStatefulKnowledgeSessionImpl) ksession1).getRunner();
         OptimisticLockRetryInterceptor interceptor1 = new OptimisticLockRetryInterceptor();
         sscs1.addInterceptor(interceptor1);
         ksession1.addEventListener(new DefaultRuleRuntimeEventListener() {
@@ -116,7 +116,7 @@ public class JpaOptLockPersistentStatefulSessionTest {
 
         final long ksessionId = ksession1.getIdentifier();
         StatefulKnowledgeSession ksession2 = JPAKnowledgeService.loadStatefulKnowledgeSession(ksessionId, kbase, null, createEnvironment(context));
-        PersistableRunner sscs2 = (PersistableRunner) ((CommandBasedStatefulKnowledgeSession) ksession2).getRunner();
+        PersistableRunner sscs2 = (PersistableRunner) ((CommandBasedStatefulKnowledgeSessionImpl) ksession2).getRunner();
         OptimisticLockRetryInterceptor interceptor2 = new OptimisticLockRetryInterceptor();
         sscs2.addInterceptor(interceptor2);
 

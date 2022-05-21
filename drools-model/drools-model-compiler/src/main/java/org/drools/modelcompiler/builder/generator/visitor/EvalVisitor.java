@@ -20,7 +20,7 @@ package org.drools.modelcompiler.builder.generator.visitor;
 import java.util.Optional;
 
 import com.github.javaparser.ast.expr.Expression;
-import org.drools.compiler.lang.descr.EvalDescr;
+import org.drools.drl.ast.descr.EvalDescr;
 import org.drools.modelcompiler.builder.PackageModel;
 import org.drools.modelcompiler.builder.generator.DrlxParseUtil;
 import org.drools.modelcompiler.builder.generator.RuleContext;
@@ -41,7 +41,8 @@ public class EvalVisitor {
 
     public void visit(EvalDescr descr) {
         String expression = descr.getContent().toString();
-        DrlxParseResult drlxParseResult = new ConstraintParser(context, packageModel).drlxParse(null, null, expression);
+        DrlxParseResult drlxParseResult = ConstraintParser.withoutVariableValidationConstraintParser(context, packageModel)
+                .drlxParse(null, null, expression);
 
         drlxParseResult.accept(drlxParseSuccess -> {
             SingleDrlxParseSuccess singleResult = (SingleDrlxParseSuccess) drlxParseResult;

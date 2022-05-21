@@ -34,7 +34,12 @@ public class AssertHandler extends PropagatorCompilerHandler {
 
     @Override
     protected Statement propagateMethod(Sink sink) {
-        Statement assertStatement = parseStatement("ALPHATERMINALNODE.assertObject(handle, context, wm);");
+        Statement assertStatement;
+        if (sinkCanBeInlined(sink)) {
+            assertStatement = parseStatement("ALPHATERMINALNODE.collectObject();");
+        } else {
+            assertStatement = parseStatement("ALPHATERMINALNODE.assertObject(handle, context, wm);");
+        }
         replaceNameExpr(assertStatement, "ALPHATERMINALNODE", getVariableName(sink));
         return assertStatement;
     }
@@ -43,7 +48,7 @@ public class AssertHandler extends PropagatorCompilerHandler {
     protected NodeList<Parameter> methodParameters() {
         return nodeList(new Parameter(factHandleType(), FACT_HANDLE_PARAM_NAME),
                         new Parameter(propagationContextType(), PROP_CONTEXT_PARAM_NAME),
-                        new Parameter(workingMemoryType(), WORKING_MEMORY_PARAM_NAME));
+                        new Parameter(reteEvaluatorType(), WORKING_MEMORY_PARAM_NAME));
     }
 
     @Override

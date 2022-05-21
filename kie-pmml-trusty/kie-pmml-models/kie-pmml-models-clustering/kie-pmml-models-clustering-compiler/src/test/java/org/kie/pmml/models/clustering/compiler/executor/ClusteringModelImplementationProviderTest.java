@@ -24,26 +24,34 @@ import org.dmg.pmml.clustering.ClusteringModel;
 import org.junit.Test;
 import org.kie.memorycompiler.KieMemoryCompiler;
 import org.kie.pmml.api.enums.PMML_MODEL;
+import org.kie.pmml.commons.model.KiePMMLModelWithSources;
+import org.kie.pmml.compiler.api.dto.CommonCompilationDTO;
+import org.kie.pmml.compiler.api.testutils.TestUtils;
 import org.kie.pmml.compiler.commons.mocks.HasClassLoaderMock;
-import org.kie.pmml.compiler.testutils.TestUtils;
 import org.kie.pmml.models.clustering.model.KiePMMLClusteringModel;
-import org.kie.pmml.models.clustering.model.KiePMMLClusteringModelWithSources;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.kie.pmml.commons.Constants.PACKAGE_NAME;
 
 public class ClusteringModelImplementationProviderTest {
 
     private static final String SOURCE_FILE = "SingleIrisKMeansClustering.pmml";
-    private static final String PACKAGE_NAME = "singleiriskmeansclustering";
 
     private static final ClusteringModelImplementationProvider PROVIDER = new ClusteringModelImplementationProvider();
 
+    private static ClusteringModel getModel(PMML pmml) {
+        assertThat(pmml).isNotNull();
+        assertThat(pmml.getModels()).hasSize(1);
+
+        Model model = pmml.getModels().get(0);
+        assertThat(model).isInstanceOf(ClusteringModel.class);
+
+        return (ClusteringModel) model;
+    }
+
     @Test
     public void getPMMLModelType() {
-        assertEquals(PMML_MODEL.CLUSTERING_MODEL, PROVIDER.getPMMLModelType());
+        assertThat(PROVIDER.getPMMLModelType()).isEqualTo(PMML_MODEL.CLUSTERING_MODEL);
     }
 
     @Test
@@ -51,51 +59,37 @@ public class ClusteringModelImplementationProviderTest {
         PMML pmml = TestUtils.loadFromFile(SOURCE_FILE);
         ClusteringModel model = getModel(pmml);
 
-        KiePMMLClusteringModel retrieved = PROVIDER.getKiePMMLModel(PACKAGE_NAME,
-                pmml.getDataDictionary(),
-                pmml.getTransformationDictionary(),
-                model,
-                new HasClassLoaderMock());
+        final CommonCompilationDTO<ClusteringModel> compilationDTO =
+                CommonCompilationDTO.fromGeneratedPackageNameAndFields(PACKAGE_NAME,
+                                                                       pmml,
+                                                                       model,
+                                                                       new HasClassLoaderMock());
+        KiePMMLClusteringModel retrieved = PROVIDER.getKiePMMLModel(compilationDTO);
 
-        assertNotNull(retrieved);
-        assertTrue(retrieved instanceof Serializable);
+        assertThat(retrieved).isNotNull();
+        assertThat(retrieved).isInstanceOf(Serializable.class);
     }
 
     @Test
     public void getKiePMMLModelWithSources() throws Exception {
         PMML pmml = TestUtils.loadFromFile(SOURCE_FILE);
         ClusteringModel model = getModel(pmml);
+        final CommonCompilationDTO<ClusteringModel> compilationDTO =
+                CommonCompilationDTO.fromGeneratedPackageNameAndFields(PACKAGE_NAME,
+                                                                       pmml,
+                                                                       model,
+                                                                       new HasClassLoaderMock());
+        KiePMMLModelWithSources retrieved = PROVIDER.getKiePMMLModelWithSources(compilationDTO);
 
-        KiePMMLClusteringModel retrieved = PROVIDER.getKiePMMLModelWithSources(PACKAGE_NAME,
-                pmml.getDataDictionary(),
-                pmml.getTransformationDictionary(),
-                model,
-                new HasClassLoaderMock());
-
-        assertNotNull(retrieved);
-        assertTrue(retrieved instanceof KiePMMLClusteringModelWithSources);
-
-        KiePMMLClusteringModelWithSources retrievedWithSources = (KiePMMLClusteringModelWithSources) retrieved;
-        assertTrue(retrievedWithSources instanceof Serializable);
-
-        Map<String, String> sourcesMap = retrievedWithSources.getSourcesMap();
-        assertNotNull(sourcesMap);
-        assertFalse(sourcesMap.isEmpty());
+        assertThat(retrieved).isNotNull();
+        Map<String, String> sourcesMap = retrieved.getSourcesMap();
+        assertThat(sourcesMap).isNotNull();
+        assertThat(sourcesMap).isNotEmpty();
 
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         Map<String, Class<?>> compiled = KieMemoryCompiler.compile(sourcesMap, classLoader);
         for (Class<?> clazz : compiled.values()) {
-            assertTrue(clazz instanceof Serializable);
+            assertThat(clazz).isInstanceOf(Serializable.class);
         }
-    }
-
-    private static ClusteringModel getModel(PMML pmml) {
-        assertNotNull(pmml);
-        assertEquals(1, pmml.getModels().size());
-
-        Model model = pmml.getModels().get(0);
-        assertTrue(model instanceof ClusteringModel);
-
-        return (ClusteringModel) model;
     }
 }

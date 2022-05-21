@@ -14,10 +14,10 @@
 
 package org.drools.mvel.extractors;
 
-import org.drools.core.base.ClassFieldAccessor;
+import org.drools.mvel.accessors.ClassFieldAccessor;
 import org.drools.core.base.ClassFieldAccessorCache;
-import org.drools.core.base.ClassFieldAccessorStore;
-import org.drools.core.base.ClassFieldReader;
+import org.drools.mvel.accessors.ClassFieldAccessorStore;
+import org.drools.mvel.accessors.ClassFieldReader;
 import org.drools.core.base.ConcreteChild;
 import org.drools.core.util.asm.BeanInherit;
 import org.drools.core.util.asm.InterfaceChild;
@@ -157,9 +157,6 @@ public class ClassFieldAccessorTest {
             assertEquals( "Error reading int attr",
                                  10,
                                  ((Integer) intAccessor.getValue( instance )).intValue() );
-            assertEquals( "Error reading int attr",
-                                 10,
-                                 intAccessor.getIntValue( instance ) );
             assertEquals( "Error reading String attr",
                                  testString1,
                                  strAccessor.getValue( instance ) );
@@ -176,11 +173,6 @@ public class ClassFieldAccessorTest {
                                  testString2,
                                  instance.getStrAttr() );
 
-            intAccessor.setIntValue( instance,
-                                     40 );
-            assertEquals( "Error reading int attr",
-                                 40,
-                                 intAccessor.getIntValue( instance ) );
             assertEquals( "Error reading String attr",
                                  testString2,
                                  strAccessor.getValue( instance ) );

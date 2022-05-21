@@ -20,17 +20,13 @@ import org.drools.beliefs.bayes.assembler.BayesPackage;
 import org.drools.compiler.builder.impl.KnowledgeBuilderImpl;
 import org.drools.core.definitions.InternalKnowledgePackage;
 import org.drools.core.definitions.ResourceTypePackageRegistry;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
 import org.junit.Test;
-import org.kie.api.KieBaseConfiguration;
 import org.kie.api.io.ResourceType;
 import org.kie.internal.io.ResourceFactory;
-import org.kie.api.internal.io.ResourceTypePackage;
 
-import java.util.Map;
-
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class WeaverTest {
 
@@ -47,14 +43,10 @@ public class WeaverTest {
         ResourceTypePackageRegistry map = kpkg.getResourceTypePackages();
         BayesPackage existing  = (BayesPackage) map.get( ResourceType.BAYES );
         JunctionTree jtree =  existing.getJunctionTree("Garden");
-        assertNotNull( jtree );
+        assertThat(jtree).isNotNull();
     }
 
     protected InternalKnowledgeBase getKnowledgeBase() {
         return KnowledgeBaseFactory.newKnowledgeBase();
-    }
-
-    protected InternalKnowledgeBase getKnowledgeBase(KieBaseConfiguration kBaseConfig) {
-        return KnowledgeBaseFactory.newKnowledgeBase(kBaseConfig);
     }
 }

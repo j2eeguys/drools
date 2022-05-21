@@ -18,10 +18,10 @@ package org.drools.core.common;
 import java.io.Serializable;
 
 import org.drools.core.definitions.rule.impl.RuleImpl;
-import org.drools.core.marshalling.impl.MarshallerReaderContext;
+import org.drools.core.marshalling.MarshallerReaderContext;
+import org.drools.core.reteoo.RuntimeComponentFactory;
 import org.drools.core.reteoo.TerminalNode;
 import org.drools.core.rule.EntryPointId;
-import org.drools.core.spi.PropagationContext;
 import org.drools.core.util.bitmask.BitMask;
 
 public class PhreakPropagationContextFactory implements PropagationContextFactory, Serializable  {
@@ -71,11 +71,11 @@ public class PhreakPropagationContextFactory implements PropagationContextFactor
         return new PhreakPropagationContext(number, type, rule, terminalNode, factHandle);
     }
 
-    public static PropagationContext createPropagationContextForFact( InternalWorkingMemory workingMemory, InternalFactHandle factHandle, PropagationContext.Type propagationType ) {
-        PropagationContextFactory pctxFactory = workingMemory.getKnowledgeBase().getConfiguration().getComponentFactory().getPropagationContextFactory();
+    public static PropagationContext createPropagationContextForFact( ReteEvaluator reteEvaluator, InternalFactHandle factHandle, PropagationContext.Type propagationType ) {
+        PropagationContextFactory pctxFactory = RuntimeComponentFactory.get().getPropagationContextFactory();
 
         // if the fact is still in the working memory (since it may have been previously retracted already
-        return pctxFactory.createPropagationContext( workingMemory.getNextPropagationIdCounter(), propagationType,
+        return pctxFactory.createPropagationContext( reteEvaluator.getNextPropagationIdCounter(), propagationType,
                                                      null, null, factHandle );
     }
 }

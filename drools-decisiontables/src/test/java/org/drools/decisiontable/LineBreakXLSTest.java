@@ -1,8 +1,8 @@
 package org.drools.decisiontable;
 
 import com.sample.FactData;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
 import org.junit.Test;
 import org.kie.api.io.ResourceType;
 import org.kie.api.runtime.KieSession;
@@ -25,7 +25,7 @@ public class LineBreakXLSTest {
         DecisionTableConfiguration dtconf = KnowledgeBuilderFactory.newDecisionTableConfiguration();
         dtconf.setInputType(DecisionTableInputType.XLSX);
         KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
-        kbuilder.add(ResourceFactory.newClassPathResource("testrule.xlsx", getClass()), ResourceType.DTABLE, dtconf);
+        kbuilder.add(ResourceFactory.newClassPathResource("testrule.drl.xlsx", getClass()), ResourceType.DTABLE, dtconf);
         if (kbuilder.hasErrors()) {
             fail(kbuilder.getErrors().toString());
         }
@@ -51,7 +51,7 @@ public class LineBreakXLSTest {
         DecisionTableConfiguration dtconf = KnowledgeBuilderFactory.newDecisionTableConfiguration();
         dtconf.setInputType(DecisionTableInputType.XLS);
         KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
-        kbuilder.add(ResourceFactory.newClassPathResource("MultiLinesInAction.xls", getClass()), ResourceType.DTABLE, dtconf);
+        kbuilder.add(ResourceFactory.newClassPathResource("MultiLinesInAction.drl.xls", getClass()), ResourceType.DTABLE, dtconf);
         if (kbuilder.hasErrors()) {
             fail(kbuilder.getErrors().toString());
         }
@@ -79,7 +79,7 @@ public class LineBreakXLSTest {
         DecisionTableConfiguration dtconf = KnowledgeBuilderFactory.newDecisionTableConfiguration();
         dtconf.setInputType(DecisionTableInputType.XLS);
         KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
-        kbuilder.add(ResourceFactory.newClassPathResource("MultiLinesInCells.xls", getClass()), ResourceType.DTABLE, dtconf);
+        kbuilder.add(ResourceFactory.newClassPathResource("MultiLinesInCells.drl.xls", getClass()), ResourceType.DTABLE, dtconf);
         if (kbuilder.hasErrors()) {
             fail(kbuilder.getErrors().toString());
         }

@@ -21,14 +21,15 @@ import org.drools.compiler.builder.impl.KnowledgeBuilderImpl;
 import org.drools.compiler.builder.impl.TypeDeclarationBuilder;
 import org.drools.compiler.compiler.PackageRegistry;
 import org.drools.compiler.compiler.TypeDeclarationError;
-import org.drools.compiler.lang.descr.AbstractClassTypeDeclarationDescr;
-import org.drools.compiler.lang.descr.TypeDeclarationDescr;
+import org.drools.drl.ast.descr.AbstractClassTypeDeclarationDescr;
+import org.drools.drl.ast.descr.TypeDeclarationDescr;
 import org.drools.core.factmodel.ClassDefinition;
 import org.drools.core.factmodel.FieldDefinition;
 import org.drools.core.factmodel.traits.Thing;
 import org.drools.core.factmodel.traits.Trait;
 import org.drools.core.factmodel.traits.Traitable;
 import org.drools.core.rule.TypeDeclaration;
+import org.drools.traits.core.definitions.impl.TraitKnowledgePackageImpl;
 import org.drools.traits.core.factmodel.TraitClassBuilderImpl;
 import org.drools.traits.core.factmodel.TraitFactoryImpl;
 import org.drools.traits.core.factmodel.TraitRegistryImpl;
@@ -41,16 +42,16 @@ public class TraitsTypeDeclarationBuilderImpl extends TypeDeclarationBuilder {
 
     @Override
     protected void postGenerateDeclaredBean(AbstractClassTypeDeclarationDescr typeDescr, TypeDeclaration type, ClassDefinition def, PackageRegistry pkgRegistry) {
-        traitRegistry = (TraitRegistryImpl) pkgRegistry.getTraitRegistry();
+        traitRegistry = ((TraitKnowledgePackageImpl)pkgRegistry.getPackage()).getTraitRegistry();
         if ( typeDescr.hasAnnotation(Traitable.class )
                 || ( ! type.getKind().equals(TypeDeclaration.Kind.TRAIT ) &&
-                kbuilder.getPackageRegistry().containsKey(def.getSuperClass() ) &&
+                context.getPackageRegistry().containsKey(def.getSuperClass() ) &&
                 traitRegistry.getTraitables().containsKey( def.getSuperClass() )
         )) {
             // traitable
             if ( type.isNovel() ) {
                 try {
-                    PackageRegistry reg = kbuilder.getPackageRegistry(typeDescr.getNamespace() );
+                    PackageRegistry reg = context.getPackageRegistry(typeDescr.getNamespace() );
                     String availableName = typeDescr.getType().getFullName();
                     Class<?> resolvedType = reg.getTypeResolver().resolveType( availableName );
                     updateTraitDefinition(type,
@@ -66,12 +67,12 @@ public class TraitsTypeDeclarationBuilderImpl extends TypeDeclarationBuilder {
             // trait
             if ( ! type.isNovel() ) {
                 try {
-                    PackageRegistry reg = kbuilder.getPackageRegistry(typeDescr.getNamespace());
+                    PackageRegistry reg = context.getPackageRegistry(typeDescr.getNamespace());
                     String availableName = typeDescr.getType().getFullName();
                     Class<?> resolvedType = reg.getTypeResolver().resolveType(availableName);
                     if (!Thing.class.isAssignableFrom(resolvedType)) {
                         if ( ! resolvedType.isInterface() ) {
-                            kbuilder.addBuilderResult(new TypeDeclarationError(typeDescr, "Unable to redeclare concrete class " + resolvedType.getName() + " as a trait." ) );
+                            context.addBuilderResult(new TypeDeclarationError(typeDescr, "Unable to redeclare concrete class " + resolvedType.getName() + " as a trait." ) );
                             return;
                         }
                         updateTraitDefinition(type,
@@ -119,7 +120,7 @@ public class TraitsTypeDeclarationBuilderImpl extends TypeDeclarationBuilder {
                                                    tempDef );
 
                         } catch (ClassNotFoundException cnfe) {
-                            kbuilder.addBuilderResult(new TypeDeclarationError(typeDescr,
+                            context.addBuilderResult(new TypeDeclarationError(typeDescr,
                                                                                "Internal Trait extension Class '" + target +
                                                                                         "' could not be generated correctly'" ) );
                         } finally {

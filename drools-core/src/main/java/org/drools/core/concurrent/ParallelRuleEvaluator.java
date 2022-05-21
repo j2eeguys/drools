@@ -22,12 +22,12 @@ import java.util.concurrent.CompletionService;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import org.drools.core.common.DefaultAgenda;
+import org.drools.core.common.ActivationsManager;
 import org.drools.core.common.InternalAgendaGroup;
 import org.drools.core.common.RuleBasePartitionId;
 import org.drools.core.phreak.RuleAgendaItem;
-import org.drools.core.spi.Activation;
-import org.drools.core.spi.KnowledgeHelper;
+import org.drools.core.rule.consequence.Activation;
+import org.drools.core.rule.consequence.KnowledgeHelper;
 import org.kie.api.runtime.rule.AgendaFilter;
 import org.kie.internal.concurrent.ExecutorProviderFactory;
 
@@ -44,8 +44,8 @@ public class ParallelRuleEvaluator extends AbstractRuleEvaluator implements Rule
     private int fireCount;
     private int fireLimit;
 
-    public ParallelRuleEvaluator( DefaultAgenda agenda ) {
-        super(agenda);
+    public ParallelRuleEvaluator( ActivationsManager activationsManager ) {
+        super(activationsManager);
         for (int i = 0; i < evaluatorsNr; i++) {
             evaluators[i] = new RuleEvaluatorCallable();
         }

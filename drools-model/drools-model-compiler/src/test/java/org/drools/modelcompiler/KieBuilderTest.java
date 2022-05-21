@@ -17,11 +17,11 @@
 package org.drools.modelcompiler;
 
 import org.drools.compiler.kie.builder.impl.DrlProject;
-import org.drools.core.impl.InternalKnowledgeBase;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
 import org.drools.core.reteoo.AlphaNode;
 import org.drools.core.reteoo.EntryPointNode;
 import org.drools.core.reteoo.ObjectTypeNode;
-import org.drools.core.spi.AlphaNodeFieldConstraint;
+import org.drools.core.rule.constraint.AlphaNodeFieldConstraint;
 import org.drools.modelcompiler.constraints.LambdaConstraint;
 import org.junit.Test;
 import org.kie.api.KieServices;

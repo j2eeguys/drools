@@ -14,11 +14,9 @@ import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.IntegerLiteralExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
-import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
-import org.drools.compiler.kproject.ReleaseIdImpl;
 import org.drools.core.util.Drools;
 import org.drools.model.Model;
 import org.drools.modelcompiler.CanonicalKieModule;
@@ -28,12 +26,14 @@ import org.kie.api.builder.model.KieBaseModel;
 import org.kie.api.builder.model.KieModuleModel;
 import org.kie.api.builder.model.KieSessionModel;
 import org.kie.api.conf.SessionsPoolOption;
+import org.kie.util.maven.support.ReleaseIdImpl;
 
 import static com.github.javaparser.StaticJavaParser.parseExpression;
 import static com.github.javaparser.StaticJavaParser.parseStatement;
 import static com.github.javaparser.ast.Modifier.publicModifier;
 import static com.github.javaparser.ast.NodeList.nodeList;
 import static org.drools.modelcompiler.builder.generator.DrlxParseUtil.createSimpleAnnotation;
+import static org.drools.modelcompiler.builder.generator.DrlxParseUtil.toStringLiteral;
 import static org.drools.modelcompiler.util.StringUtil.toId;
 
 public class ModelSourceClass {
@@ -257,13 +257,13 @@ public class ModelSourceClass {
 
             private void kieBaseModelPackages() {
                 for (String p : kieBaseModel.getPackages()) {
-                    stmt.addStatement(new MethodCallExpr(kieBaseModelNameExpr, "addPackage", nodeList(new StringLiteralExpr(p))));
+                    stmt.addStatement(new MethodCallExpr(kieBaseModelNameExpr, "addPackage", nodeList(toStringLiteral(p))));
                 }
             }
 
             private void kieBaseModelIncludes() {
                 for (String p : kieBaseModel.getIncludes()) {
-                    stmt.addStatement(new MethodCallExpr(kieBaseModelNameExpr, "addInclude", nodeList(new StringLiteralExpr(p))));
+                    stmt.addStatement(new MethodCallExpr(kieBaseModelNameExpr, "addInclude", nodeList(toStringLiteral(p))));
                 }
             }
 
@@ -318,7 +318,7 @@ public class ModelSourceClass {
 
             private void setClockType() {
                 NameExpr type = new NameExpr(kieSessionModel.getClockType().getClass().getCanonicalName());
-                MethodCallExpr clockTypeEnum = new MethodCallExpr(type, "get", nodeList(new StringLiteralExpr(kieSessionModel.getClockType().getClockType())));
+                MethodCallExpr clockTypeEnum = new MethodCallExpr(type, "get", nodeList(toStringLiteral(kieSessionModel.getClockType().getClockType())));
                 stmt.addStatement(new MethodCallExpr(nameExpr, "setClockType", nodeList(clockTypeEnum)));
 
                 confBlock.addStatement(new MethodCallExpr(confExpr, "setOption", nodeList(clockTypeEnum.clone())));
@@ -347,7 +347,7 @@ public class ModelSourceClass {
         }
 
         private AssignExpr newInstance( String type, String variableName, NameExpr scope, String methodName, String parameter) {
-            MethodCallExpr initMethod = new MethodCallExpr(scope, methodName, nodeList(new StringLiteralExpr(parameter)));
+            MethodCallExpr initMethod = new MethodCallExpr(scope, methodName, nodeList(toStringLiteral(parameter)));
             VariableDeclarationExpr var = new VariableDeclarationExpr(new ClassOrInterfaceType(null, type), variableName);
             return new AssignExpr(var, initMethod, AssignExpr.Operator.ASSIGN);
         }

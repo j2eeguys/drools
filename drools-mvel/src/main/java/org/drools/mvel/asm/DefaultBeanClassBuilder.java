@@ -17,24 +17,24 @@ package org.drools.mvel.asm;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import org.drools.core.factmodel.AnnotationDefinition;
-import org.drools.core.factmodel.BeanClassBuilder;
-import org.drools.core.factmodel.BuildUtils;
+import org.drools.compiler.builder.impl.classbuilder.BeanClassBuilder;
+import org.drools.compiler.builder.impl.classbuilder.BuildUtils;
 import org.drools.core.factmodel.ClassDefinition;
 import org.drools.core.factmodel.FieldDefinition;
 import org.drools.core.factmodel.GeneratedFact;
 import org.drools.core.factmodel.traits.Thing;
+import org.drools.core.factmodel.traits.TraitConstants;
 import org.drools.core.factmodel.traits.TraitFieldTMS;
 import org.drools.core.factmodel.traits.TraitTypeMapConstants;
-import org.drools.core.factmodel.traits.TraitableBean;
 import org.drools.core.phreak.ReactiveObject;
 import org.kie.api.definition.type.FactField;
 import org.mvel2.asm.AnnotationVisitor;
@@ -46,6 +46,8 @@ import org.mvel2.asm.MethodVisitor;
 import org.mvel2.asm.Opcodes;
 import org.mvel2.asm.Type;
 
+import static org.drools.compiler.builder.impl.classbuilder.BuildUtils.getDescriptor;
+import static org.drools.compiler.builder.impl.classbuilder.BuildUtils.getSignature;
 import static org.drools.mvel.asm.ClassGenerator.createClassWriter;
 
 /**
@@ -145,7 +147,7 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
                 mv.visitVarInsn( ALOAD, 0 );
                 mv.visitFieldInsn( Opcodes.GETFIELD,
                                    BuildUtils.getInternalType( classDef.getClassName() ),
-                                   TraitableBean.MAP_FIELD_NAME,
+                                   TraitConstants.MAP_FIELD_NAME,
                                    Type.getDescriptor( Map.class ) );
                 mv.visitMethodInsn( INVOKEINTERFACE,
                                     "java/io/ObjectOutput",
@@ -156,7 +158,7 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
                 mv.visitVarInsn( ALOAD, 0 );
                 mv.visitFieldInsn( Opcodes.GETFIELD,
                                    BuildUtils.getInternalType( classDef.getClassName() ),
-                                   TraitableBean.TRAITSET_FIELD_NAME,
+                                   TraitConstants.TRAITSET_FIELD_NAME,
                                    Type.getDescriptor( Map.class ) );
                 mv.visitMethodInsn( INVOKEINTERFACE,
                                     "java/io/ObjectOutput",
@@ -168,7 +170,7 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
                     mv.visitVarInsn( ALOAD, 0 );
                     mv.visitFieldInsn( Opcodes.GETFIELD,
                                        BuildUtils.getInternalType( classDef.getClassName() ),
-                                       TraitableBean.FIELDTMS_FIELD_NAME,
+                                       TraitConstants.FIELDTMS_FIELD_NAME,
                                        Type.getDescriptor( TraitFieldTMS.class ) );
                     mv.visitMethodInsn( INVOKEINTERFACE,
                                         "java/io/ObjectOutput",
@@ -213,7 +215,7 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
                 mv.visitTypeInsn( CHECKCAST, "java/util/Map" );
                 mv.visitFieldInsn( Opcodes.PUTFIELD,
                                    BuildUtils.getInternalType( classDef.getClassName() ),
-                                   TraitableBean.MAP_FIELD_NAME,
+                                   TraitConstants.MAP_FIELD_NAME,
                                    Type.getDescriptor( Map.class ) );
 //
                 mv.visitVarInsn( ALOAD, 0 );
@@ -225,7 +227,7 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
                 mv.visitTypeInsn( CHECKCAST, "java/util/Map" );
                 mv.visitFieldInsn( Opcodes.PUTFIELD,
                                    BuildUtils.getInternalType( classDef.getClassName() ),
-                                   TraitableBean.TRAITSET_FIELD_NAME,
+                                   TraitConstants.TRAITSET_FIELD_NAME,
                                    Type.getDescriptor( Map.class ) );
 
                 if ( classDef.isFullTraiting() ) {
@@ -238,7 +240,7 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
                     mv.visitTypeInsn( CHECKCAST, Type.getInternalName( TraitFieldTMS.class ) );
                     mv.visitFieldInsn( Opcodes.PUTFIELD,
                                        BuildUtils.getInternalType( classDef.getClassName() ),
-                                       TraitableBean.FIELDTMS_FIELD_NAME,
+                                       TraitConstants.FIELDTMS_FIELD_NAME,
                                        Type.getDescriptor( TraitFieldTMS.class ) );
                 }
             }
@@ -310,7 +312,7 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
             private Collection<Tuple> _lts;
          */
         {
-            fv = cw.visitField( ACC_PRIVATE, LEFT_TUPLES_FIELD_NAME, "Ljava/util/Collection;", "Ljava/util/Collection<Lorg/drools/core/spi/Tuple;>;", null );
+            fv = cw.visitField( ACC_PRIVATE, LEFT_TUPLES_FIELD_NAME, "Ljava/util/Collection;", "Ljava/util/Collection<Lorg/drools/core/reteoo/Tuple;>;", null );
             fv.visitEnd();
         }
 
@@ -324,7 +326,7 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
             }
          */
         {
-            mv = cw.visitMethod( ACC_PUBLIC, "addLeftTuple", "(Lorg/drools/core/spi/Tuple;)V", null, null );
+            mv = cw.visitMethod( ACC_PUBLIC, "addLeftTuple", "(Lorg/drools/core/reteoo/Tuple;)V", null, null );
             mv.visitCode();
             Label l0 = new Label();
             mv.visitLabel( l0 );
@@ -356,7 +358,7 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
             Label l4 = new Label();
             mv.visitLabel( l4 );
             mv.visitLocalVariable( "this", "L" + TYPE_NAME + ";", null, l0, l4, 0 );
-            mv.visitLocalVariable( "leftTuple", "Lorg/drools/core/spi/Tuple;", null, l0, l4, 1 );
+            mv.visitLocalVariable( "leftTuple", "Lorg/drools/core/reteoo/Tuple;", null, l0, l4, 1 );
             mv.visitMaxs( 3, 2 );
             mv.visitEnd();
         }
@@ -366,7 +368,7 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
             }
          */
         {
-            mv = cw.visitMethod( ACC_PUBLIC, "getLeftTuples", "()Ljava/util/Collection;", "()Ljava/util/Collection<Lorg/drools/core/spi/Tuple;>;", null );
+            mv = cw.visitMethod( ACC_PUBLIC, "getLeftTuples", "()Ljava/util/Collection;", "()Ljava/util/Collection<Lorg/drools/core/reteoo/Tuple;>;", null );
             mv.visitCode();
             Label l0 = new Label();
             mv.visitLabel( l0 );
@@ -420,7 +422,7 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
             }
          */
         {
-            mv = cw.visitMethod( ACC_PUBLIC, "removeLeftTuple", "(Lorg/drools/core/spi/Tuple;)V", null, null );
+            mv = cw.visitMethod( ACC_PUBLIC, "removeLeftTuple", "(Lorg/drools/core/reteoo/Tuple;)V", null, null );
             mv.visitCode();
             Label l0 = new Label();
             mv.visitLabel( l0 );
@@ -437,7 +439,7 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
             Label l2 = new Label();
             mv.visitLabel( l2 );
             mv.visitLocalVariable( "this", "Lorg/drools/core/phreak/AbstractReactiveObject;", null, l0, l2, 0 );
-            mv.visitLocalVariable( "leftTuple", "Lorg/drools/core/spi/Tuple;", null, l0, l2, 1 );
+            mv.visitLocalVariable( "leftTuple", "Lorg/drools/core/reteoo/Tuple;", null, l0, l2, 1 );
             mv.visitMaxs( 2, 2 );
             mv.visitEnd();
         }
@@ -487,7 +489,7 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
     protected void buildTraitMap(ClassWriter cw, ClassDefinition classDef) {
 
         FieldVisitor fv = cw.visitField( ACC_PRIVATE,
-                                         TraitableBean.TRAITSET_FIELD_NAME,
+                                         TraitConstants.TRAITSET_FIELD_NAME,
                                          Type.getDescriptor( Map.class ),
                                          "Ljava/util/Map<Ljava/lang/String;Lorg/drools/core/factmodel/traits/Thing;>;",
                                          null );
@@ -504,7 +506,7 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
         mv.visitVarInsn( ALOAD, 0 );
         mv.visitFieldInsn( GETFIELD,
                            BuildUtils.getInternalType( classDef.getName() ),
-                           TraitableBean.TRAITSET_FIELD_NAME,
+                           TraitConstants.TRAITSET_FIELD_NAME,
                            Type.getDescriptor( Map.class ) );
         mv.visitInsn(ARETURN);
         mv.visitMaxs( 0, 0 );
@@ -514,7 +516,7 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
         mv.visitCode();
         mv.visitVarInsn( ALOAD, 0 );
         mv.visitVarInsn( ALOAD, 1 );
-        mv.visitFieldInsn( PUTFIELD, BuildUtils.getInternalType( classDef.getName() ), TraitableBean.TRAITSET_FIELD_NAME, Type.getDescriptor( Map.class ));
+        mv.visitFieldInsn( PUTFIELD, BuildUtils.getInternalType( classDef.getName() ), TraitConstants.TRAITSET_FIELD_NAME, Type.getDescriptor( Map.class ));
         mv.visitInsn( RETURN );
         mv.visitMaxs( 0, 0 );
         mv.visitEnd();
@@ -601,11 +603,11 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
                              null );
         mv.visitCode();
         mv.visitVarInsn( ALOAD, 0 );
-        mv.visitFieldInsn( GETFIELD, BuildUtils.getInternalType( classDef.getName() ),TraitableBean.TRAITSET_FIELD_NAME, Type.getDescriptor( Map.class ) );
+        mv.visitFieldInsn( GETFIELD, BuildUtils.getInternalType( classDef.getName() ),TraitConstants.TRAITSET_FIELD_NAME, Type.getDescriptor( Map.class ) );
         Label l5 = new Label();
         mv.visitJumpInsn( IFNULL, l5 );
         mv.visitVarInsn( ALOAD, 0 );
-        mv.visitFieldInsn( GETFIELD, BuildUtils.getInternalType( classDef.getName() ), TraitableBean.TRAITSET_FIELD_NAME, Type.getDescriptor( Map.class ) );
+        mv.visitFieldInsn( GETFIELD, BuildUtils.getInternalType( classDef.getName() ), TraitConstants.TRAITSET_FIELD_NAME, Type.getDescriptor( Map.class ) );
         mv.visitMethodInsn( INVOKEINTERFACE, Type.getInternalName( Map.class ), "isEmpty", Type.getMethodDescriptor( Type.BOOLEAN_TYPE, new Type[] {} ) );
         mv.visitJumpInsn( IFNE, l5 );
         mv.visitInsn( ICONST_1 );
@@ -676,7 +678,7 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
                              null, null );
         mv.visitCode();
         mv.visitVarInsn( ALOAD, 0 );
-        mv.visitFieldInsn( GETFIELD, BuildUtils.getInternalType( classDef.getName() ), TraitableBean.TRAITSET_FIELD_NAME , Type.getDescriptor( Map.class ) );
+        mv.visitFieldInsn( GETFIELD, BuildUtils.getInternalType( classDef.getName() ), TraitConstants.TRAITSET_FIELD_NAME , Type.getDescriptor( Map.class ) );
         mv.visitTypeInsn( CHECKCAST, TraitTypeMapConstants.TYPE_NAME );
         mv.visitVarInsn( ALOAD, 1 );
         mv.visitMethodInsn( INVOKEVIRTUAL,
@@ -696,7 +698,7 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
 
         mv.visitVarInsn( ALOAD, 0 );
         mv.visitFieldInsn( GETFIELD, BuildUtils.getInternalType( classDef.getName() ),
-                           TraitableBean.TRAITSET_FIELD_NAME ,
+                           TraitConstants.TRAITSET_FIELD_NAME ,
                            Type.getDescriptor( Map.class ) );
 
 
@@ -704,7 +706,7 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
         mv.visitJumpInsn( IFNULL, l99 );
         mv.visitVarInsn( ALOAD, 0 );
         mv.visitFieldInsn( GETFIELD, BuildUtils.getInternalType( classDef.getName() ),
-                           TraitableBean.TRAITSET_FIELD_NAME ,
+                           TraitConstants.TRAITSET_FIELD_NAME ,
                            Type.getDescriptor( Map.class ) );
         mv.visitTypeInsn( CHECKCAST, TraitTypeMapConstants.TYPE_NAME );
         mv.visitMethodInsn( INVOKEVIRTUAL,
@@ -730,7 +732,7 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
         mv.visitVarInsn( ALOAD, 0 );
         mv.visitFieldInsn( GETFIELD,
                            BuildUtils.getInternalType( classDef.getName() ),
-                           TraitableBean.TRAITSET_FIELD_NAME,
+                           TraitConstants.TRAITSET_FIELD_NAME,
                            Type.getDescriptor( Map.class ) );
         Label l3 = new Label();
         mv.visitJumpInsn( IFNONNULL, l3 );
@@ -740,7 +742,7 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
         mv.visitVarInsn( ALOAD, 0 );
         mv.visitFieldInsn( GETFIELD,
                            BuildUtils.getInternalType( classDef.getName() ),
-                           TraitableBean.TRAITSET_FIELD_NAME,
+                           TraitConstants.TRAITSET_FIELD_NAME,
                            Type.getDescriptor( Map.class ) );
         mv.visitTypeInsn( CHECKCAST, TraitTypeMapConstants.TYPE_NAME );
         mv.visitMethodInsn( INVOKEVIRTUAL,
@@ -768,7 +770,7 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
     protected void buildDynamicPropertyMap( ClassWriter cw, ClassDefinition def ) {
 
         FieldVisitor fv = cw.visitField( Opcodes.ACC_PRIVATE,
-                                         TraitableBean.MAP_FIELD_NAME,
+                                         TraitConstants.MAP_FIELD_NAME,
                                          Type.getDescriptor( Map.class ) ,
                                          "Ljava/util/Map<Ljava/lang/String;Ljava/lang/Object;>;",
                                          null);
@@ -781,7 +783,7 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
                                            null);
         mv.visitCode();
         mv.visitVarInsn( ALOAD, 0 );
-        mv.visitFieldInsn( GETFIELD, BuildUtils.getInternalType(def.getName()), TraitableBean.MAP_FIELD_NAME, Type.getDescriptor( Map.class ) );
+        mv.visitFieldInsn( GETFIELD, BuildUtils.getInternalType(def.getName()), TraitConstants.MAP_FIELD_NAME, Type.getDescriptor( Map.class ) );
         mv.visitInsn( ARETURN );
         mv.visitMaxs( 0, 0 );
         mv.visitEnd();
@@ -796,7 +798,7 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
         mv.visitCode();
         mv.visitVarInsn( ALOAD, 0 );
         mv.visitVarInsn( ALOAD, 1 );
-        mv.visitFieldInsn ( PUTFIELD, BuildUtils.getInternalType( def.getName() ), TraitableBean.MAP_FIELD_NAME, Type.getDescriptor( Map.class ) );
+        mv.visitFieldInsn ( PUTFIELD, BuildUtils.getInternalType( def.getName() ), TraitConstants.MAP_FIELD_NAME, Type.getDescriptor( Map.class ) );
         mv.visitInsn( RETURN) ;
         mv.visitMaxs( 0, 0 );
         mv.visitEnd();
@@ -815,7 +817,7 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
     protected void buildFieldTMS( ClassWriter cw, ClassDefinition def ) {
 
         FieldVisitor fv = cw.visitField( Opcodes.ACC_PRIVATE,
-                                         TraitableBean.FIELDTMS_FIELD_NAME,
+                                         TraitConstants.FIELDTMS_FIELD_NAME,
                                          Type.getDescriptor( TraitFieldTMS.class ),
                                          null,
                                          null );
@@ -828,7 +830,7 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
                                            null);
         mv.visitCode();
         mv.visitVarInsn( ALOAD, 0 );
-        mv.visitFieldInsn( GETFIELD, BuildUtils.getInternalType( def.getName() ), TraitableBean.FIELDTMS_FIELD_NAME, Type.getDescriptor( TraitFieldTMS.class ) );
+        mv.visitFieldInsn( GETFIELD, BuildUtils.getInternalType( def.getName() ), TraitConstants.FIELDTMS_FIELD_NAME, Type.getDescriptor( TraitFieldTMS.class ) );
         mv.visitInsn( ARETURN );
         mv.visitMaxs( 0, 0 );
         mv.visitEnd();
@@ -841,7 +843,7 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
         mv.visitCode();
         mv.visitVarInsn( ALOAD, 0 );
         mv.visitVarInsn( ALOAD, 1 );
-        mv.visitFieldInsn ( PUTFIELD, BuildUtils.getInternalType( def.getName() ), TraitableBean.FIELDTMS_FIELD_NAME, Type.getDescriptor( TraitFieldTMS.class ) );
+        mv.visitFieldInsn ( PUTFIELD, BuildUtils.getInternalType( def.getName() ), TraitConstants.FIELDTMS_FIELD_NAME, Type.getDescriptor( TraitFieldTMS.class ) );
         mv.visitInsn( RETURN) ;
         mv.visitMaxs( 0, 0 );
         mv.visitEnd();
@@ -898,8 +900,8 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
                                FieldDefinition fieldDef) {
         FieldVisitor fv = cw.visitField( Opcodes.ACC_PROTECTED,
                                          fieldDef.getName(),
-                                         fieldDef.getGenericType().getDescriptor(),
-                                         fieldDef.getGenericType().getSignature(),
+                                         getDescriptor(fieldDef.getGenericType()),
+                                         getSignature(fieldDef.getGenericType()),
                                          null );
 
 
@@ -1065,12 +1067,12 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
             mv.visitTypeInsn( NEW, TraitFieldTMS.TYPE_NAME );
             mv.visitInsn( DUP );
             mv.visitMethodInsn( INVOKESPECIAL, TraitFieldTMS.TYPE_NAME, "<init>", "()V" );
-            mv.visitFieldInsn( PUTFIELD, BuildUtils.getInternalType( classDef.getClassName() ), TraitableBean.FIELDTMS_FIELD_NAME, Type.getDescriptor( TraitFieldTMS.class ) );
+            mv.visitFieldInsn( PUTFIELD, BuildUtils.getInternalType( classDef.getClassName() ), TraitConstants.FIELDTMS_FIELD_NAME, Type.getDescriptor( TraitFieldTMS.class ) );
 
             for ( FactField hardField : classDef.getFields() ) {
                 FieldDefinition fld = (FieldDefinition) hardField;
                 mv.visitVarInsn( ALOAD, 0 );
-                mv.visitFieldInsn( GETFIELD, BuildUtils.getInternalType( classDef.getClassName() ), TraitableBean.FIELDTMS_FIELD_NAME, Type.getDescriptor( TraitFieldTMS.class ) );
+                mv.visitFieldInsn( GETFIELD, BuildUtils.getInternalType( classDef.getClassName() ), TraitConstants.FIELDTMS_FIELD_NAME, Type.getDescriptor( TraitFieldTMS.class ) );
 
                 mv.visitLdcInsn( Type.getType( BuildUtils.getTypeDescriptor( classDef.getClassName() ) ) );
 
@@ -1246,8 +1248,8 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
         {
             mv = cw.visitMethod( Opcodes.ACC_PUBLIC,
                                  fieldDef.getWriteMethod(),
-                                 "(" + fieldDef.getGenericType().getDescriptor() + ")V",
-                                 fieldDef.getGenericType().hasGenerics() ? "(" + fieldDef.getGenericType().getSignature() + ")V" : null,
+                                 "(" + getDescriptor(fieldDef.getGenericType()) + ")V",
+                                 fieldDef.getGenericType().hasGenerics() ? "(" + getSignature(fieldDef.getGenericType()) + ")V" : null,
                                  null );
             mv.visitCode();
             Label l0 = null;
@@ -1314,8 +1316,8 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
         {
             mv = cw.visitMethod( Opcodes.ACC_PUBLIC,
                                  fieldDef.getReadMethod(),
-                                 "()" + Type.getType( fieldDef.getGenericType().getDescriptor() ),
-                                 fieldDef.getGenericType().hasGenerics() ? "()" + fieldDef.getGenericType().getSignature() : null,
+                                 "()" + Type.getType( getDescriptor(fieldDef.getGenericType()) ),
+                                 fieldDef.getGenericType().hasGenerics() ? "()" + getSignature(fieldDef.getGenericType()) : null,
                                  null );
             mv.visitCode();
             Label l0 = null;
@@ -1969,7 +1971,7 @@ public class DefaultBeanClassBuilder implements Opcodes, BeanClassBuilder, Seria
         String fieldType = fieldDef.getTypeName();
 
         mv.visitVarInsn( ALOAD, 0 );
-        mv.visitFieldInsn( GETFIELD, BuildUtils.getInternalType( classDef.getClassName() ), TraitableBean.FIELDTMS_FIELD_NAME, Type.getDescriptor( TraitFieldTMS.class ) );
+        mv.visitFieldInsn( GETFIELD, BuildUtils.getInternalType( classDef.getClassName() ), TraitConstants.FIELDTMS_FIELD_NAME, Type.getDescriptor( TraitFieldTMS.class ) );
 
         mv.visitLdcInsn( fieldDef.resolveAlias() );
 

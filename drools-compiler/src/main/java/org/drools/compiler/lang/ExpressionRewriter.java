@@ -16,20 +16,20 @@
 package org.drools.compiler.lang;
 
 
-import org.drools.compiler.lang.descr.BaseDescr;
-import org.drools.compiler.lang.descr.ConstraintConnectiveDescr;
-import org.drools.compiler.lang.descr.OperatorDescr;
+import org.drools.drl.ast.descr.BaseDescr;
+import org.drools.drl.ast.descr.ConstraintConnectiveDescr;
+import org.drools.drl.ast.descr.OperatorDescr;
 
 public interface ExpressionRewriter {
 
     String dump( BaseDescr base );
 
     String dump( BaseDescr base,
-                 MVELDumper.MVELDumperContext context );
+                 DumperContext context );
 
     String dump( BaseDescr base,
                  ConstraintConnectiveDescr parent,
-                 MVELDumper.MVELDumperContext context );
+                 DumperContext context );
 
     String dump( BaseDescr base,
                  int parentPrecedence );
@@ -38,7 +38,7 @@ public interface ExpressionRewriter {
                         BaseDescr base,
                         int parentPriority,
                         boolean isInsideRelCons,
-                        MVELDumper.MVELDumperContext context );
+                        DumperContext context );
 
     StringBuilder dump( StringBuilder sbuilder,
                         BaseDescr base,
@@ -46,12 +46,10 @@ public interface ExpressionRewriter {
                         int parentIndex,
                         int parentPriority,
                         boolean isInsideRelCons,
-                        MVELDumper.MVELDumperContext context );
+                        DumperContext context );
 
-    String processRestriction( MVELDumper.MVELDumperContext context,
+    String processRestriction( DumperContext context,
                                String left,
                                OperatorDescr operator,
                                String right );
-
-    public Class<?> getEvaluatorWrapperClass();
 }

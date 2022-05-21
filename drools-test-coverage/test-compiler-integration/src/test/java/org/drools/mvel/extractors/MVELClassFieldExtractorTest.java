@@ -17,11 +17,11 @@ package org.drools.mvel.extractors;
 import java.util.Vector;
 
 import org.drools.core.base.ClassFieldAccessorCache;
-import org.drools.core.base.ClassFieldAccessorStore;
+import org.drools.mvel.accessors.ClassFieldAccessorStore;
 import org.drools.core.test.model.Address;
 import org.drools.core.test.model.Person;
 import org.drools.mvel.MVELDialectRuntimeData;
-import org.drools.reflective.classloader.ProjectClassLoader;
+import org.drools.wiring.api.classloader.ProjectClassLoader;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -201,7 +201,7 @@ public class MVELClassFieldExtractorTest {
             
             nullExtractor.compile( data );            
 //
-//            InternalReadAccessor nullExtractor = store.getReader( Person.class,
+//            ReadAccessor nullExtractor = store.getReader( Person.class,
 //                                                                  "addresses['business'].phone",
 //                                                                  getClass().getClassLoader() );
             assertTrue( nullExtractor.isNullValue( null,

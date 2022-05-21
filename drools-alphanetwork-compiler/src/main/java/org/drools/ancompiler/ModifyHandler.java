@@ -16,7 +16,6 @@
 
 package org.drools.ancompiler;
 
-import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.expr.Expression;
@@ -24,6 +23,7 @@ import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.stmt.Statement;
 import org.drools.core.reteoo.Sink;
 
+import static com.github.javaparser.StaticJavaParser.parseStatement;
 import static com.github.javaparser.ast.NodeList.nodeList;
 
 public class ModifyHandler extends PropagatorCompilerHandler {
@@ -34,7 +34,12 @@ public class ModifyHandler extends PropagatorCompilerHandler {
 
     @Override
     protected Statement propagateMethod(Sink sink) {
-        Statement modifyStatement = StaticJavaParser.parseStatement("ALPHATERMINALNODE.modifyObject(handle, modifyPreviousTuples, context, wm);");
+        Statement modifyStatement;
+        if (sinkCanBeInlined(sink)) {
+            modifyStatement = parseStatement("ALPHATERMINALNODE.collectObject();");
+        } else {
+            modifyStatement = parseStatement("ALPHATERMINALNODE.modifyObject(handle, modifyPreviousTuples, context, wm);");
+        }
         replaceNameExpr(modifyStatement, "ALPHATERMINALNODE", getVariableName(sink));
         return modifyStatement;
     }
@@ -44,7 +49,7 @@ public class ModifyHandler extends PropagatorCompilerHandler {
         return nodeList(new Parameter(factHandleType(), FACT_HANDLE_PARAM_NAME),
                         new Parameter(modifyPreviousTuplesType(), MODIFY_PREVIOUS_TUPLE_PARAM_NAME),
                         new Parameter(propagationContextType(), PROP_CONTEXT_PARAM_NAME),
-                        new Parameter(workingMemoryType(), WORKING_MEMORY_PARAM_NAME));
+                        new Parameter(reteEvaluatorType(), WORKING_MEMORY_PARAM_NAME));
     }
 
     @Override

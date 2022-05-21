@@ -22,21 +22,19 @@ import java.util.Map;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
-import org.dmg.pmml.DataDictionary;
-import org.dmg.pmml.TransformationDictionary;
 import org.kie.pmml.api.enums.MINING_FUNCTION;
 import org.kie.pmml.api.enums.PMML_MODEL;
 import org.kie.pmml.api.exceptions.KiePMMLException;
 import org.kie.pmml.api.exceptions.KiePMMLInternalException;
-import org.kie.pmml.commons.model.HasClassLoader;
+import org.kie.pmml.commons.model.KiePMMLModel;
 import org.kie.pmml.commons.testingutility.KiePMMLTestingModel;
-import org.kie.pmml.commons.testingutility.KiePMMLTestingModelWithSources;
+import org.kie.pmml.compiler.api.dto.CompilationDTO;
+import org.kie.pmml.compiler.api.mocks.TestModel;
 import org.kie.pmml.compiler.api.provider.ModelImplementationProvider;
 import org.kie.pmml.compiler.commons.utils.JavaParserUtils;
 
 import static org.kie.pmml.commons.Constants.MISSING_DEFAULT_CONSTRUCTOR;
 import static org.kie.pmml.commons.testingutility.KiePMMLTestingModel.PMML_MODEL_TYPE;
-import static org.kie.pmml.commons.utils.KiePMMLModelUtils.getSanitizedClassName;
 import static org.kie.pmml.compiler.commons.codegenfactories.KiePMMLModelFactoryUtils.setConstructorSuperNameInvocation;
 import static org.kie.pmml.compiler.commons.utils.JavaParserUtils.MAIN_CLASS_NOT_FOUND;
 import static org.kie.pmml.compiler.commons.utils.JavaParserUtils.getFullClassName;
@@ -57,40 +55,33 @@ public class TestingModelImplementationProvider implements ModelImplementationPr
     }
 
     @Override
-    public KiePMMLTestingModel getKiePMMLModel(final String packageName,
-                                            final DataDictionary dataDictionary,
-                                            final TransformationDictionary transformationDictionary,
-                                            final TestModel model,
-                                            final HasClassLoader hasClassLoader) {
+    public Class<KiePMMLTestingModel> getKiePMMLModelClass() {
+        return KiePMMLTestingModel.class;
+    }
+
+    @Override
+    public KiePMMLTestingModel getKiePMMLModel(final CompilationDTO<TestModel> compilationDTO) {
         return KiePMMLTestingModel.builder("TEST_MODEL",
-                                    Collections.emptyList(),
-                                    MINING_FUNCTION.REGRESSION)
+                                           Collections.emptyList(),
+                                           MINING_FUNCTION.REGRESSION)
                 .build();
     }
 
     @Override
-    public KiePMMLTestingModel getKiePMMLModelWithSources(final String packageName,
-                                                       final DataDictionary dataDictionary,
-                                                       final TransformationDictionary transformationDictionary,
-                                                       final TestModel model,
-                                                       final HasClassLoader hasClassLoader) {
-        final Map<String, String> sourcesMap = getKiePMMLTestModelSourcesMap(dataDictionary, transformationDictionary
-                , model, packageName);
-        return new KiePMMLTestingModelWithSources(model.getModelName(), packageName, sourcesMap);
+    public Map<String, String> getSourcesMap(CompilationDTO<TestModel> compilationDTO) {
+        return getKiePMMLTestModelSourcesMap(compilationDTO);
     }
 
-    private Map<String, String> getKiePMMLTestModelSourcesMap(final DataDictionary dataDictionary,
-                                                              final TransformationDictionary transformationDictionary,
-                                                              final TestModel model,
-                                                              final String packageName) {
+    private Map<String, String> getKiePMMLTestModelSourcesMap(final CompilationDTO<TestModel> compilationDTO) {
 
-        String className = getSanitizedClassName(model.getModelName());
-        CompilationUnit cloneCU = JavaParserUtils.getKiePMMLModelCompilationUnit(className, packageName,
+        String className = compilationDTO.getSimpleClassName();
+        CompilationUnit cloneCU = JavaParserUtils.getKiePMMLModelCompilationUnit(className,
+                                                                                 compilationDTO.getPackageName(),
                                                                                  KIE_PMML_TEST_MODEL_TEMPLATE_JAVA,
                                                                                  KIE_PMML_TEST_MODEL_TEMPLATE);
         ClassOrInterfaceDeclaration modelTemplate = cloneCU.getClassByName(className)
                 .orElseThrow(() -> new KiePMMLException(MAIN_CLASS_NOT_FOUND + ": " + className));
-        String modelName = model.getModelName();
+        String modelName = compilationDTO.getModelName();
         final ConstructorDeclaration constructorDeclaration =
                 modelTemplate.getDefaultConstructor().orElseThrow(() -> new KiePMMLInternalException(String.format(MISSING_DEFAULT_CONSTRUCTOR, modelTemplate.getName())));
         setConstructor(className, constructorDeclaration, modelName);
@@ -104,5 +95,4 @@ public class TestingModelImplementationProvider implements ModelImplementationPr
                                 final String modelName) {
         setConstructorSuperNameInvocation(generatedClassName, constructorDeclaration, modelName);
     }
-
 }

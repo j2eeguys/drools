@@ -16,9 +16,6 @@
 
 package org.drools.core.reteoo;
 
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
 import java.util.Map;
 
 import org.drools.core.common.InternalFactHandle;
@@ -26,8 +23,8 @@ import org.drools.core.definitions.rule.impl.RuleImpl;
 import org.drools.core.reteoo.builder.BuildContext;
 import org.drools.core.rule.Declaration;
 import org.drools.core.rule.GroupElement;
-import org.drools.core.rule.QueryImpl;
-import org.drools.core.spi.PropagationContext;
+import org.drools.core.definitions.rule.impl.QueryImpl;
+import org.drools.core.common.PropagationContext;
 
 /**
  * Leaf Rete-OO node responsible for enacting <code>Action</code> s on a
@@ -80,7 +77,7 @@ public class QueryTerminalNode extends AbstractTerminalNode implements LeftTuple
                              final BuildContext context) {
         super( id,
                context.getPartitionId(),
-               context.getKnowledgeBase().getConfiguration().isMultithreadEvaluation(),
+               context.getRuleBase().getConfiguration().isMultithreadEvaluation(),
                source,
                context);
         this.query = (QueryImpl) rule;
@@ -97,21 +94,6 @@ public class QueryTerminalNode extends AbstractTerminalNode implements LeftTuple
     // ------------------------------------------------------------
     // Instance methods
     // ------------------------------------------------------------
-    public void readExternal(ObjectInput in) throws IOException,
-                                            ClassNotFoundException {
-        super.readExternal( in );
-        query = (QueryImpl) in.readObject();
-        subrule = (GroupElement) in.readObject();
-        subruleIndex = in.readInt();
-        initDeclarations();
-    }
-
-    public void writeExternal(ObjectOutput out) throws IOException {
-        super.writeExternal( out );
-        out.writeObject( query );
-        out.writeObject( subrule );
-        out.writeInt(subruleIndex);
-    }
 
     public QueryImpl getQuery() {
         return query;
@@ -218,26 +200,26 @@ public class QueryTerminalNode extends AbstractTerminalNode implements LeftTuple
 
     public LeftTuple createLeftTuple(InternalFactHandle factHandle,
                                      boolean leftTupleMemoryEnabled) {
-        return new RuleTerminalNodeLeftTuple(factHandle, this, leftTupleMemoryEnabled );
+        return AgendaComponentFactory.get().createTerminalTuple(factHandle, this, leftTupleMemoryEnabled );
     }
 
     public LeftTuple createLeftTuple(final InternalFactHandle factHandle,
                                      final LeftTuple leftTuple,
                                      final Sink sink) {
-        return new RuleTerminalNodeLeftTuple(factHandle,leftTuple, sink );
+        return AgendaComponentFactory.get().createTerminalTuple(factHandle,leftTuple, sink );
     }
 
     public LeftTuple createLeftTuple(LeftTuple leftTuple,
                                      Sink sink,
                                      PropagationContext pctx,
                                      boolean leftTupleMemoryEnabled) {
-        return new RuleTerminalNodeLeftTuple(leftTuple,sink, pctx, leftTupleMemoryEnabled );
+        return AgendaComponentFactory.get().createTerminalTuple(leftTuple,sink, pctx, leftTupleMemoryEnabled );
     }
 
     public LeftTuple createLeftTuple(LeftTuple leftTuple,
                                      RightTuple rightTuple,
                                      Sink sink) {
-        return new RuleTerminalNodeLeftTuple(leftTuple, rightTuple, sink );
+        return AgendaComponentFactory.get().createTerminalTuple(leftTuple, rightTuple, sink );
     }   
     
     public LeftTuple createLeftTuple(LeftTuple leftTuple,
@@ -246,7 +228,7 @@ public class QueryTerminalNode extends AbstractTerminalNode implements LeftTuple
                                      LeftTuple currentRightChild,
                                      Sink sink,
                                      boolean leftTupleMemoryEnabled) {
-        return new RuleTerminalNodeLeftTuple(leftTuple, rightTuple, currentLeftChild, currentRightChild, sink, leftTupleMemoryEnabled );        
+        return AgendaComponentFactory.get().createTerminalTuple(leftTuple, rightTuple, currentLeftChild, currentRightChild, sink, leftTupleMemoryEnabled );
     }    
     
     

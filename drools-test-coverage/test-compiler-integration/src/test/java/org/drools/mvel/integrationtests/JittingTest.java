@@ -21,7 +21,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.assertj.core.api.Assertions;
 import org.drools.mvel.compiler.Person;
 import org.drools.mvel.integrationtests.facts.AnEnum;
 import org.drools.mvel.integrationtests.facts.FactWithEnum;
@@ -37,6 +36,7 @@ import org.kie.api.builder.KieModule;
 import org.kie.api.runtime.KieSession;
 import org.kie.internal.conf.ConstraintJittingThresholdOption;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 
 @RunWith(Parameterized.class)
@@ -52,8 +52,7 @@ public class JittingTest {
 
     @Parameterized.Parameters(name = "KieBase type={0}")
     public static Collection<Object[]> getParameters() {
-     // TODO: EM failed with some tests. File JIRAs
-        return TestParametersUtil.getKieBaseCloudConfigurations(false);
+        return TestParametersUtil.getKieBaseCloudConfigurations(true);
     }
 
     @Test
@@ -123,7 +122,7 @@ public class JittingTest {
         final KieSession kieSession = kieBase.newKieSession();
 
         kieSession.insert(AnEnum.FIRST);
-        Assertions.assertThat(kieSession.fireAllRules()).isEqualTo(1);
+        assertThat(kieSession.fireAllRules()).isEqualTo(1);
     }
 
     @Test
@@ -141,7 +140,7 @@ public class JittingTest {
 
         final KieSession kieSession = kieBase.newKieSession();
         kieSession.insert(new FactWithEnum(AnEnum.FIRST));
-        Assertions.assertThat(kieSession.fireAllRules()).isEqualTo(1);
+        assertThat(kieSession.fireAllRules()).isEqualTo(1);
     }
 
     @Test
@@ -271,7 +270,7 @@ public class JittingTest {
 
         kieSession.insert(new BigDecimalFact(new BigDecimal(10)));
         kieSession.insert(new BigDecimalFact(new BigDecimal(11)));
-        Assertions.assertThat(kieSession.fireAllRules()).isEqualTo(1);
+        assertThat(kieSession.fireAllRules()).isEqualTo(1);
     }
 
     @Test
@@ -291,7 +290,7 @@ public class JittingTest {
 
         kieSession.insert(new BigDecimalFact(new BigDecimal(10)));
         kieSession.insert(new BigDecimalFact(new BigDecimal(11)));
-        Assertions.assertThat(kieSession.fireAllRules()).isEqualTo(1);
+        assertThat(kieSession.fireAllRules()).isEqualTo(1);
     }
 
     public class BigDecimalFact {
@@ -308,5 +307,49 @@ public class JittingTest {
         public void setValue(BigDecimal value) {
             this.value = value;
         }
+    }
+
+    @Test
+    public void testBigDecimalConstructorCoercion() {
+        // DROOLS-6729
+        final String drl =
+                "import " + BigDecimal.class.getCanonicalName() + "\n" +
+                           "import " + Person.class.getCanonicalName() + "\n" +
+                           " rule R1 when\n" +
+                           "     Person($bd : new BigDecimal(30), bigDecimal.compareTo(new BigDecimal($bd)) < 0)\n" +
+                           " then end\n";
+
+        if (!kieBaseTestConfiguration.isExecutableModel()) {
+            // It's valid to fail with exec-model because newBigDecimal(BigDecimal bd) doesn't exist.
+            // This test is just to confirm the fix of mvel getBestConstructorCandidate()
+            // Also note that the issue depends on JDK native Class#getConstructors() and occurs randomly
+            final KieModule kieModule = KieUtil.getKieModuleFromDrls("test", kieBaseTestConfiguration, drl);
+            final KieBase kieBase = KieBaseUtil.newKieBaseFromKieModuleWithAdditionalOptions(kieModule, kieBaseTestConfiguration, ConstraintJittingThresholdOption.get(0));
+            final KieSession kieSession = kieBase.newKieSession();
+
+            Person person = new Person("John");
+            person.setBigDecimal(new BigDecimal(20));
+            kieSession.insert(person);
+            assertEquals(1, kieSession.fireAllRules());
+        }
+    }
+
+    @Test
+    public void testJittingVarargsCall() {
+        // DROOLS-6841
+        final String drl =
+                " rule R1 \n" +
+                " when \n" +
+                "    String( java.util.Arrays.asList(\"CI,CV\".split(\",\")).contains(this) )\n" +
+                " then \n" +
+                " end ";
+
+        final KieModule kieModule = KieUtil.getKieModuleFromDrls("test", kieBaseTestConfiguration, drl);
+        final KieBase kieBase = KieBaseUtil.newKieBaseFromKieModuleWithAdditionalOptions(kieModule, kieBaseTestConfiguration, ConstraintJittingThresholdOption.get(0));
+        final KieSession kieSession = kieBase.newKieSession();
+
+        kieSession.insert("CV");
+        kieSession.insert("CX");
+        assertThat(kieSession.fireAllRules()).isEqualTo(1);
     }
 }

@@ -23,22 +23,23 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.drools.core.base.ClassObjectType;
 import org.drools.core.facttemplates.Fact;
-import org.drools.core.impl.InternalKnowledgeBase;
+import org.drools.core.impl.RuleBase;
 import org.drools.core.reteoo.ClassObjectTypeConf;
 import org.drools.core.reteoo.FactTemplateTypeConf;
 import org.drools.core.reteoo.ObjectTypeConf;
 import org.drools.core.rule.EntryPointId;
-import org.drools.core.spi.Activation;
+import org.drools.core.rule.consequence.Activation;
+import org.drools.core.base.ObjectType;
 
 public class ObjectTypeConfigurationRegistry implements Serializable {
     private static final long serialVersionUID = 510l;
 
     private final Map<Object, ObjectTypeConf> typeConfMap = new ConcurrentHashMap<>();
 
-    private final InternalKnowledgeBase kBase;
+    private final RuleBase ruleBase;
 
-    public ObjectTypeConfigurationRegistry(InternalKnowledgeBase kBase ) {
-        this.kBase = kBase;
+    public ObjectTypeConfigurationRegistry(RuleBase ruleBase) {
+        this.ruleBase = ruleBase;
     }
 
     public ObjectTypeConf getObjectTypeConf(Object object) {
@@ -74,12 +75,12 @@ public class ObjectTypeConfigurationRegistry implements Serializable {
 
     private ObjectTypeConf createObjectTypeConf(EntryPointId entrypoint, Object key, Object object) {
         return object instanceof Fact ?
-                new FactTemplateTypeConf( entrypoint, ((Fact) object).getFactTemplate(), this.kBase ) :
-                new ClassObjectTypeConf( entrypoint, (Class<?>) key, this.kBase );
+                new FactTemplateTypeConf( entrypoint, ((Fact) object).getFactTemplate(), this.ruleBase ) :
+                new ClassObjectTypeConf( entrypoint, (Class<?>) key, this.ruleBase );
     }
 
-    public ObjectTypeConf getObjectTypeConfByClass(Class<?> cls) {
-        return typeConfMap.get(cls);
+    public ObjectTypeConf getConfForObjectType(ObjectType objectType) {
+        return typeConfMap.get(objectType.getTypeKey());
     }
 
     public Collection<ObjectTypeConf> values() {

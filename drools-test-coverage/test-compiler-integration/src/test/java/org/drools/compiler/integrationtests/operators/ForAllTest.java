@@ -69,6 +69,26 @@ public class ForAllTest {
     }
 
     @Test
+    public void test1P1CNotFiringWithAnd() {
+        check("name == \"Sofia\" && age >= 18", 0, new Person("Sofia", 8));
+    }
+
+    @Test
+    public void test1P1CNotFiringWithParenthesis() {
+        check("(name == \"Sofia\" && age >= 18)", 0, new Person("Sofia", 8));
+    }
+
+    @Test
+    public void test1P1CNotFiringWithOr() {
+        check("age >= 18 || name == \"Mario\"", 0, new Person("Sofia", 8));
+    }
+
+    @Test
+    public void test1P1CNotFiringWithParenthesisAndOr() {
+        check("(name == \"Sofia\" && age >= 18) || name == \"Mario\"", 0, new Person("Sofia", 8));
+    }
+
+    @Test
     public void test1P2CFiring() {
         check("age >= 18, name.startsWith(\"M\")", 1, new Person("Mario", 45), new Person("Mark", 43));
     }
@@ -345,6 +365,18 @@ public class ForAllTest {
     @Test
     public void testForallWithOr() throws Exception {
         checkForallWithComplexExpression("value < 1 || value > 50");
+    }
+
+    @Test
+    public void testForallWithIn() throws Exception {
+        // DROOLS-6560
+        checkForallWithComplexExpression("value in (1, 43)");
+    }
+
+    @Test
+    public void testForallWithNotIn() throws Exception {
+        // DROOLS-6560
+        checkForallWithComplexExpression("value not in (1, 42)");
     }
 
     private void checkForallWithComplexExpression(String expression) throws Exception {

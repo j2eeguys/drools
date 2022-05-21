@@ -14,7 +14,9 @@
 
 package org.drools.impact.analysis.parser.impl;
 
+import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -27,22 +29,27 @@ import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import org.drools.compiler.compiler.PackageRegistry;
-import org.drools.compiler.lang.descr.RuleDescr;
-import org.drools.core.util.ClassUtils;
+import org.drools.drl.ast.descr.RuleDescr;
+import org.drools.util.ClassUtils;
 import org.drools.impact.analysis.model.Rule;
 import org.drools.impact.analysis.model.right.ConsequenceAction;
 import org.drools.impact.analysis.model.right.InsertAction;
 import org.drools.impact.analysis.model.right.InsertedProperty;
+import org.drools.impact.analysis.model.right.ModifiedMapProperty;
 import org.drools.impact.analysis.model.right.ModifiedProperty;
 import org.drools.impact.analysis.model.right.ModifyAction;
 import org.drools.modelcompiler.builder.generator.Consequence;
 import org.drools.modelcompiler.builder.generator.DeclarationSpec;
 import org.drools.modelcompiler.builder.generator.RuleContext;
 
-import static org.drools.core.util.StringUtils.ucFirst;
+import static org.drools.util.StringUtils.ucFirst;
+import static org.drools.impact.analysis.parser.impl.ParserUtil.getLiteralString;
+import static org.drools.impact.analysis.parser.impl.ParserUtil.getLiteralValue;
 import static org.drools.impact.analysis.parser.impl.ParserUtil.isLiteral;
 import static org.drools.impact.analysis.parser.impl.ParserUtil.literalToValue;
 import static org.drools.impact.analysis.parser.impl.ParserUtil.literalType;
+import static org.drools.impact.analysis.parser.impl.ParserUtil.objectCreationExprToValue;
+import static org.drools.impact.analysis.parser.impl.ParserUtil.stripEnclosedAndCast;
 
 public class RhsParser {
 
@@ -125,6 +132,14 @@ public class RhsParser {
                 .map( varDecl -> ( ObjectCreationExpr ) varDecl.getInitializer().get() )
                 .map( objCreat -> objCreat.getType().getNameAsString() )
                 .findFirst()
+                .orElseGet( () -> getClassNameFromDeclaration(consequenceExpr, actionArg) );
+    }
+
+    private String getClassNameFromDeclaration(MethodCallExpr consequenceExpr, Expression actionArg) {
+        return consequenceExpr.findAll( VariableDeclarator.class ).stream()
+                .filter( varDecl -> varDecl.getName().toString().equals( actionArg.toString() ))
+                .map( varDecl -> varDecl.getTypeAsString() )
+                .findFirst()
                 .orElseThrow( () -> new RuntimeException("Unknown variable: " + actionArg) );
     }
 
@@ -142,11 +157,7 @@ public class RhsParser {
             String methodName = expr.getNameAsString();
             String property = ClassUtils.setter2property(methodName);
             if (property != null) {
-                Object value = null;
-                Expression argument = expr.getArgument(0);
-                if (argument.isLiteralExpr()) {
-                    value = literalToValue(argument.asLiteralExpr());
-                }
+                Object value = getLiteralValue(context, expr.getArgument(0));
                 action.addInsertedProperty(new InsertedProperty(property, value));
             }
         }
@@ -185,14 +196,50 @@ public class RhsParser {
                         .findFirst().orElse( null );
 
                 Object value = null;
-                if (setterExpr != null && setterExpr.getArgument( 0 ).isLiteralExpr()) {
-                    value = literalToValue( setterExpr.getArgument( 0 ).asLiteralExpr() );
+                if (setterExpr != null) {
+                    Expression arg = setterExpr.getArgument( 0 );
+                    arg = stripEnclosedAndCast(arg);
+                    if (arg.isLiteralExpr()) {
+                        value = literalToValue( arg.asLiteralExpr() );
+                    } else if (arg.isNameExpr()) {
+                        value = ((ImpactAnalysisRuleContext)context).getBindVariableLiteralMap().get(arg.asNameExpr().getName().asString());
+                    } else if (arg.isObjectCreationExpr()) {
+                        value = objectCreationExprToValue((ObjectCreationExpr)arg, context);
+                    }
                 }
-                action.addModifiedProperty( new ModifiedProperty(property, value) );
+
+                Method accessor = ClassUtils.getAccessor(modifiedClass, property);
+                if (accessor != null && Map.class.isAssignableFrom(accessor.getReturnType())) {
+                    String mapName = property;
+                    List<MethodCallExpr> mapPutExprs = consequenceExpr.findAll(MethodCallExpr.class).stream()
+                                                                      .filter(m -> isMapPutExpr(m, modifiedId, accessor.getName()))
+                                                                      .collect(Collectors.toList());
+                    mapPutExprs.stream().forEach(expr -> {
+                        String mapKey = getLiteralString(context, expr.getArgument(0));
+                        Object mapValue = getLiteralValue(context, expr.getArgument(1));
+                        action.addModifiedProperty(new ModifiedMapProperty(mapName, mapKey, mapValue));
+                    });
+
+                } else {
+                    action.addModifiedProperty(new ModifiedProperty(property, value));
+                }
             }
         }
 
         return action;
+    }
+
+    private boolean isMapPutExpr(MethodCallExpr mce, String modifiedId, String accessorName) {
+        if (!mce.getName().asString().equals("put")) {
+            return false;
+        }
+        return mce.getScope()
+                  .filter(Expression::isMethodCallExpr)
+                  .map(Expression::asMethodCallExpr)
+                  .filter(scopeMce -> scopeMce.getName().asString().equals(accessorName))
+                  .flatMap(scopeMce -> scopeMce.getScope())
+                  .filter(parentScope -> parentScope.toString().equals(modifiedId) || parentScope.toString().equals("(" + modifiedId + ")"))
+                  .isPresent();
     }
 
     private ConsequenceAction.Type decodeAction(String name) {

@@ -26,10 +26,10 @@ import org.drools.core.RuleBaseConfiguration;
 import org.drools.core.common.InternalAgenda;
 import org.drools.core.common.InternalFactHandle;
 import org.drools.core.impl.EnvironmentFactory;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
-import org.drools.core.marshalling.impl.ClassObjectMarshallingStrategyAcceptor;
-import org.drools.core.marshalling.impl.IdentityPlaceholderResolverStrategy;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.core.impl.RuleBaseFactory;
+import org.drools.core.marshalling.ClassObjectMarshallingStrategyAcceptor;
+import org.drools.serialization.protobuf.marshalling.IdentityPlaceholderResolverStrategy;
 import org.drools.mvel.compiler.Cheese;
 import org.drools.mvel.compiler.FactA;
 import org.drools.mvel.compiler.FactB;
@@ -62,8 +62,7 @@ import org.kie.api.runtime.rule.EntryPoint;
 import org.kie.api.runtime.rule.FactHandle;
 import org.mockito.ArgumentCaptor;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -371,7 +370,6 @@ public class DynamicRulesTest {
         kpkgs = KieBaseUtil.getKieBaseFromClasspathResources("tmp", getClass(), kieBaseTestConfiguration, "test_RemovePackage.drl").getKiePackages();
 
         ruleBaseWM.addPackages( kpkgs );
-        ruleBaseWM = SerializationHelper.serializeObject( ruleBaseWM );
 
         session = SerializationHelper.getSerialisedStatefulKnowledgeSession( session, 
                                                                              true );
@@ -957,7 +955,7 @@ public class DynamicRulesTest {
             Collection<KiePackage> kpkgs = KieBaseUtil.getKieBaseFromClasspathResourcesWithClassLoaderForKieBuilder("test", getClass(), loader1, kieBaseTestConfiguration, "test_EnumSerialization.drl").getKiePackages();
 
             // adding original packages to a kbase just to make sure they are fine
-            KieBaseConfiguration kbaseConf = KnowledgeBaseFactory.newKnowledgeBaseConfiguration( null, loader1 );
+            KieBaseConfiguration kbaseConf = RuleBaseFactory.newKnowledgeBaseConfiguration( null, loader1 );
             final KieModule kieModule = KieUtil.getKieModuleFromResourcesWithClassLoaderForKieBuilder("test", loader1, kieBaseTestConfiguration);
             InternalKnowledgeBase kbase = (InternalKnowledgeBase) KieBaseUtil.newKieBaseFromReleaseId(kieModule.getReleaseId(), kbaseConf);
 
@@ -975,7 +973,7 @@ public class DynamicRulesTest {
             loader2.loadClass( "org.drools.TestEnum" );
 
             // create another kbase
-            KieBaseConfiguration kbaseConf2 = KnowledgeBaseFactory.newKnowledgeBaseConfiguration( null,
+            KieBaseConfiguration kbaseConf2 = RuleBaseFactory.newKnowledgeBaseConfiguration( null,
                                                                                                   loader2 );
             final KieModule kieModule2 = KieUtil.getKieModuleFromResourcesWithClassLoaderForKieBuilder("test2", loader2, kieBaseTestConfiguration);
             InternalKnowledgeBase kbase2 = (InternalKnowledgeBase) KieBaseUtil.newKieBaseFromReleaseId(kieModule2.getReleaseId(), kbaseConf2);
@@ -1181,14 +1179,14 @@ public class DynamicRulesTest {
         ksession.fireAllRules();
         ArgumentCaptor<AfterMatchFiredEvent> capt = ArgumentCaptor.forClass( AfterMatchFiredEvent.class );
         verify( ael, times(1) ).afterMatchFired( capt.capture() );
-        assertThat( "R1", is( capt.getValue().getMatch().getRule().getName() ) );
+        assertThat(capt.getValue().getMatch().getRule().getName()).isEqualTo("R1");
 
         kpkgs = KieBaseUtil.getKieBaseFromKieModuleFromDrl("tmp", kieBaseTestConfiguration, type, r2).getKiePackages();
         kbase.addPackages(kpkgs);
         
         ksession.fireAllRules();
         verify( ael, times(2) ).afterMatchFired( capt.capture() );
-        assertThat( "R2", is( capt.getAllValues().get( 2 ).getMatch().getRule().getName() ) );
+        assertThat(capt.getAllValues().get(2).getMatch().getRule().getName()).isEqualTo("R2");
         
         ksession.dispose();
         
@@ -1196,7 +1194,7 @@ public class DynamicRulesTest {
 
     @Test(timeout=10000)
     public void testJBRULES_2206() {
-        KieBaseConfiguration config = KnowledgeBaseFactory.newKnowledgeBaseConfiguration();
+        KieBaseConfiguration config = RuleBaseFactory.newKnowledgeBaseConfiguration();
         ((RuleBaseConfiguration) config).setRuleBaseUpdateHandler( null );
 
         final KieModule kieModule = KieUtil.getKieModuleFromResources(KieUtil.generateReleaseId("test"), kieBaseTestConfiguration);

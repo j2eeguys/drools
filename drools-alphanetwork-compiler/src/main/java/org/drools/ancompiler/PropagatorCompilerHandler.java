@@ -53,7 +53,7 @@ import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.type.VoidType;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.InternalWorkingMemory;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.reteoo.AlphaNode;
 import org.drools.core.reteoo.BetaNode;
 import org.drools.core.reteoo.LeftInputAdapterNode;
@@ -62,16 +62,16 @@ import org.drools.core.reteoo.ObjectTypeNode;
 import org.drools.core.reteoo.Sink;
 import org.drools.core.reteoo.WindowNode;
 import org.drools.core.rule.IndexableConstraint;
-import org.drools.core.spi.InternalReadAccessor;
-import org.drools.core.spi.PropagationContext;
+import org.drools.core.common.PropagationContext;
+import org.drools.core.rule.accessor.ReadAccessor;
 import org.drools.core.util.index.AlphaRangeIndex;
 
 import static com.github.javaparser.StaticJavaParser.parseExpression;
 import static com.github.javaparser.StaticJavaParser.parseStatement;
 import static com.github.javaparser.StaticJavaParser.parseType;
 import static com.github.javaparser.ast.NodeList.nodeList;
-import static org.drools.core.util.StringUtils.md5Hash;
 import static org.drools.mvelcompiler.util.TypeUtils.toJPType;
+import static org.drools.util.StringUtils.md5Hash;
 
 // As AssertCompiler and ModifyCompiler classes are quite similar except for the method they propagate in the Rete (assert vs modify) they share a common class
 public abstract class PropagatorCompilerHandler extends AbstractCompilerHandler {
@@ -154,7 +154,7 @@ public abstract class PropagatorCompilerHandler extends AbstractCompilerHandler 
 
     @Override
     public void startHashedAlphaNodes(IndexableConstraint indexableConstraint) {
-        final InternalReadAccessor fieldExtractor = indexableConstraint.getFieldExtractor();
+        final ReadAccessor fieldExtractor = indexableConstraint.getFieldExtractor();
         fieldType = fieldExtractor.getExtractToClass();
 
         final SwitchStmt switchStmt;
@@ -289,7 +289,7 @@ public abstract class PropagatorCompilerHandler extends AbstractCompilerHandler 
     }
 
     private void addBreakStatement(SwitchEntry switchEntry) {
-        switchEntry.getStatements().add(new BreakStmt().setValue(null));
+        switchEntry.getStatements().add(new BreakStmt());
     }
 
     public BlockStmt getCurrentBlockStatement() {
@@ -374,7 +374,7 @@ public abstract class PropagatorCompilerHandler extends AbstractCompilerHandler 
 
         switchEntry.setStatements(nodeList(
                 new ExpressionStmt(callExtractedMethod),
-                new BreakStmt().setValue(null)
+                new BreakStmt()
         ));
 
         extractedMethods.add(extractedMethod);
@@ -392,8 +392,8 @@ public abstract class PropagatorCompilerHandler extends AbstractCompilerHandler 
         return StaticJavaParser.parseClassOrInterfaceType(PropagationContext.class.getName());
     }
 
-    public ClassOrInterfaceType workingMemoryType() {
-        return StaticJavaParser.parseClassOrInterfaceType(InternalWorkingMemory.class.getName());
+    public ClassOrInterfaceType reteEvaluatorType() {
+        return StaticJavaParser.parseClassOrInterfaceType(ReteEvaluator.class.getName());
     }
 
     //  type variableName = (type) sourceObject.methodName();

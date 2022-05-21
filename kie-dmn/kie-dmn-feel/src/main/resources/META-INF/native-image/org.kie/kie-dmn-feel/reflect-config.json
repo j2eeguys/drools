@@ -603,7 +603,43 @@
         "allPublicClasses": true
     },
     {
+        "name": "org.kie.dmn.feel.runtime.functions.extended.CeilingFunction",
+        "allDeclaredConstructors": true,
+        "allPublicConstructors": true,
+        "allDeclaredMethods": true,
+        "allPublicMethods": true,
+        "allDeclaredClasses": true,
+        "allPublicClasses": true
+    },
+    {
         "name": "org.kie.dmn.feel.runtime.functions.extended.CodeFunction",
+        "allDeclaredConstructors": true,
+        "allPublicConstructors": true,
+        "allDeclaredMethods": true,
+        "allPublicMethods": true,
+        "allDeclaredClasses": true,
+        "allPublicClasses": true
+    },
+    {
+        "name": "org.kie.dmn.feel.runtime.functions.extended.ContextFunction",
+        "allDeclaredConstructors": true,
+        "allPublicConstructors": true,
+        "allDeclaredMethods": true,
+        "allPublicMethods": true,
+        "allDeclaredClasses": true,
+        "allPublicClasses": true
+    },
+    {
+        "name": "org.kie.dmn.feel.runtime.functions.extended.ContextMergeFunction",
+        "allDeclaredConstructors": true,
+        "allPublicConstructors": true,
+        "allDeclaredMethods": true,
+        "allPublicMethods": true,
+        "allDeclaredClasses": true,
+        "allPublicClasses": true
+    },
+    {
+        "name": "org.kie.dmn.feel.runtime.functions.extended.ContextPutFunction",
         "allDeclaredConstructors": true,
         "allPublicConstructors": true,
         "allDeclaredMethods": true,
@@ -630,6 +666,15 @@
         "allPublicClasses": true
     },
     {
+        "name": "org.kie.dmn.feel.runtime.functions.extended.FloorFunction",
+        "allDeclaredConstructors": true,
+        "allPublicConstructors": true,
+        "allDeclaredMethods": true,
+        "allPublicMethods": true,
+        "allDeclaredClasses": true,
+        "allPublicClasses": true
+    },
+    {
         "name": "org.kie.dmn.feel.runtime.functions.extended.InvokeFunction",
         "allDeclaredConstructors": true,
         "allPublicConstructors": true,
@@ -640,6 +685,60 @@
     },
     {
         "name": "org.kie.dmn.feel.runtime.functions.extended.NowFunction",
+        "allDeclaredConstructors": true,
+        "allPublicConstructors": true,
+        "allDeclaredMethods": true,
+        "allPublicMethods": true,
+        "allDeclaredClasses": true,
+        "allPublicClasses": true
+    },
+    {
+        "name": "org.kie.dmn.feel.runtime.functions.extended.RangeFunction",
+        "allDeclaredConstructors": true,
+        "allPublicConstructors": true,
+        "allDeclaredMethods": true,
+        "allPublicMethods": true,
+        "allDeclaredClasses": true,
+        "allPublicClasses": true
+    },
+    {
+        "name": "org.kie.dmn.feel.runtime.functions.extended.RoundDownFunction",
+        "allDeclaredConstructors": true,
+        "allPublicConstructors": true,
+        "allDeclaredMethods": true,
+        "allPublicMethods": true,
+        "allDeclaredClasses": true,
+        "allPublicClasses": true
+    },
+    {
+        "name": "org.kie.dmn.feel.runtime.functions.extended.RoundHalfDownFunction",
+        "allDeclaredConstructors": true,
+        "allPublicConstructors": true,
+        "allDeclaredMethods": true,
+        "allPublicMethods": true,
+        "allDeclaredClasses": true,
+        "allPublicClasses": true
+    },
+    {
+        "name": "org.kie.dmn.feel.runtime.functions.extended.RoundHalfUpFunction",
+        "allDeclaredConstructors": true,
+        "allPublicConstructors": true,
+        "allDeclaredMethods": true,
+        "allPublicMethods": true,
+        "allDeclaredClasses": true,
+        "allPublicClasses": true
+    },
+    {
+        "name": "org.kie.dmn.feel.runtime.functions.extended.RoundUpFunction",
+        "allDeclaredConstructors": true,
+        "allPublicConstructors": true,
+        "allDeclaredMethods": true,
+        "allPublicMethods": true,
+        "allDeclaredClasses": true,
+        "allPublicClasses": true
+    },
+    {
+        "name": "org.kie.dmn.feel.runtime.functions.extended.StringJoinFunction",
         "allDeclaredConstructors": true,
         "allPublicConstructors": true,
         "allDeclaredMethods": true,

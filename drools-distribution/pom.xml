@@ -4,11 +4,13 @@
 
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>org.drools</groupId>
-    <artifactId>drools</artifactId>
-    <version>7.58.0-SNAPSHOT</version>
+    <groupId>org.kie</groupId>
+    <artifactId>drools-build-parent</artifactId>
+    <version>8.22.0-SNAPSHOT</version>
+    <relativePath>../build-parent/pom.xml</relativePath>
   </parent>
 
+  <groupId>org.drools</groupId>
   <artifactId>drools-distribution</artifactId>
   <packaging>pom</packaging>
 
@@ -30,23 +32,6 @@
               <goals>
                 <goal>enforce</goal>
               </goals>
-              <configuration>
-                <rules>
-                  <banDuplicateClasses>
-                    <dependencies>
-                      <!-- kie-ci-osgi is an uberjar intended for OSGi environment. It is being excluded from the check
-                           as it contains hundreds of other classes, but that is expected. -->
-                      <dependency>
-                        <groupId>org.kie</groupId>
-                        <artifactId>kie-ci-osgi</artifactId>
-                        <ignoreClasses>
-                          <ignoreClass>*</ignoreClass>
-                        </ignoreClasses>
-                      </dependency>
-                    </dependencies>
-                  </banDuplicateClasses>
-                </rules>
-              </configuration>
             </execution>
           </executions>
         </plugin>
@@ -148,24 +133,6 @@
       <artifactId>drools-beliefs</artifactId>
       <classifier>sources</classifier>
     </dependency>
-    <dependency>
-      <groupId>org.drools</groupId>
-      <artifactId>kie-pmml</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.drools</groupId>
-      <artifactId>kie-pmml</artifactId>
-      <classifier>sources</classifier>
-    </dependency>
-    <dependency>
-      <groupId>org.drools</groupId>
-      <artifactId>drools-scorecards</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.drools</groupId>
-      <artifactId>drools-scorecards</artifactId>
-      <classifier>sources</classifier>
-    </dependency>
 
     <dependency>
       <groupId>org.kie</groupId>
@@ -175,10 +142,6 @@
       <groupId>org.kie</groupId>
       <artifactId>kie-ci</artifactId>
       <classifier>sources</classifier>
-    </dependency>
-    <dependency>
-      <groupId>org.kie</groupId>
-      <artifactId>kie-ci-osgi</artifactId>
     </dependency>
 
     <!-- Examples -->

@@ -16,6 +16,7 @@
 
 package org.kie.pmml.compiler.commons.codegenfactories;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -26,16 +27,18 @@ import org.dmg.pmml.FieldName;
 import org.dmg.pmml.FieldRef;
 import org.junit.Test;
 import org.kie.pmml.commons.model.expressions.KiePMMLFieldRef;
-import org.kie.pmml.compiler.commons.codegenfactories.KiePMMLFieldRefFactory;
 import org.kie.pmml.compiler.commons.utils.JavaParserUtils;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.kie.pmml.compiler.commons.testutils.CodegenTestUtils.commonValidateCompilationWithImports;
+import static org.kie.test.util.filesystem.FileUtils.getFileContent;
 
 public class KiePMMLFieldRefFactoryTest {
 
+    private static final String TEST_01_SOURCE = "KiePMMLFieldRefFactoryTest_01.txt";
+
     @Test
-    public void getFieldRefVariableDeclaration() {
+    public void getFieldRefVariableDeclaration() throws IOException {
         String variableName = "variableName";
         String fieldName = "fieldName";
         String mapMissingTo = "mapMissingTo";
@@ -43,12 +46,9 @@ public class KiePMMLFieldRefFactoryTest {
         fieldRef.setField(FieldName.create(fieldName));
         fieldRef.setMapMissingTo(mapMissingTo);
         BlockStmt retrieved = KiePMMLFieldRefFactory.getFieldRefVariableDeclaration(variableName, fieldRef);
-        Statement expected = JavaParserUtils.parseBlock(String.format("{" +
-                                                                              "KiePMMLFieldRef %1$s = new " +
-                                                                              "KiePMMLFieldRef(\"%2$s\", Collections" +
-                                                                              ".emptyList(),\"%3$s\");" +
-                                                                              "}", variableName, fieldName, mapMissingTo));
-        assertTrue(JavaParserUtils.equalsNode(expected, retrieved));
+        String text = getFileContent(TEST_01_SOURCE);
+        Statement expected = JavaParserUtils.parseBlock(String.format(text, variableName, fieldName, mapMissingTo));
+        assertThat(JavaParserUtils.equalsNode(expected, retrieved)).isTrue();
         List<Class<?>> imports = Arrays.asList(KiePMMLFieldRef.class, Collections.class);
         commonValidateCompilationWithImports(retrieved, imports);
     }

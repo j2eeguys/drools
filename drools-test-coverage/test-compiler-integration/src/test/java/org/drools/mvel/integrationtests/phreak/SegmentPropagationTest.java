@@ -15,26 +15,27 @@
 
 package org.drools.mvel.integrationtests.phreak;
 
+import java.util.Collections;
+
 import org.drools.core.RuleBaseConfiguration;
 import org.drools.core.common.InternalWorkingMemory;
 import org.drools.core.definitions.InternalKnowledgePackage;
-import org.drools.core.definitions.impl.KnowledgePackageImpl;
 import org.drools.core.definitions.rule.impl.RuleImpl;
 import org.drools.core.impl.KnowledgeBaseImpl;
-import org.drools.core.impl.StatefulKnowledgeSessionImpl;
 import org.drools.core.phreak.PhreakJoinNode;
 import org.drools.core.reteoo.BetaMemory;
+import org.drools.core.reteoo.CoreComponentFactory;
 import org.drools.core.reteoo.JoinNode;
 import org.drools.core.reteoo.LeftTupleSink;
 import org.drools.core.reteoo.NodeTypeEnums;
 import org.drools.core.reteoo.SegmentMemory;
 import org.drools.core.reteoo.builder.BuildContext;
-import org.drools.mvel.MVELDialectRuntimeData;
+import org.drools.core.rule.JavaDialectRuntimeData;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
 import org.junit.Test;
 
 import static org.drools.mvel.integrationtests.phreak.Pair.t;
 
-// TODO: EM Need to migrate this to executable model
 public class SegmentPropagationTest {
     
     BuildContext          buildContext;
@@ -73,7 +74,7 @@ public class SegmentPropagationTest {
         sinkNode2 = (JoinNode) BetaNodeBuilder.create( NodeTypeEnums.JoinNode, buildContext ).build();
         joinNode.addTupleSink( sinkNode2 );
 
-        wm = ((StatefulKnowledgeSessionImpl)buildContext.getKnowledgeBase().newKieSession());
+        wm = (InternalWorkingMemory) KnowledgeBaseFactory.newKnowledgeBase(buildContext.getRuleBase()).newKieSession();;
         
         bm =(BetaMemory)  wm.getNodeMemory( joinNode );
         
@@ -163,18 +164,20 @@ public class SegmentPropagationTest {
                                          t(a1, b0) )
                                 .delete( )
                                 .update( )
+
               .postStaged( smem1 ).insert( t(a1, b0),
                                            t(a1, b2),
                                            t(a0, b1),
                                            t(a0, b2) )
                                   .delete( )
                                   .update( )
+
               .postStaged( smem2 ).insert( t(a1, b0),
                                            t(a1, b2),
                                            t(a0, b1),
                                            t(a0, b2) )
-              .delete( )
-              .update( )
+                                  .delete( )
+                                  .update( )
               .run();
         test().right().delete( b2 )
               .preStaged(smem0).insert( t(a0, b1),
@@ -214,11 +217,11 @@ public class SegmentPropagationTest {
 
         KnowledgeBaseImpl rbase = new KnowledgeBaseImpl( "ID",
                                                    conf );
-        BuildContext buildContext = new BuildContext( rbase );
+        BuildContext buildContext = new BuildContext( rbase, Collections.emptyList() );
 
         RuleImpl rule = new RuleImpl( "rule1").setPackage( "org.pkg1" );
-        InternalKnowledgePackage pkg = new KnowledgePackageImpl( "org.pkg1" );
-        pkg.getDialectRuntimeRegistry().setDialectData( "mvel", new MVELDialectRuntimeData() );
+        InternalKnowledgePackage pkg = CoreComponentFactory.get().createKnowledgePackage( "org.pkg1" );
+        pkg.getDialectRuntimeRegistry().setDialectData( "java", new JavaDialectRuntimeData() );
         pkg.addRule( rule );
         buildContext.setRule( rule );
     

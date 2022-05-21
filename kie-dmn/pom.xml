@@ -4,12 +4,12 @@
 
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>org.drools</groupId>
-    <artifactId>drools</artifactId>
-    <version>7.58.0-SNAPSHOT</version>
+    <groupId>org.kie</groupId>
+    <artifactId>drools-build-parent</artifactId>
+    <version>8.22.0-SNAPSHOT</version>
+    <relativePath>../build-parent/pom.xml</relativePath>
   </parent>
 
-  <groupId>org.kie</groupId>
   <artifactId>kie-dmn</artifactId>
   <packaging>pom</packaging>
 
@@ -28,11 +28,10 @@
     <module>kie-dmn-validation</module>
     <module>kie-dmn-openapi</module>
     <module>kie-dmn-tck</module>
+    <module>kie-dmn-legacy-tests</module>
     <module>kie-dmn-trisotech</module>
     <module>kie-dmn-signavio</module>
-    <module>kie-dmn-core-osgi</module>
     <module>kie-dmn-pmml-tests-parent</module>
-    <module>kie-dmn-legacy-tests</module>
   </modules>
 
   <dependencyManagement>
@@ -41,7 +40,7 @@
       <dependency>
         <groupId>org.kie</groupId>
         <artifactId>kie-dmn-bom</artifactId>
-        <version>${version.org.kie}</version>
+        <version>${project.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -69,6 +68,8 @@
       </activation>
       <modules>
         <module>kie-dmn-xls2dmn-cli</module>
+        <module>kie-dmn-core-jsr223-jq</module>
+        <module>kie-dmn-core-jsr223</module>
       </modules>
     </profile>
   </profiles>

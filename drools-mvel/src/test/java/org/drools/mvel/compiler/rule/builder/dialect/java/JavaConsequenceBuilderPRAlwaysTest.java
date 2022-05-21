@@ -25,20 +25,20 @@ import org.drools.compiler.builder.impl.KnowledgeBuilderImpl;
 import org.drools.compiler.compiler.BoundIdentifiers;
 import org.drools.compiler.compiler.DialectCompiletimeRegistry;
 import org.drools.compiler.compiler.PackageRegistry;
-import org.drools.compiler.lang.descr.BindingDescr;
-import org.drools.compiler.lang.descr.RuleDescr;
 import org.drools.compiler.rule.builder.PatternBuilder;
 import org.drools.compiler.rule.builder.RuleBuildContext;
 import org.drools.core.base.ClassObjectType;
 import org.drools.core.definitions.InternalKnowledgePackage;
-import org.drools.core.definitions.impl.KnowledgePackageImpl;
 import org.drools.core.definitions.rule.impl.RuleImpl;
+import org.drools.core.reteoo.CoreComponentFactory;
 import org.drools.core.rule.Declaration;
 import org.drools.core.rule.ImportDeclaration;
 import org.drools.core.rule.Pattern;
-import org.drools.core.spi.CompiledInvoker;
-import org.drools.core.spi.Consequence;
-import org.drools.core.spi.InternalReadAccessor;
+import org.drools.core.rule.accessor.CompiledInvoker;
+import org.drools.core.rule.consequence.Consequence;
+import org.drools.core.rule.accessor.ReadAccessor;
+import org.drools.drl.ast.descr.BindingDescr;
+import org.drools.drl.ast.descr.RuleDescr;
 import org.drools.mvel.compiler.Cheese;
 import org.drools.mvel.compiler.Person;
 import org.drools.mvel.java.JavaAnalysisResult;
@@ -46,10 +46,11 @@ import org.drools.mvel.java.JavaExprAnalyzer;
 import org.junit.Test;
 import org.kie.internal.builder.conf.PropertySpecificOption;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.drools.compiler.rule.builder.RuleBuildContext.descrToRule;
 import static org.drools.mvel.asm.AsmUtil.fixBlockDescr;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 
@@ -59,7 +60,7 @@ public class JavaConsequenceBuilderPRAlwaysTest {
     private RuleDescr ruleDescr;
 
     private void setupTest(String consequence, Map<String, Object> namedConsequences) {
-        InternalKnowledgePackage pkg = new KnowledgePackageImpl( "org.drools" );
+        InternalKnowledgePackage pkg = CoreComponentFactory.get().createKnowledgePackage( "org.drools" );
         pkg.addImport( new ImportDeclaration( "org.drools.mvel.compiler.Cheese" ) );
 
         KnowledgeBuilderConfigurationImpl conf = new KnowledgeBuilderConfigurationImpl();
@@ -74,7 +75,7 @@ public class JavaConsequenceBuilderPRAlwaysTest {
             ruleDescr.addNamedConsequences( entry.getKey(), entry.getValue() );
         }
 
-        RuleImpl rule = ruleDescr.toRule();
+        RuleImpl rule = descrToRule(ruleDescr);
         
         PackageRegistry pkgRegistry = kBuilder.getPackageRegistry( pkg.getName() );
         DialectCompiletimeRegistry reg = kBuilder.getPackageRegistry( pkg.getName() ).getDialectCompiletimeRegistry();
@@ -96,7 +97,7 @@ public class JavaConsequenceBuilderPRAlwaysTest {
         
         Declaration declr = p.addDeclaration( "age" );
 
-        final InternalReadAccessor extractor = PatternBuilder.getFieldReadAccessor(context,
+        final ReadAccessor extractor = PatternBuilder.getFieldReadAccessor(context,
                                                                                    new BindingDescr("age", "age"),
                                                                                    p,
                                                                                    "age",
@@ -141,8 +142,7 @@ public class JavaConsequenceBuilderPRAlwaysTest {
 //            System.out.println( "=============================" );
 //            System.out.println( fixed );
 
-            assertNotNull( context.getErrors().toString(),
-                           fixed );
+            assertThat(fixed).as(context.getErrors().toString()).isNotNull();
             assertEqualsIgnoreSpaces( expected,
                                       fixed );
         } catch ( RecognitionException e ) {
@@ -175,8 +175,7 @@ public class JavaConsequenceBuilderPRAlwaysTest {
 //            System.out.println( "=============================" );
 //            System.out.println( fixed );
 
-            assertNotNull( context.getErrors().toString(),
-                           fixed );
+            assertThat(fixed).as(context.getErrors().toString()).isNotNull();
             assertEqualsIgnoreSpaces( expected,
                                       fixed );
         } catch ( RecognitionException e ) {
@@ -189,7 +188,7 @@ public class JavaConsequenceBuilderPRAlwaysTest {
     public void testDefaultConsequenceCompilation() {
         String consequence = " System.out.println(\"this is a test\");\n ";
         setupTest( consequence, new HashMap<String, Object>() );
-        assertNotNull( context.getRule().getConsequence() );
+        assertThat(context.getRule().getConsequence()).isNotNull();
         assertFalse( context.getRule().hasNamedConsequences() );
         assertTrue( context.getRule().getConsequence() instanceof CompiledInvoker );
         assertTrue( context.getRule().getConsequence() instanceof Consequence );

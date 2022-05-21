@@ -23,13 +23,12 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.drools.core.WorkingMemoryEntryPoint;
 import org.drools.core.reteoo.ObjectTypeConf;
-import org.drools.core.spi.FactHandleFactory;
+import org.drools.core.rule.TypeDeclaration;
+import org.drools.core.rule.accessor.FactHandleFactory;
 
 import static java.util.stream.Collectors.toCollection;
 
-public abstract class AbstractFactHandleFactory
-    implements
-    FactHandleFactory  {
+public abstract class AbstractFactHandleFactory implements FactHandleFactory  {
 
     /** The fact id. */
     private IdsGenerator idGen;
@@ -49,45 +48,70 @@ public abstract class AbstractFactHandleFactory
         this.counter = new AtomicLong( counter );
     }
 
-    /* (non-Javadoc)
-    * @see org.kie.reteoo.FactHandleFactory#newFactHandle()
-    */
     public final InternalFactHandle newFactHandle(Object object,
                                                   ObjectTypeConf conf,
-                                                  InternalWorkingMemory workingMemory,
+                                                  ReteEvaluator reteEvaluator,
                                                   WorkingMemoryEntryPoint wmEntryPoint) {
         return newFactHandle( getNextId(),
                               object,
                               conf,
-                              workingMemory,
+                              reteEvaluator,
                               wmEntryPoint );
     }
 
-    /* (non-Javadoc)
-     * @see org.kie.reteoo.FactHandleFactory#newFactHandle(long)
-     */
     public final InternalFactHandle newFactHandle(long id,
                                                   Object object,
                                                   ObjectTypeConf conf,
-                                                  InternalWorkingMemory workingMemory,
+                                                  ReteEvaluator reteEvaluator,
                                                   WorkingMemoryEntryPoint wmEntryPoint) {
         return newFactHandle( id,
                               object,
                               getNextRecency(),
                               conf,
-                              workingMemory,
+                              reteEvaluator,
                               wmEntryPoint );
     }
 
-    /* (non-Javadoc)
-     * @see org.kie.reteoo.FactHandleFactory#newFactHandle(long)
-     */
-    public abstract InternalFactHandle newFactHandle(long id,
-                                                     Object object,
-                                                     long recency,
-                                                     ObjectTypeConf conf,
-                                                     InternalWorkingMemory workingMemory,
-                                                     WorkingMemoryEntryPoint wmEntryPoint );
+    public final InternalFactHandle newFactHandle( final long id,
+                                                   final Object object,
+                                                   final long recency,
+                                                   final ObjectTypeConf conf,
+                                                   final ReteEvaluator reteEvaluator,
+                                                   final WorkingMemoryEntryPoint wmEntryPoint ) {
+        WorkingMemoryEntryPoint entryPoint = getWmEntryPoint(reteEvaluator, wmEntryPoint);
+
+        if ( conf != null && conf.isEvent() ) {
+            TypeDeclaration type = conf.getTypeDeclaration();
+            long timestamp;
+            if ( type != null && type.getTimestampExtractor() != null ) {
+                timestamp = type.getTimestampExtractor().getLongValue( reteEvaluator, object );
+            } else {
+                timestamp = reteEvaluator.getTimerService().getCurrentTime();
+            }
+            long duration = 0;
+            if ( type != null && type.getDurationExtractor() != null ) {
+                duration = type.getDurationExtractor().getLongValue( reteEvaluator, object );
+            }
+            return createEventFactHandle(id, object, recency, entryPoint, timestamp, duration);
+        } else {
+            return createDefaultFactHandle(id, object, recency, entryPoint);
+        }
+    }
+
+    protected DefaultFactHandle createDefaultFactHandle(long id, Object object, long recency, WorkingMemoryEntryPoint entryPoint) {
+        return new DefaultFactHandle(id, object, recency, entryPoint);
+    }
+
+    protected EventFactHandle createEventFactHandle(long id, Object object, long recency, WorkingMemoryEntryPoint entryPoint, long timestamp, long duration) {
+        return new EventFactHandle(id, object, recency, timestamp, duration, entryPoint);
+    }
+
+    protected WorkingMemoryEntryPoint getWmEntryPoint(ReteEvaluator reteEvaluator, WorkingMemoryEntryPoint wmEntryPoint) {
+        if (wmEntryPoint != null) {
+            return wmEntryPoint;
+        }
+        return reteEvaluator != null ? reteEvaluator.getDefaultEntryPoint() : null;
+    }
 
     public final void increaseFactHandleRecency(final InternalFactHandle factHandle) {
         factHandle.setRecency( getNextRecency() );
@@ -97,9 +121,6 @@ public abstract class AbstractFactHandleFactory
         factHandle.invalidate();
     }
 
-    /* (non-Javadoc)
-     * @see org.kie.reteoo.FactHandleFactory#newInstance()
-     */
     public abstract FactHandleFactory newInstance();
 
     public long getNextId() {
@@ -117,7 +138,7 @@ public abstract class AbstractFactHandleFactory
     public long getRecency() {
         return this.counter.get();
     }
-    
+
     public void clear(long id, long counter) {
         this.idGen = new IdsGenerator( id );
         this.counter = new AtomicLong( counter );

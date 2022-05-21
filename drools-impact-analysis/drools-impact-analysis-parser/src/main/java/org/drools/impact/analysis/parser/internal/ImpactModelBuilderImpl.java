@@ -21,18 +21,19 @@ import java.util.Map;
 import org.drools.compiler.builder.impl.KnowledgeBuilderConfigurationImpl;
 import org.drools.compiler.builder.impl.KnowledgeBuilderImpl;
 import org.drools.compiler.builder.impl.TypeDeclarationFactory;
-import org.drools.compiler.compiler.DialectCompiletimeRegistry;
+import org.drools.compiler.builder.impl.processors.AnnotationNormalizer;
+import org.drools.compiler.builder.impl.processors.OtherDeclarationCompilationPhase;
 import org.drools.compiler.compiler.PackageRegistry;
-import org.drools.compiler.lang.descr.AbstractClassTypeDeclarationDescr;
 import org.drools.compiler.lang.descr.CompositePackageDescr;
-import org.drools.compiler.lang.descr.EnumDeclarationDescr;
-import org.drools.compiler.lang.descr.GlobalDescr;
-import org.drools.compiler.lang.descr.ImportDescr;
-import org.drools.compiler.lang.descr.PackageDescr;
-import org.drools.compiler.lang.descr.TypeDeclarationDescr;
 import org.drools.core.definitions.InternalKnowledgePackage;
 import org.drools.core.rule.TypeDeclaration;
-import org.drools.core.util.StringUtils;
+import org.drools.util.StringUtils;
+import org.drools.drl.ast.descr.AbstractClassTypeDeclarationDescr;
+import org.drools.drl.ast.descr.EnumDeclarationDescr;
+import org.drools.drl.ast.descr.GlobalDescr;
+import org.drools.drl.ast.descr.ImportDescr;
+import org.drools.drl.ast.descr.PackageDescr;
+import org.drools.drl.ast.descr.TypeDeclarationDescr;
 import org.drools.impact.analysis.model.AnalysisModel;
 import org.drools.impact.analysis.parser.impl.PackageParser;
 import org.drools.modelcompiler.builder.PackageModel;
@@ -40,10 +41,8 @@ import org.drools.modelcompiler.builder.generator.DRLIdGenerator;
 import org.kie.api.builder.ReleaseId;
 
 import static java.util.Collections.emptyList;
-
 import static org.drools.compiler.builder.impl.ClassDefinitionFactory.createClassDefinition;
 import static org.drools.core.util.Drools.hasMvel;
-import static org.drools.modelcompiler.builder.generator.ModelGenerator.initPackageModel;
 
 public class ImpactModelBuilderImpl extends KnowledgeBuilderImpl {
 
@@ -114,6 +113,24 @@ public class ImpactModelBuilderImpl extends KnowledgeBuilderImpl {
         buildRules(packages);
     }
 
+    protected void buildOtherDeclarations(Collection<CompositePackageDescr> packages) {
+        for (CompositePackageDescr packageDescr : packages) {
+            PackageRegistry pkgRegistry = getPackageRegistry(packageDescr.getNamespace());
+            setAssetFilter(packageDescr.getFilter());
+            OtherDeclarationCompilationPhase otherDeclarationProcessor = new OtherDeclarationCompilationPhase(
+                    pkgRegistry,
+                    packageDescr,
+                    getGlobalVariableContext(),
+                    this,
+                    getKnowledgeBase(),
+                    getBuilderConfiguration(),
+                    this.getAssetFilter());
+            otherDeclarationProcessor.process();
+            this.getBuildResultCollector().addAll(otherDeclarationProcessor.getResults());
+            setAssetFilter(null);
+        }
+    }
+
     private Collection<CompositePackageDescr> findPackages(Collection<CompositePackageDescr> compositePackages) {
         Collection<CompositePackageDescr> packages;
         if (compositePackages != null && !compositePackages.isEmpty()) {
@@ -126,7 +143,6 @@ public class ImpactModelBuilderImpl extends KnowledgeBuilderImpl {
         return packages;
     }
 
-    @Override
     protected void initPackageRegistries(Collection<CompositePackageDescr> packages) {
         for ( CompositePackageDescr packageDescr : packages ) {
             if ( StringUtils.isEmpty(packageDescr.getName()) ) {
@@ -157,7 +173,14 @@ public class ImpactModelBuilderImpl extends KnowledgeBuilderImpl {
     }
 
     private void processTypeDeclarationDescr(InternalKnowledgePackage pkg, AbstractClassTypeDeclarationDescr typeDescr) {
-        normalizeAnnotations(typeDescr, pkg.getTypeResolver(), false);
+        AnnotationNormalizer annotationNormalizer =
+                AnnotationNormalizer.of(
+                        pkg.getTypeResolver(),
+                        getBuilderConfiguration().getLanguageLevel().useJavaAnnotations());
+
+        annotationNormalizer.normalize(typeDescr);
+        this.getBuildResultCollector().addAll(annotationNormalizer.getResults());
+
         try {
             Class<?> typeClass = pkg.getTypeResolver().resolveType( typeDescr.getTypeName() );
             String typePkg = typeClass.getPackage().getName();
@@ -188,18 +211,13 @@ public class ImpactModelBuilderImpl extends KnowledgeBuilderImpl {
             PackageRegistry pkgRegistry = getPackageRegistry(packageDescr.getNamespace());
 
             PackageModel packageModel = getPackageModel(packageDescr, pkgRegistry, packageDescr.getName());
-            initPackageModel( this, pkgRegistry.getPackage(), pkgRegistry.getPackage().getTypeResolver(), packageDescr, packageModel );
+            PackageModel.initPackageModel( this, pkgRegistry.getPackage(), pkgRegistry.getTypeResolver(), packageDescr, packageModel );
             analysisModel.addPackage( new PackageParser(this, packageModel, packageDescr, pkgRegistry).parse() );
         }
     }
 
-    private PackageModel getPackageModel( PackageDescr packageDescr, PackageRegistry pkgRegistry, String pkgName) {
-        return packageModels.computeIfAbsent(pkgName, s -> {
-            final DialectCompiletimeRegistry dialectCompiletimeRegistry = pkgRegistry.getDialectCompiletimeRegistry();
-            return packageDescr.getPreferredPkgUUID()
-                    .map(pkgUUI -> new PackageModel(pkgName, this.getBuilderConfiguration(), dialectCompiletimeRegistry, exprIdGenerator, pkgUUI))
-                    .orElse(new PackageModel(releaseId, pkgName, this.getBuilderConfiguration(), dialectCompiletimeRegistry, exprIdGenerator));
-        });
+    private PackageModel getPackageModel(PackageDescr packageDescr, PackageRegistry pkgRegistry, String pkgName) {
+        return packageModels.computeIfAbsent(pkgName, s -> PackageModel.createPackageModel(getBuilderConfiguration(), packageDescr, pkgRegistry, pkgName, releaseId, exprIdGenerator));
     }
 
     public AnalysisModel getAnalysisModel() {

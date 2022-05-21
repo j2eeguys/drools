@@ -16,6 +16,7 @@
 template header
 age: Long
 type
+price: Double
 log
 
 package Some_business_rules;
@@ -27,12 +28,13 @@ global java.util.List list;
 template "cheesefans"
 age > 21 && < 43
 type
+price
 log
 
 rule "Cheese fans_@{row.rowNumber}"
     when
         Person(age == "@{age}")
-        Cheese(type == "@{type}")
+        Cheese(type == "@{type}", price > "@{price}")
     then
         list.add("@{log}");
 end

@@ -28,10 +28,10 @@ import java.util.TreeSet;
 import org.drools.compiler.compiler.AnalysisResult;
 import org.drools.compiler.compiler.BoundIdentifiers;
 import org.drools.compiler.compiler.DescrBuildError;
-import org.drools.compiler.lang.descr.AccumulateDescr;
-import org.drools.compiler.lang.descr.AccumulateDescr.AccumulateFunctionCallDescr;
-import org.drools.compiler.lang.descr.AndDescr;
-import org.drools.compiler.lang.descr.BaseDescr;
+import org.drools.drl.ast.descr.AccumulateDescr;
+import org.drools.drl.ast.descr.AccumulateDescr.AccumulateFunctionCallDescr;
+import org.drools.drl.ast.descr.AndDescr;
+import org.drools.drl.ast.descr.BaseDescr;
 import org.drools.compiler.rule.builder.AccumulateBuilder;
 import org.drools.compiler.rule.builder.RuleBuildContext;
 import org.drools.compiler.rule.builder.RuleConditionBuilder;
@@ -49,10 +49,10 @@ import org.drools.core.rule.MutableTypeConstraint;
 import org.drools.core.rule.Pattern;
 import org.drools.core.rule.RuleConditionElement;
 import org.drools.core.rule.SingleAccumulate;
-import org.drools.core.spi.Accumulator;
-import org.drools.core.spi.Constraint;
-import org.drools.core.spi.DeclarationScopeResolver;
-import org.drools.core.spi.InternalReadAccessor;
+import org.drools.core.rule.accessor.Accumulator;
+import org.drools.core.rule.constraint.Constraint;
+import org.drools.core.rule.accessor.DeclarationScopeResolver;
+import org.drools.core.rule.accessor.ReadAccessor;
 import org.drools.core.util.index.IndexUtil;
 import org.drools.mvel.MVELConstraint;
 import org.drools.mvel.builder.MVELExprAnalyzer;
@@ -149,7 +149,7 @@ public class JavaAccumulateBuilder
             Accumulator[] accumulators = new Accumulator[funcCalls.size()];
 
             // creating the custom array reader
-            InternalReadAccessor reader = new SelfReferenceClassFieldReader( Object[].class );
+            ReadAccessor reader = new SelfReferenceClassFieldReader( Object[].class );
 
             int index = 0;
             for ( AccumulateFunctionCallDescr fc : funcCalls ) {
@@ -192,7 +192,7 @@ public class JavaAccumulateBuilder
         }
     }
 
-    private void bindReaderToDeclaration( RuleBuildContext context, AccumulateDescr accumDescr, Pattern pattern, AccumulateFunctionCallDescr fc, InternalReadAccessor readAccessor, Class<?> resultType, int index ) {
+    private void bindReaderToDeclaration( RuleBuildContext context, AccumulateDescr accumDescr, Pattern pattern, AccumulateFunctionCallDescr fc, ReadAccessor readAccessor, Class<?> resultType, int index ) {
         if ( fc.getBind() != null ) {
             if ( context.getDeclarationResolver().isDuplicated( context.getRule(), fc.getBind(), resultType.getName() ) ) {
                 if ( ! fc.isUnification() ) {

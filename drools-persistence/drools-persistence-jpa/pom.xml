@@ -6,11 +6,10 @@
   <parent>
     <groupId>org.drools</groupId>
     <artifactId>drools-persistence</artifactId>
-    <version>7.58.0-SNAPSHOT</version>
+    <version>8.22.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>drools-persistence-jpa</artifactId>
-  <packaging>bundle</packaging><!-- bundle = jar + OSGi metadata -->
 
   <name>Drools :: Persistence :: JPA</name>
   <description>JPA implementation for Drools</description>
@@ -29,7 +28,9 @@
     <maven.jdbc.driver.jar/>
     <maven.jdbc.username/>
     <maven.jdbc.password/>
-    <maven.jdbc.url>jdbc:h2:mem:test</maven.jdbc.url>
+    <!-- appending ;MODE=LEGACY to the jdbc url is necessary to workaround the problem reported at -->
+    <!-- https://github.com/h2database/h2database/issues/3325 -->
+    <maven.jdbc.url>jdbc:h2:mem:test;MODE=LEGACY</maven.jdbc.url>
     <maven.jdbc.schema>public</maven.jdbc.schema>
   </properties>
 
@@ -46,36 +47,6 @@
     </testResources>
     
     <plugins>
-      <plugin>
-        <groupId>org.apache.felix</groupId>
-        <artifactId>maven-bundle-plugin</artifactId>
-        <extensions>true</extensions>
-        <configuration>
-          <instructions>
-            <Import-Package>
-              javassist.util.proxy;resolution:=optional,
-              javax.transaction;resolution:=optional,
-              javax.naming;resolution:=optional,
-              org.drools.container.spring.beans.persistence;resolution:=optional,
-              org.drools.core.marshalling.impl;resolution:=optional,
-              org.jbpm.persistence;resolution:=optional,
-              org.hibernate.proxy;resolution:=optional,
-              org.kie.spring.persistence;resolution:=optional,
-              org.hibernate;resolution:=optional,
-              org.hibernate.exception;resolution:=optional,
-              org.drools.persistence.api,
-              org.drools.persistence.jta,
-              org.drools.persistence.processinstance,
-              *
-            </Import-Package>
-            <Export-Package>
-              org.drools.persistence.*
-            </Export-Package>
-            <Private-Package/>
-            <Bundle-Activator>org.drools.persistence.osgi.Activator</Bundle-Activator>
-          </instructions>
-        </configuration>
-      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
@@ -111,16 +82,15 @@
     </dependency>
     <dependency>
       <groupId>org.drools</groupId>
+      <artifactId>drools-commands</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.drools</groupId>
       <artifactId>drools-serialization-protobuf</artifactId>
     </dependency>
     <dependency>
       <groupId>org.drools</groupId>
       <artifactId>drools-mvel</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.drools</groupId>
-      <artifactId>drools-cdi</artifactId>
-      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>com.sun.xml.bind</groupId>
@@ -133,18 +103,8 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>org.osgi</groupId>
-      <artifactId>org.osgi.core</artifactId>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.osgi</groupId>
-      <artifactId>org.osgi.compendium</artifactId>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>javax.persistence</groupId>
-      <artifactId>javax.persistence-api</artifactId>
+      <groupId>jakarta.persistence</groupId>
+      <artifactId>jakarta.persistence-api</artifactId>
     </dependency>
     <dependency>
       <groupId>com.google.protobuf</groupId>
@@ -155,19 +115,24 @@
       <artifactId>javassist</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.jboss.spec.javax.transaction</groupId>
-      <artifactId>jboss-transaction-api_1.2_spec</artifactId>
+      <groupId>jakarta.transaction</groupId>
+      <artifactId>jakarta.transaction-api</artifactId>
     </dependency>
 
     <dependency>
-      <groupId>org.jboss.spec.javax.xml.bind</groupId>
-      <artifactId>jboss-jaxb-api_2.3_spec</artifactId>
+      <groupId>jakarta.xml.bind</groupId>
+      <artifactId>jakarta.xml.bind-api</artifactId>
     </dependency>
 
     <!-- Testing deps-->
     <dependency>
       <groupId>org.kie</groupId>
       <artifactId>kie-test-util</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.drools</groupId>
+      <artifactId>drools-xml-support</artifactId>
       <scope>test</scope>
     </dependency>
 
@@ -211,6 +176,11 @@
       <scope>test</scope>
     </dependency>
     <dependency>
+      <groupId>org.jboss</groupId>
+      <artifactId>jboss-transaction-spi-jakarta</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>org.drools</groupId>
       <artifactId>drools-legacy-test-util</artifactId>
       <type>test-jar</type>
@@ -223,31 +193,14 @@
     </dependency>
 
     <dependency>
-      <groupId>javax.enterprise</groupId>
-      <artifactId>cdi-api</artifactId>
+      <groupId>jakarta.enterprise</groupId>
+      <artifactId>jakarta.enterprise.cdi-api</artifactId>
       <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>javax.el</groupId>
-          <artifactId>javax.el-api</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>javax.interceptor</groupId>
-          <artifactId>javax.interceptor-api</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.jboss.weld.se</groupId>
       <artifactId>weld-se-core</artifactId>
       <scope>test</scope>
-      <exclusions>
-        <!-- collides with javax.inject:javax.inject:jar:1:compile -->
-        <exclusion>
-          <groupId>jakarta.enterprise</groupId>
-          <artifactId>jakarta.enterprise.cdi-api</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.assertj</groupId>

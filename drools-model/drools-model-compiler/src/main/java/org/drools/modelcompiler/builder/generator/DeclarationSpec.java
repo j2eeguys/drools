@@ -23,12 +23,12 @@ import java.util.Optional;
 
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.type.Type;
-import org.drools.compiler.lang.descr.BehaviorDescr;
-import org.drools.compiler.lang.descr.EntryPointDescr;
-import org.drools.compiler.lang.descr.PatternDescr;
+import org.drools.drl.ast.descr.BehaviorDescr;
+import org.drools.drl.ast.descr.EntryPointDescr;
+import org.drools.drl.ast.descr.PatternDescr;
 import org.drools.core.base.ClassObjectType;
 import org.drools.core.rule.Declaration;
-import org.drools.core.spi.PatternExtractor;
+import org.drools.core.rule.accessor.PatternExtractor;
 import com.github.javaparser.ast.expr.Expression;
 
 import static org.drools.modelcompiler.builder.generator.DrlxParseUtil.toClassOrInterfaceType;

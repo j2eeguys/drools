@@ -21,7 +21,6 @@ import java.math.MathContext;
 import java.time.Period;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.function.Supplier;
 
 import ch.obermuhlner.math.big.BigDecimalMath;
@@ -32,6 +31,7 @@ import org.kie.dmn.feel.lang.types.impl.ComparablePeriod;
 import org.kie.dmn.feel.runtime.Range;
 import org.kie.dmn.feel.runtime.UnaryTest;
 import org.kie.dmn.feel.runtime.events.ASTEventBase;
+import org.kie.dmn.feel.runtime.functions.ListContainsFunction;
 import org.kie.dmn.feel.runtime.impl.RangeImpl;
 import org.kie.dmn.feel.util.EvalHelper;
 import org.kie.dmn.feel.util.Msg;
@@ -78,7 +78,7 @@ public class CompiledFEELSemanticMappings {
         if (range instanceof Range) {
             try {
                 return ((Range) range).includes(param);
-            } catch (ClassCastException e) {
+            } catch (Exception e) {
                 // e.g. java.base/java.time.Duration cannot be cast to java.base/java.time.Period
                 ctx.notifyEvt(() -> new ASTEventBase(
                         FEELEvent.Severity.ERROR,
@@ -140,7 +140,7 @@ public class CompiledFEELSemanticMappings {
         } else if (test == null) {
             return target == null ? true : null;
         } else {
-            return Objects.equals(test, target);
+            return ListContainsFunction.itemEqualsSC(target, test);
         }
     }
 

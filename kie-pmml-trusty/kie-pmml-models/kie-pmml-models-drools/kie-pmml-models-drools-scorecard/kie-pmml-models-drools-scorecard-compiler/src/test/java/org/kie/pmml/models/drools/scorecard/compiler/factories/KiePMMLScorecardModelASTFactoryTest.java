@@ -24,15 +24,13 @@ import org.dmg.pmml.PMML;
 import org.dmg.pmml.scorecard.Scorecard;
 import org.junit.Before;
 import org.junit.Test;
-import org.kie.pmml.compiler.testutils.TestUtils;
+import org.kie.pmml.compiler.api.testutils.TestUtils;
 import org.kie.pmml.models.drools.ast.KiePMMLDroolsAST;
 import org.kie.pmml.models.drools.ast.KiePMMLDroolsType;
 import org.kie.pmml.models.drools.tuples.KiePMMLOriginalTypeGeneratedType;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.kie.pmml.compiler.api.CommonTestingUtils.getFieldsFromDataDictionary;
 import static org.kie.pmml.models.drools.utils.KiePMMLASTTestUtils.getFieldTypeMap;
 
 public class KiePMMLScorecardModelASTFactoryTest {
@@ -44,9 +42,9 @@ public class KiePMMLScorecardModelASTFactoryTest {
     @Before
     public void setUp() throws Exception {
         samplePmml = TestUtils.loadFromFile(SOURCE_SAMPLE);
-        assertNotNull(samplePmml);
-        assertEquals(1, samplePmml.getModels().size());
-        assertTrue(samplePmml.getModels().get(0) instanceof Scorecard);
+        assertThat(samplePmml).isNotNull();
+        assertThat(samplePmml.getModels()).hasSize(1);
+        assertThat(samplePmml.getModels().get(0)).isInstanceOf(Scorecard.class);
         scorecardModel = ((Scorecard) samplePmml.getModels().get(0));
     }
 
@@ -54,10 +52,10 @@ public class KiePMMLScorecardModelASTFactoryTest {
     public void getKiePMMLDroolsSampleAST() {
         final Map<String, KiePMMLOriginalTypeGeneratedType> fieldTypeMap = getFieldTypeMap(samplePmml.getDataDictionary(), samplePmml.getTransformationDictionary(),  scorecardModel.getLocalTransformations());
         List<KiePMMLDroolsType> types = Collections.emptyList();
-        KiePMMLDroolsAST retrieved = KiePMMLScorecardModelASTFactory.getKiePMMLDroolsAST(samplePmml.getDataDictionary(), scorecardModel, fieldTypeMap, types);
-        assertNotNull(retrieved);
-        assertEquals(types, retrieved.getTypes());
-        assertFalse(retrieved.getRules().isEmpty());
+        KiePMMLDroolsAST retrieved = KiePMMLScorecardModelASTFactory.getKiePMMLDroolsAST(getFieldsFromDataDictionary(samplePmml.getDataDictionary()), scorecardModel, fieldTypeMap, types);
+        assertThat(retrieved).isNotNull();
+        assertThat(retrieved.getTypes()).isEqualTo(types);
+        assertThat(retrieved.getRules()).isNotEmpty();
     }
 
 }

@@ -36,16 +36,24 @@ public class JavaDialectConfiguration extends JavaConfiguration implements Diale
         init( conf );
     }
 
+    public static CompilerType getDefaultCompilerType() {
+        return DEFAULT_JAVA_CONFIGURATION.getCompiler();
+    }
+
+    public static void setDefaultCompilerType(CompilerType compilerType) {
+        DEFAULT_JAVA_CONFIGURATION.setCompiler(compilerType);
+    }
+
     public static JavaCompiler createDefaultCompiler() {
         return JavaCompilerFactory.loadCompiler(DEFAULT_JAVA_CONFIGURATION.getCompiler(), DEFAULT_JAVA_VERSION, "src/main/java/");
     }
 
     public static JavaCompiler createNativeCompiler() {
-        return JavaCompilerFactory.loadCompiler(CompilerType.NATIVE, DEFAULT_JAVA_VERSION, "src/main/java/");
+        return JavaCompiler.createNativeCompiler(DEFAULT_JAVA_VERSION);
     }
 
     public static JavaCompiler createEclipseCompiler() {
-        return JavaCompilerFactory.loadCompiler(CompilerType.ECLIPSE, DEFAULT_JAVA_VERSION, "src/main/java/");
+        return JavaCompiler.createEclipseCompiler(DEFAULT_JAVA_VERSION);
     }
 
     @Override
@@ -64,7 +72,7 @@ public class JavaDialectConfiguration extends JavaConfiguration implements Diale
 
     @Override
     public Dialect newDialect(ClassLoader rootClassLoader, KnowledgeBuilderConfigurationImpl pkgConf, PackageRegistry pkgRegistry, InternalKnowledgePackage pkg) {
-        return new Dialect.DummyDialect(rootClassLoader, pkgConf, pkgRegistry, pkg);
+        return new Dialect.DummyDialect(rootClassLoader, pkgRegistry, pkg);
     }
 
     public boolean hasEclipseCompiler() {

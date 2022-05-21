@@ -23,7 +23,6 @@ import java.io.ObjectOutput;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -32,24 +31,21 @@ import java.util.Set;
 
 import org.drools.core.base.ClassObjectType;
 import org.drools.core.factmodel.AnnotationDefinition;
-import org.drools.core.impl.InternalKnowledgeBase;
+import org.drools.core.impl.RuleBase;
 import org.drools.core.reteoo.PropertySpecificUtil;
 import org.drools.core.rule.constraint.XpathConstraint;
-import org.drools.core.spi.AcceptsClassObjectType;
-import org.drools.core.spi.Constraint;
-import org.drools.core.spi.Constraint.ConstraintType;
-import org.drools.core.spi.InternalReadAccessor;
-import org.drools.core.spi.ObjectType;
-import org.drools.core.spi.PatternExtractor;
-import org.drools.core.spi.SelfDateExtractor;
-import org.drools.core.spi.SelfNumberExtractor;
+import org.drools.core.base.AcceptsClassObjectType;
+import org.drools.core.rule.constraint.Constraint;
+import org.drools.core.rule.constraint.Constraint.ConstraintType;
+import org.drools.core.base.ObjectType;
+import org.drools.core.rule.accessor.PatternExtractor;
 import org.drools.core.util.bitmask.BitMask;
 
 import static org.drools.core.reteoo.PropertySpecificUtil.calculateNegativeMask;
 import static org.drools.core.reteoo.PropertySpecificUtil.calculatePositiveMask;
-import static org.drools.reflective.util.ClassUtils.convertFromPrimitiveType;
-import static org.drools.reflective.util.ClassUtils.isFinal;
-import static org.drools.reflective.util.ClassUtils.isInterface;
+import static org.drools.wiring.api.util.ClassUtils.convertFromPrimitiveType;
+import static org.drools.wiring.api.util.ClassUtils.isFinal;
+import static org.drools.wiring.api.util.ClassUtils.isInterface;
 import static org.kie.internal.ruleunit.RuleUnitUtil.isDataSource;
 
 public class Pattern
@@ -134,13 +130,9 @@ public class Pattern
         this.objectIndex = objectIndex;
         this.objectType = objectType;
         if (identifier != null && (!identifier.equals(""))) {
-            this.declaration = new Declaration(identifier,
-                                               getReadAcessor(objectType),
-                                               this,
-                                               isInternalFact);
-            this.declarations = new HashMap<String, Declaration>();
-            this.declarations.put(this.declaration.getIdentifier(),
-                                  this.declaration );
+            this.declaration = new Declaration(identifier, new PatternExtractor(objectType), this, isInternalFact);
+            this.declarations = new HashMap<>();
+            this.declarations.put(this.declaration.getIdentifier(), this.declaration );
         } else {
             this.declaration = null;
         }        
@@ -192,34 +184,12 @@ public class Pattern
         out.writeObject(xPath);
     }
     
-    public static InternalReadAccessor getReadAcessor(ObjectType objectType) {
-        if ( !(objectType instanceof ClassObjectType) ) {
-            return new PatternExtractor(objectType);
-        }
-        ClassObjectType classObjectType = ((ClassObjectType) objectType);
-        Class returnType = classObjectType.getClassType();
-        
-        if (Number.class.isAssignableFrom( returnType ) ||
-                ( returnType == byte.class ||
-                  returnType == short.class ||
-                  returnType == int.class ||
-                  returnType == long.class ||
-                  returnType == float.class ||
-                  returnType == double.class ) ) {            
-            return new SelfNumberExtractor(classObjectType);
-         } else if (  Date.class.isAssignableFrom( returnType ) ) {
-            return new SelfDateExtractor(classObjectType);
-        } else {
-            return new PatternExtractor(objectType);
-        }        
-    }
-    
     public void setClassObjectType(ClassObjectType objectType) {
         this.objectType = objectType;
     }
 
     public Declaration[] getRequiredDeclarations() {
-        Set<Declaration> decl = new HashSet<Declaration>();
+        Set<Declaration> decl = new HashSet<>();
         for( Constraint constr : this.constraints ) {
             Collections.addAll( decl, constr.getRequiredDeclarations() );
         }
@@ -552,13 +522,13 @@ public class Pattern
         this.listenedProperties.addAll( watchedProperties );
     }
 
-    public List<String> getAccessibleProperties(InternalKnowledgeBase kBase) {
-        return PropertySpecificUtil.getAccessibleProperties( kBase, getClassType() );
+    public List<String> getAccessibleProperties(RuleBase ruleBase) {
+        return PropertySpecificUtil.getAccessibleProperties( ruleBase, objectType );
     }
 
     public BitMask getPositiveWatchMask( List<String> accessibleProperties ) {
         if (positiveWatchMask == null) {
-            positiveWatchMask = calculatePositiveMask( getClassType(), listenedProperties, accessibleProperties );
+            positiveWatchMask = calculatePositiveMask( objectType, listenedProperties, accessibleProperties );
         }
         return positiveWatchMask;
     }
@@ -569,17 +539,13 @@ public class Pattern
 
     public BitMask getNegativeWatchMask( List<String> accessibleProperties ) {
         if (negativeWatchMask == null) {
-            negativeWatchMask = calculateNegativeMask(getClassType(), listenedProperties, accessibleProperties);
+            negativeWatchMask = calculateNegativeMask(objectType, listenedProperties, accessibleProperties);
         }
         return negativeWatchMask;
     }
 
     public void setNegativeWatchMask( BitMask negativeWatchMask ) {
         this.negativeWatchMask = negativeWatchMask;
-    }
-
-    private Class<?> getClassType() {
-        return (( ClassObjectType ) objectType).getClassType();
     }
 
     public Map<String, AnnotationDefinition> getAnnotations() {

@@ -15,16 +15,14 @@
  */
 package org.kie.pmml.commons.model.expressions;
 
+import java.util.Collections;
 import java.util.List;
 
 import org.kie.pmml.api.enums.OUTLIER_TREATMENT_METHOD;
 import org.kie.pmml.api.exceptions.KiePMMLException;
 import org.kie.pmml.commons.model.KiePMMLExtension;
-import org.kie.pmml.commons.model.KiePMMLOutputField;
+import org.kie.pmml.commons.model.ProcessingDTO;
 import org.kie.pmml.commons.model.abstracts.AbstractKiePMMLComponent;
-import org.kie.pmml.commons.model.tuples.KiePMMLNameValue;
-import org.kie.pmml.commons.transformations.KiePMMLDefineFunction;
-import org.kie.pmml.commons.transformations.KiePMMLDerivedField;
 
 import static org.kie.pmml.commons.model.expressions.ExpressionsUtils.getFromPossibleSources;
 
@@ -59,15 +57,25 @@ public class KiePMMLNormContinuous extends AbstractKiePMMLComponent implements K
     }
 
     @Override
-    public Object evaluate(List<KiePMMLDefineFunction> defineFunctions, List<KiePMMLDerivedField> derivedFields,
-                           List<KiePMMLOutputField> outputFields, List<KiePMMLNameValue> kiePMMLNameValues) {
-        Number input = (Number) getFromPossibleSources(name, defineFunctions, derivedFields, outputFields,
-                                                       kiePMMLNameValues)
+    public Object evaluate(final ProcessingDTO processingDTO) {
+        Number input = (Number) getFromPossibleSources(name, processingDTO)
                 .orElse(mapMissingTo);
         if (input == null) {
             throw new KiePMMLException("Failed to retrieve input number for " + name);
         }
         return evaluate(input);
+    }
+
+    public List<KiePMMLLinearNorm> getLinearNorms() {
+        return Collections.unmodifiableList(linearNorms);
+    }
+
+    public OUTLIER_TREATMENT_METHOD getOutlierTreatmentMethod() {
+        return outlierTreatmentMethod;
+    }
+
+    public Number getMapMissingTo() {
+        return mapMissingTo;
     }
 
     Number evaluate(final Number input) {

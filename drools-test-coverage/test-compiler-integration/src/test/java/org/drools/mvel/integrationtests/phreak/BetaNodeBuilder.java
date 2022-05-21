@@ -15,12 +15,13 @@
 
 package org.drools.mvel.integrationtests.phreak;
 
-import org.drools.core.base.ClassFieldAccessorStore;
+import org.drools.mvel.accessors.ClassFieldAccessorStore;
 import org.drools.core.base.ClassObjectType;
 import org.drools.core.common.BetaConstraints;
 import org.drools.core.common.EmptyBetaConstraints;
 import org.drools.core.common.SingleBetaConstraints;
 import org.drools.core.reteoo.BetaNode;
+import org.drools.core.reteoo.CoreComponentFactory;
 import org.drools.core.reteoo.EntryPointNode;
 import org.drools.core.reteoo.ExistsNode;
 import org.drools.core.reteoo.JoinNode;
@@ -33,7 +34,7 @@ import org.drools.core.reteoo.builder.BuildContext;
 import org.drools.core.reteoo.builder.NodeFactory;
 import org.drools.core.rule.Declaration;
 import org.drools.core.rule.Pattern;
-import org.drools.core.spi.InternalReadAccessor;
+import org.drools.core.rule.accessor.ReadAccessor;
 
 public class BetaNodeBuilder {
     BuildContext buildContext;
@@ -82,18 +83,18 @@ public class BetaNodeBuilder {
     }
 
     public BetaNode build() {
-        NodeFactory nFactory = buildContext.getComponentFactory().getNodeFactoryService();
+        NodeFactory nFactory = CoreComponentFactory.get().getNodeFactoryService();
 
-        EntryPointNode epn = buildContext.getKnowledgeBase().getRete().getEntryPointNodes().values().iterator().next();
+        EntryPointNode epn = buildContext.getRuleBase().getRete().getEntryPointNodes().values().iterator().next();
 
-        ObjectTypeNode otn = nFactory.buildObjectTypeNode(buildContext.getNextId(),
+        ObjectTypeNode otn = nFactory.buildObjectTypeNode(buildContext.getNextNodeId(),
                                                           epn,
                                                           new ClassObjectType(leftType),
                                                           buildContext);
 
-        LeftInputAdapterNode leftInput = nFactory.buildLeftInputAdapterNode(buildContext.getNextId(), otn, buildContext, false);
+        LeftInputAdapterNode leftInput = nFactory.buildLeftInputAdapterNode(buildContext.getNextNodeId(), otn, buildContext, false);
 
-        ObjectSource rightInput = nFactory.buildObjectTypeNode(buildContext.getNextId(),
+        ObjectSource rightInput = nFactory.buildObjectTypeNode(buildContext.getNextNodeId(),
                                                                epn,
                                                                new ClassObjectType(rightType),
                                                                buildContext);
@@ -107,7 +108,7 @@ public class BetaNodeBuilder {
         if (constraintFieldName != null) {
             ClassFieldAccessorStore store = (ClassFieldAccessorStore) reteTesterHelper.getStore();
 
-            InternalReadAccessor extractor = store.getReader(leftType,
+            ReadAccessor extractor = store.getReader(leftType,
                                                              leftFieldName);
 
             Declaration declr = new Declaration(leftVariableName,
@@ -116,7 +117,7 @@ public class BetaNodeBuilder {
             betaConstraints = new SingleBetaConstraints(reteTesterHelper.getBoundVariableConstraint(rightType,
                                                                                                     constraintFieldName,
                                                                                                     declr,
-                                                                                                    constraintOperator), buildContext.getKnowledgeBase().getConfiguration());
+                                                                                                    constraintOperator), buildContext.getRuleBase().getConfiguration());
         } else {
             betaConstraints = new EmptyBetaConstraints();
         }

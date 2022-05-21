@@ -21,16 +21,16 @@ import java.io.ObjectOutput;
 import java.io.Serializable;
 import java.util.Arrays;
 
-import org.drools.core.WorkingMemory;
 import org.drools.core.common.InternalFactHandle;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.reteoo.AccumulateNode.AccumulateContextEntry;
 import org.drools.core.reteoo.AccumulateNode.GroupByContext;
 import org.drools.core.reteoo.LeftTuple;
 import org.drools.core.reteoo.RightTuple;
-import org.drools.core.spi.Accumulator;
-import org.drools.core.spi.MvelAccumulator;
-import org.drools.core.spi.Tuple;
-import org.drools.core.spi.Wireable;
+import org.drools.core.rule.accessor.Accumulator;
+import org.drools.core.rule.accessor.CompiledInvoker;
+import org.drools.core.reteoo.Tuple;
+import org.drools.core.rule.accessor.Wireable;
 import org.drools.core.util.index.TupleList;
 import org.kie.internal.security.KiePolicyHelper;
 
@@ -59,7 +59,7 @@ public class SingleAccumulate extends Accumulate {
 
     public void writeExternal(ObjectOutput out) throws IOException {
         super.writeExternal(out);
-        if (Accumulator.isCompiledInvoker(accumulator)) {
+        if (CompiledInvoker.isCompiledInvoker(accumulator)) {
             out.writeObject(null);
         } else {
             out.writeObject(accumulator);
@@ -81,10 +81,10 @@ public class SingleAccumulate extends Accumulate {
     public Object init(final Object workingMemoryContext,
                        final Object accContext,
                        final Object funcContext, final Tuple leftTuple,
-                       final WorkingMemory workingMemory) {
+                       final ReteEvaluator reteEvaluator) {
         Object returned = this.accumulator.init( workingMemoryContext,
                                                  funcContext, leftTuple,
-                                                 this.requiredDeclarations, workingMemory );
+                                                 this.requiredDeclarations, reteEvaluator );
         return returned;
     }
 
@@ -92,19 +92,19 @@ public class SingleAccumulate extends Accumulate {
                              final Object context,
                              final Tuple match,
                              final InternalFactHandle handle,
-                             final WorkingMemory workingMemory) {
+                             final ReteEvaluator reteEvaluator) {
         return this.accumulator.accumulate( workingMemoryContext,
                                             ((AccumulateContextEntry)context).getFunctionContext(),
                                             match,
                                             handle,
                                             this.requiredDeclarations,
                                             getInnerDeclarationCache(),
-                                            workingMemory );
+                                            reteEvaluator );
     }
 
     @Override
     public Object accumulate(Object workingMemoryContext, Tuple match, InternalFactHandle childHandle,
-                             GroupByContext groupByContext, TupleList<AccumulateContextEntry> tupleList, WorkingMemory wm) {
+                             GroupByContext groupByContext, TupleList<AccumulateContextEntry> tupleList, ReteEvaluator reteEvaluator) {
         throw new UnsupportedOperationException("This should never be called, it's for LambdaGroupByAccumulate only.");
     }
 
@@ -115,7 +115,7 @@ public class SingleAccumulate extends Accumulate {
                               final InternalFactHandle handle,
                               final RightTuple rightParent,
                               final LeftTuple match,
-                              final WorkingMemory workingMemory) {
+                              final ReteEvaluator reteEvaluator) {
         return this.accumulator.tryReverse( workingMemoryContext,
                                             ((AccumulateContextEntry)context).getFunctionContext(),
                                             leftTuple,
@@ -123,7 +123,7 @@ public class SingleAccumulate extends Accumulate {
                                             match.getContextObject(),
                                             this.requiredDeclarations,
                                             getInnerDeclarationCache(),
-                                            workingMemory );
+                                            reteEvaluator );
     }
 
     public boolean supportsReverse() {
@@ -134,12 +134,12 @@ public class SingleAccumulate extends Accumulate {
     public Object getResult(final Object workingMemoryContext,
                             final Object context,
                             final Tuple leftTuple,
-                            final WorkingMemory workingMemory) {
+                            final ReteEvaluator reteEvaluator) {
         return this.accumulator.getResult( workingMemoryContext,
                                            ((AccumulateContextEntry)context).getFunctionContext(),
                                            leftTuple,
                                            this.requiredDeclarations,
-                                           workingMemory );
+                                           reteEvaluator );
     }
 
     public SingleAccumulate clone() {
@@ -152,9 +152,7 @@ public class SingleAccumulate extends Accumulate {
     }
 
     public void replaceAccumulatorDeclaration(Declaration declaration, Declaration resolved) {
-        if (accumulator instanceof MvelAccumulator ) {
-            ( (MvelAccumulator) accumulator ).replaceDeclaration( declaration, resolved );
-        }
+        accumulator.replaceDeclaration( declaration, resolved );
     }
 
     public Object createWorkingMemoryContext() {

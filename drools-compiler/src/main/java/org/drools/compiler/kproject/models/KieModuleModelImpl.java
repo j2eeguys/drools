@@ -21,19 +21,19 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.drools.core.util.StringUtils;
+import org.drools.core.base.XMLSupport;
+import org.drools.util.StringUtils;
 import org.kie.api.builder.model.KieBaseModel;
 import org.kie.api.builder.model.KieModuleModel;
-
-import static org.drools.compiler.kproject.models.KieModuleMarshaller.MARSHALLER;
+import org.drools.util.PortablePath;
 
 public class KieModuleModelImpl implements KieModuleModel {
 
     public static final String KMODULE_FILE_NAME = "kmodule.xml";
-    public static final String KMODULE_JAR_PATH = "META-INF/" + KMODULE_FILE_NAME;
-    public static final String KMODULE_INFO_JAR_PATH = "META-INF/kmodule.info";
-    public static final String KMODULE_SRC_PATH = "src/main/resources/" + KMODULE_JAR_PATH;
-    public static final String KMODULE_SPRING_JAR_PATH = "META-INF/kmodule-spring.xml";
+    public static final PortablePath KMODULE_INFO_JAR_PATH = PortablePath.of("META-INF/kmodule.info");
+    public static final PortablePath KMODULE_JAR_PATH = PortablePath.of("META-INF").resolve(KMODULE_FILE_NAME);
+    public static final PortablePath KMODULE_SPRING_JAR_PATH = PortablePath.of("META-INF/kmodule-spring.xml");
+    public static final PortablePath KMODULE_SRC_PATH = PortablePath.of("src/main/resources").resolve(KMODULE_JAR_PATH);
 
     private Map<String, String> confProps = new HashMap<String, String>();
     private Map<String, KieBaseModel> kBases = new HashMap<String, KieBaseModel>();
@@ -114,11 +114,11 @@ public class KieModuleModelImpl implements KieModuleModel {
         kBases.put(newName, kieBase);
     }
 
-    Map<String, String> getConfProps() {
+    public Map<String, String> getConfProps() {
         return confProps;
     }
 
-    void setConfProps( Map<String, String> confProps ) {
+    public void setConfProps( Map<String, String> confProps ) {
         this.confProps = confProps;
     }
 
@@ -135,23 +135,23 @@ public class KieModuleModelImpl implements KieModuleModel {
                     "         xmlns=\"http://www.drools.org/xsd/kmodule\""; // missed end >, so we can cater for />
 
     public String toXML() {
-        String xml = MARSHALLER.toXML(this);
+        String xml = XMLSupport.get().kieModuleMarshaller().toXML(this);
         return KMODULE_XSD + xml.substring("<kmodule".length());  // missed end >, so we can cater for />
     }
 
     public static KieModuleModel fromXML(InputStream kModuleStream) {
-        return MARSHALLER.fromXML(kModuleStream);
+        return (KieModuleModel) XMLSupport.get().kieModuleMarshaller().fromXML(kModuleStream);
     }
 
     public static KieModuleModel fromXML(java.io.File kModuleFile) {
-        return MARSHALLER.fromXML(kModuleFile);
+        return (KieModuleModel) XMLSupport.get().kieModuleMarshaller().fromXML(kModuleFile);
     }
 
     public static KieModuleModel fromXML(URL kModuleUrl) {
-        return MARSHALLER.fromXML(kModuleUrl);
+        return (KieModuleModel) XMLSupport.get().kieModuleMarshaller().fromXML(kModuleUrl);
     }
 
     public static KieModuleModel fromXML(String kModuleString) {
-        return MARSHALLER.fromXML(kModuleString);
+        return (KieModuleModel) XMLSupport.get().kieModuleMarshaller().fromXML(kModuleString);
     }
 }

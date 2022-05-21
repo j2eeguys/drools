@@ -16,6 +16,7 @@
 
 package org.kie.pmml.models.scorecard.compiler.factories;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -44,30 +45,32 @@ import org.kie.pmml.commons.model.predicates.KiePMMLSimplePredicate;
 import org.kie.pmml.commons.model.predicates.KiePMMLSimpleSetPredicate;
 import org.kie.pmml.commons.model.predicates.KiePMMLTruePredicate;
 import org.kie.pmml.commons.utils.KiePMMLModelUtils;
+import org.kie.pmml.compiler.api.dto.CommonCompilationDTO;
+import org.kie.pmml.compiler.api.testutils.TestUtils;
 import org.kie.pmml.compiler.commons.mocks.HasClassLoaderMock;
 import org.kie.pmml.compiler.commons.utils.JavaParserUtils;
-import org.kie.pmml.compiler.testutils.TestUtils;
+import org.kie.pmml.models.scorecard.compiler.ScorecardCompilationDTO;
 import org.kie.pmml.models.scorecard.model.KiePMMLAttribute;
 import org.kie.pmml.models.scorecard.model.KiePMMLCharacteristic;
 import org.kie.pmml.models.scorecard.model.KiePMMLCharacteristics;
 import org.kie.pmml.models.scorecard.model.KiePMMLComplexPartialScore;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.kie.pmml.commons.Constants.PACKAGE_CLASS_TEMPLATE;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+import static org.kie.pmml.commons.Constants.PACKAGE_NAME;
+import static org.kie.pmml.compiler.api.CommonTestingUtils.getFieldsFromDataDictionary;
+import static org.kie.pmml.compiler.api.utils.ModelUtils.getDerivedFields;
 import static org.kie.pmml.compiler.commons.testutils.CodegenTestUtils.commonValidateCompilationWithImports;
 import static org.kie.pmml.compiler.commons.utils.JavaParserUtils.MAIN_CLASS_NOT_FOUND;
-import static org.kie.pmml.compiler.commons.utils.ModelUtils.getDerivedFields;
 import static org.kie.pmml.models.scorecard.compiler.factories.KiePMMLCharacteristicsFactory.KIE_PMML_CHARACTERISTICS_TEMPLATE;
 import static org.kie.pmml.models.scorecard.compiler.factories.KiePMMLCharacteristicsFactory.KIE_PMML_CHARACTERISTICS_TEMPLATE_JAVA;
+import static org.kie.test.util.filesystem.FileUtils.getFileContent;
 
 public class KiePMMLCharacteristicsFactoryTest {
 
     private static final String BASIC_COMPLEX_PARTIAL_SCORE_SOURCE = "BasicComplexPartialScore.pmml";
     private static final String CONTAINER_CLASS_NAME = KiePMMLModelUtils.getGeneratedClassName("Scorecard");
-    private static final String PACKAGE_NAME = "packagename";
+    private static final String TEST_01_SOURCE = "KiePMMLCharacteristicsFactoryTest_01.txt";
     private static final CompilationUnit characteristicsCloneCU =
             JavaParserUtils.getKiePMMLModelCompilationUnit(CONTAINER_CLASS_NAME,
                                                            PACKAGE_NAME,
@@ -104,28 +107,30 @@ public class KiePMMLCharacteristicsFactoryTest {
 
     @Test
     public void getKiePMMLCharacteristics() {
+        final CommonCompilationDTO<Scorecard> source =
+                CommonCompilationDTO.fromGeneratedPackageNameAndFields(PACKAGE_NAME,
+                                                                       basicComplexPartialScorePmml,
+                                                                       basicComplexPartialScore,
+                                                                       new HasClassLoaderMock());
         final KiePMMLCharacteristics retrieved =
-                KiePMMLCharacteristicsFactory.getKiePMMLCharacteristics(basicComplexPartialScoreCharacteristics,
-                                                                        Collections.emptyList(),
-                                                                        basicComplexPartialScoreDataDictionary,
-                                                                        PACKAGE_NAME,
-                                                                        new HasClassLoaderMock());
-        assertNotNull(retrieved);
+                KiePMMLCharacteristicsFactory.getKiePMMLCharacteristics(ScorecardCompilationDTO.fromCompilationDTO(source));
+        assertThat(retrieved).isNotNull();
     }
 
     @Test
     public void getKiePMMLCharacteristicsSourcesMap() {
+        final CommonCompilationDTO<Scorecard> source =
+                CommonCompilationDTO.fromGeneratedPackageNameAndFields(PACKAGE_NAME,
+                                                                       basicComplexPartialScorePmml,
+                                                                       basicComplexPartialScore,
+                                                                       new HasClassLoaderMock());
+        ScorecardCompilationDTO compilationDTO = ScorecardCompilationDTO.fromCompilationDTO(source);
         final Map<String, String> retrieved =
-                KiePMMLCharacteristicsFactory.getKiePMMLCharacteristicsSourcesMap
-                        (basicComplexPartialScoreCharacteristics,
-                         Collections.emptyList(),
-                         basicComplexPartialScoreDataDictionary,
-                         CONTAINER_CLASS_NAME,
-                         PACKAGE_NAME);
-        assertNotNull(retrieved);
-        assertEquals(1, retrieved.size());
-        String expected = String.format(PACKAGE_CLASS_TEMPLATE, PACKAGE_NAME, CONTAINER_CLASS_NAME);
-        assertTrue(retrieved.containsKey(expected));
+                KiePMMLCharacteristicsFactory.getKiePMMLCharacteristicsSourcesMap(compilationDTO);
+        assertThat(retrieved).isNotNull();
+        assertThat(retrieved).hasSize(1);
+        String expected = compilationDTO.getPackageCanonicalCharacteristicsClassName();
+        assertThat(retrieved).containsKey(expected);
         try {
             KieMemoryCompiler.compile(retrieved, Thread.currentThread().getContextClassLoader());
         } catch (Exception e) {
@@ -137,8 +142,7 @@ public class KiePMMLCharacteristicsFactoryTest {
     public void setCharacteristicsVariableDeclaration() {
         KiePMMLCharacteristicsFactory.setCharacteristicsVariableDeclaration(CONTAINER_CLASS_NAME,
                                                                             basicComplexPartialScoreCharacteristics,
-                                                                            Collections.emptyList(),
-                                                                            basicComplexPartialScoreDataDictionary,
+                                                                            getFieldsFromDataDictionary(basicComplexPartialScoreDataDictionary),
                                                                             characteristicsTemplate);
         List<Class<?>> imports = Arrays.asList(KiePMMLApply.class,
                                                KiePMMLAttribute.class,
@@ -157,62 +161,20 @@ public class KiePMMLCharacteristicsFactoryTest {
     }
 
     @Test
-    public void addGetCharacteristicMethod() {
+    public void addGetCharacteristicMethod() throws IOException {
         final String characteristicName = "CharacteristicName";
         String expectedMethod = "get" + characteristicName;
-        assertTrue(characteristicsTemplate.getMethodsByName(expectedMethod).isEmpty());
+        assertThat(characteristicsTemplate.getMethodsByName(expectedMethod)).isEmpty();
         KiePMMLCharacteristicsFactory.addGetCharacteristicMethod(characteristicName,
                                                                  basicComplexPartialScoreFirstCharacteristic,
-                                                                 Collections.emptyList(),
-                                                                 basicComplexPartialScoreDataDictionary,
+                                                                 getFieldsFromDataDictionary(basicComplexPartialScoreDataDictionary),
                                                                  characteristicsTemplate);
-        assertEquals(1, characteristicsTemplate.getMethodsByName(expectedMethod).size());
+        assertThat(characteristicsTemplate.getMethodsByName(expectedMethod)).hasSize(1);
         MethodDeclaration retrieved = characteristicsTemplate.getMethodsByName(expectedMethod).get(0);
+        String text = getFileContent(TEST_01_SOURCE);
         MethodDeclaration expected = JavaParserUtils
-                .parseMethod(String.format("private static KiePMMLCharacteristic get%1$s() {\n" +
-                                                   "    KiePMMLSimplePredicate %1$s_0_Predicate = " +
-                                                   "KiePMMLSimplePredicate.builder(\"input1\", Collections.emptyList" +
-                                                   "(), org.kie.pmml.api.enums.OPERATOR.GREATER_THAN).withValue" +
-                                                   "(-1000.0).build();\n" +
-                                                   "    KiePMMLFieldRef %1$s_0_ComplexPartialScore_0_0 " +
-                                                   "= new KiePMMLFieldRef(\"input1\", Collections.emptyList(), null);" +
-                                                   "\n" +
-                                                   "    KiePMMLFieldRef %1$s_0_ComplexPartialScore_0_1 " +
-                                                   "= new KiePMMLFieldRef(\"input2\", Collections.emptyList(), null);" +
-                                                   "\n" +
-                                                   "    KiePMMLApply %1$s_0_ComplexPartialScore_0 = " +
-                                                   "KiePMMLApply.builder(\"%1$s_0_ComplexPartialScore_0" +
-                                                   "\", Collections.emptyList(), \"+\").withDefaultValue(null)" +
-                                                   ".withMapMissingTo(null).withInvalidValueTreatmentMethod" +
-                                                   "(\"returnInvalid\").withKiePMMLExpressions(Arrays.asList" +
-                                                   "(%1$s_0_ComplexPartialScore_0_0, " +
-                                                   "%1$s_0_ComplexPartialScore_0_1)).build();\n" +
-                                                   "    KiePMMLComplexPartialScore " +
-                                                   "%1$s_0_ComplexPartialScore = new " +
-                                                   "KiePMMLComplexPartialScore" +
-                                                   "(\"%1$s_0_ComplexPartialScore\", Collections" +
-                                                   ".emptyList(), %1$s_0_ComplexPartialScore_0);\n" +
-                                                   "    KiePMMLAttribute %1$s_0 = KiePMMLAttribute" +
-                                                   ".builder(\"%1$s_0\", Collections.emptyList(), " +
-                                                   "%1$s_0_Predicate).withPartialScore(null)" +
-                                                   ".withComplexPartialScore" +
-                                                   "(%1$s_0_ComplexPartialScore).build();\n" +
-                                                   "    KiePMMLTruePredicate %1$s_1_Predicate = new " +
-                                                   "KiePMMLTruePredicate(\"%1$s_1_Predicate\", " +
-                                                   "Collections.emptyList());\n" +
-                                                   "    KiePMMLAttribute %1$s_1 = KiePMMLAttribute" +
-                                                   ".builder(\"%1$s_1\", Collections.emptyList(), " +
-                                                   "%1$s_1_Predicate).withPartialScore(25)" +
-                                                   ".withComplexPartialScore(null).build();\n" +
-                                                   "    KiePMMLCharacteristic %1$s = " +
-                                                   "KiePMMLCharacteristic.builder(\"%1$s\", Collections" +
-                                                   ".emptyList(), Arrays.asList(%1$s_0, " +
-                                                   "%1$s_1)).withBaselineScore(20).withReasonCode" +
-                                                   "(\"characteristic1ReasonCode\").build();\n" +
-                                                   "    return %1$s;\n" +
-                                                   "}", characteristicName));
-        assertEquals(expected.toString(), retrieved.toString());
-        assertTrue(JavaParserUtils.equalsNode(expected, retrieved));
+                .parseMethod(String.format(text, characteristicName));
+        assertThat(JavaParserUtils.equalsNode(expected, retrieved)).isTrue();
         List<Class<?>> imports = Arrays.asList(KiePMMLApply.class,
                                                KiePMMLAttribute.class,
                                                KiePMMLCharacteristic.class,
@@ -228,5 +190,4 @@ public class KiePMMLCharacteristicsFactoryTest {
                                                Collections.class);
         commonValidateCompilationWithImports(retrieved, imports);
     }
-
 }

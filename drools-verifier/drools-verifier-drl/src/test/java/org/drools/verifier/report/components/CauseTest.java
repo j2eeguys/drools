@@ -16,15 +16,10 @@
 
 package org.drools.verifier.report.components;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-
 import java.util.ArrayList;
 import java.util.Collection;
 
-import org.drools.core.io.impl.ClassPathResource;
+import org.drools.util.io.ClassPathResource;
 import org.drools.verifier.Verifier;
 import org.drools.verifier.builder.VerifierBuilder;
 import org.drools.verifier.builder.VerifierBuilderFactory;
@@ -32,6 +27,11 @@ import org.drools.verifier.data.VerifierReport;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.kie.api.io.ResourceType;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class CauseTest {
 
@@ -61,7 +61,7 @@ public class CauseTest {
         assertTrue( works );
 
         VerifierReport result = verifier.getResult();
-        assertNotNull( result );
+        assertThat(result).isNotNull();
         assertEquals( 0,
                       result.getBySeverity( Severity.ERROR ).size() );
         Collection<VerifierMessageBase> warnings = result.getBySeverity( Severity.WARNING );

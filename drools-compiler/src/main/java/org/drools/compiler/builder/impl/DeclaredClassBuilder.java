@@ -17,22 +17,22 @@ package org.drools.compiler.builder.impl;
 
 import org.drools.compiler.compiler.PackageRegistry;
 import org.drools.compiler.compiler.TypeDeclarationError;
-import org.drools.compiler.lang.descr.AbstractClassTypeDeclarationDescr;
-import org.drools.compiler.lang.descr.TypeDeclarationDescr;
-import org.drools.core.factmodel.ClassBuilder;
+import org.drools.drl.ast.descr.AbstractClassTypeDeclarationDescr;
+import org.drools.drl.ast.descr.TypeDeclarationDescr;
+import org.drools.compiler.builder.impl.classbuilder.ClassBuilder;
 import org.drools.core.factmodel.ClassDefinition;
 import org.drools.core.rule.JavaDialectRuntimeData;
 import org.drools.core.rule.TypeDeclaration;
-import org.drools.reflective.classloader.ProjectClassLoader;
-import org.drools.core.addon.TypeResolver;
+import org.drools.wiring.api.classloader.ProjectClassLoader;
+import org.drools.util.TypeResolver;
 
-import static org.drools.core.util.ClassUtils.convertClassToResourcePath;
+import static org.drools.util.ClassUtils.convertClassToResourcePath;
 
 public class DeclaredClassBuilder {
 
-    protected final KnowledgeBuilderImpl kbuilder;
+    protected final TypeDeclarationContext kbuilder;
 
-    public DeclaredClassBuilder(KnowledgeBuilderImpl kbuilder) {
+    public DeclaredClassBuilder(TypeDeclarationContext kbuilder) {
         this.kbuilder = kbuilder;
     }
 

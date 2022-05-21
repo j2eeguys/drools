@@ -15,24 +15,20 @@
 
 package org.drools.mvel.compiler.rule.builder.dialect.mvel;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.drools.compiler.builder.impl.KnowledgeBuilderConfigurationImpl;
 import org.drools.compiler.builder.impl.KnowledgeBuilderImpl;
 import org.drools.compiler.compiler.DialectCompiletimeRegistry;
-import org.drools.compiler.lang.descr.EvalDescr;
-import org.drools.compiler.lang.descr.RuleDescr;
 import org.drools.compiler.rule.builder.RuleBuildContext;
 import org.drools.core.base.ClassFieldAccessorCache;
-import org.drools.core.base.ClassFieldAccessorStore;
+import org.drools.mvel.accessors.ClassFieldAccessorStore;
 import org.drools.core.base.ClassObjectType;
 import org.drools.core.common.InternalFactHandle;
 import org.drools.core.definitions.InternalKnowledgePackage;
-import org.drools.core.definitions.impl.KnowledgePackageImpl;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
-import org.drools.core.impl.StatefulKnowledgeSessionImpl;
+import org.drools.core.reteoo.CoreComponentFactory;
 import org.drools.core.reteoo.LeftTupleImpl;
 import org.drools.core.reteoo.MockLeftTupleSink;
 import org.drools.core.reteoo.MockTupleSource;
@@ -40,7 +36,12 @@ import org.drools.core.reteoo.builder.BuildContext;
 import org.drools.core.rule.Declaration;
 import org.drools.core.rule.EvalCondition;
 import org.drools.core.rule.Pattern;
-import org.drools.core.spi.InternalReadAccessor;
+import org.drools.core.rule.accessor.ReadAccessor;
+import org.drools.drl.ast.descr.EvalDescr;
+import org.drools.drl.ast.descr.RuleDescr;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
+import org.drools.kiesession.session.StatefulKnowledgeSessionImpl;
 import org.drools.mvel.MVELDialectRuntimeData;
 import org.drools.mvel.builder.MVELDialect;
 import org.drools.mvel.builder.MVELEvalBuilder;
@@ -64,7 +65,7 @@ public class MVELEvalBuilderTest {
 
     @Test
     public void testSimpleExpression() {
-        InternalKnowledgePackage pkg = new KnowledgePackageImpl( "pkg1" );
+        InternalKnowledgePackage pkg = CoreComponentFactory.get().createKnowledgePackage( "pkg1" );
         final RuleDescr ruleDescr = new RuleDescr( "rule 1" );
 
         KnowledgeBuilderImpl pkgBuilder = new KnowledgeBuilderImpl( pkg );
@@ -80,7 +81,7 @@ public class MVELEvalBuilderTest {
 
         final InstrumentedDeclarationScopeResolver declarationResolver = new InstrumentedDeclarationScopeResolver();
 
-        final InternalReadAccessor extractor = store.getReader( Cheese.class,
+        final ReadAccessor extractor = store.getReader( Cheese.class,
                                                              "price" );
 
         final Pattern pattern = new Pattern( 0,
@@ -105,7 +106,7 @@ public class MVELEvalBuilderTest {
         InternalKnowledgeBase kBase = KnowledgeBaseFactory.newKnowledgeBase();
         StatefulKnowledgeSessionImpl ksession = (StatefulKnowledgeSessionImpl)kBase.newKieSession();
 
-        BuildContext                             buildContext = new BuildContext(kBase);
+        BuildContext                             buildContext = new BuildContext(kBase, Collections.emptyList());
         org.drools.core.reteoo.MockLeftTupleSink sink         = new MockLeftTupleSink(buildContext);
         MockTupleSource                          source       = new MockTupleSource(1, buildContext);
         source.setObjectCount(1);

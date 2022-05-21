@@ -26,14 +26,15 @@ import org.drools.core.RuleBaseConfiguration;
 import org.drools.core.base.ValueType;
 import org.drools.core.base.field.ObjectFieldImpl;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.InternalWorkingMemory;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.reteoo.PropertySpecificUtil;
 import org.drools.core.rule.ContextEntry;
 import org.drools.core.rule.Declaration;
-import org.drools.core.spi.FieldValue;
-import org.drools.core.spi.InternalReadAccessor;
-import org.drools.core.spi.Tuple;
-import org.drools.core.spi.TupleValueExtractor;
+import org.drools.core.rule.accessor.FieldValue;
+import org.drools.core.rule.accessor.ReadAccessor;
+import org.drools.core.base.ObjectType;
+import org.drools.core.reteoo.Tuple;
+import org.drools.core.rule.accessor.TupleValueExtractor;
 import org.drools.core.time.Interval;
 import org.drools.core.util.AbstractHashTable.FieldIndex;
 import org.drools.core.util.bitmask.BitMask;
@@ -61,7 +62,7 @@ public class LambdaConstraint extends AbstractConstraint {
     private final PredicateInformation predicateInformation;
 
     private FieldValue field;
-    private InternalReadAccessor readAccessor;
+    private ReadAccessor readAccessor;
     private AbstractIndexValueExtractor indexExtractor;
 
     public LambdaConstraint(ConstraintEvaluator evaluator,
@@ -131,14 +132,14 @@ public class LambdaConstraint extends AbstractConstraint {
     }
 
     @Override
-    public BitMask getListenedPropertyMask( Class modifiedClass, List<String> settableProperties ) {
+    public BitMask getListenedPropertyMask( ObjectType objectType, List<String> settableProperties ) {
         BitMask mask = adaptBitMask( evaluator.getReactivityBitMask() );
         if (mask != null) {
             return mask;
         }
 
         if (evaluator.getReactiveProps().length == 0) {
-            return super.getListenedPropertyMask( modifiedClass, settableProperties );
+            return super.getListenedPropertyMask( objectType, settableProperties );
         }
 
         mask = getEmptyPropertyReactiveMask(settableProperties.size());
@@ -171,24 +172,32 @@ public class LambdaConstraint extends AbstractConstraint {
     }
 
     @Override
-    public boolean isAllowed(InternalFactHandle handle, InternalWorkingMemory workingMemory) {
+    public boolean isAllowed(InternalFactHandle handle, ReteEvaluator reteEvaluator) {
         try {
-            return evaluator.evaluate(handle, workingMemory);
+            return evaluator.evaluate(handle, reteEvaluator);
         } catch (RuntimeException e) {
-            throw predicateInformation.betterErrorMessage(e);
+            throw new ConstraintEvaluationException(predicateInformation, e);
         }
     }
 
     @Override
     public boolean isAllowedCachedLeft(ContextEntry context, InternalFactHandle handle) {
         LambdaContextEntry lambdaContext = ((LambdaContextEntry) context);
-        return evaluator.evaluate(handle, lambdaContext.getTuple(), lambdaContext.getWorkingMemory());
+        try {
+            return evaluator.evaluate(handle, lambdaContext.getTuple(), lambdaContext.getReteEvaluator());
+        } catch (RuntimeException e) {
+            throw new ConstraintEvaluationException(predicateInformation, e);
+        }
     }
 
     @Override
     public boolean isAllowedCachedRight(Tuple tuple, ContextEntry context) {
         LambdaContextEntry lambdaContext = ((LambdaContextEntry) context);
-        return evaluator.evaluate(lambdaContext.getHandle(), tuple, lambdaContext.getWorkingMemory());
+        try {
+            return evaluator.evaluate(lambdaContext.getHandle(), tuple, lambdaContext.getReteEvaluator());
+        } catch (RuntimeException e) {
+            throw new ConstraintEvaluationException(predicateInformation, e);
+        }
     }
 
     @Override
@@ -241,7 +250,7 @@ public class LambdaConstraint extends AbstractConstraint {
     }
 
     @Override
-    public InternalReadAccessor getFieldExtractor() {
+    public ReadAccessor getFieldExtractor() {
         return readAccessor;
     }
 
@@ -269,15 +278,15 @@ public class LambdaConstraint extends AbstractConstraint {
         private Tuple tuple;
         private InternalFactHandle handle;
 
-        private transient InternalWorkingMemory workingMemory;
+        private transient ReteEvaluator reteEvaluator;
 
-        public void updateFromTuple(InternalWorkingMemory workingMemory, Tuple tuple) {
+        public void updateFromTuple(ReteEvaluator reteEvaluator, Tuple tuple) {
             this.tuple = tuple;
-            this.workingMemory = workingMemory;
+            this.reteEvaluator = reteEvaluator;
         }
 
-        public void updateFromFactHandle(InternalWorkingMemory workingMemory, InternalFactHandle handle) {
-            this.workingMemory = workingMemory;
+        public void updateFromFactHandle(ReteEvaluator reteEvaluator, InternalFactHandle handle) {
+            this.reteEvaluator = reteEvaluator;
             this.handle = handle;
         }
 
@@ -286,7 +295,7 @@ public class LambdaConstraint extends AbstractConstraint {
         }
 
         public void resetFactHandle() {
-            workingMemory = null;
+            reteEvaluator = null;
             handle = null;
         }
 
@@ -308,8 +317,8 @@ public class LambdaConstraint extends AbstractConstraint {
             return handle;
         }
 
-        public InternalWorkingMemory getWorkingMemory() {
-            return workingMemory;
+        public ReteEvaluator getReteEvaluator() {
+            return reteEvaluator;
         }
 
         public ContextEntry getNext() {
@@ -369,8 +378,8 @@ public class LambdaConstraint extends AbstractConstraint {
         }
 
         @Override
-        public Object getValue( InternalWorkingMemory workingMemory, Tuple tuple ) {
-            return extractor.apply( d1.getValue( workingMemory, tuple ) );
+        public Object getValue( ReteEvaluator reteEvaluator, Tuple tuple ) {
+            return extractor.apply( d1.getValue( reteEvaluator, tuple ) );
         }
 
         @Override
@@ -407,8 +416,8 @@ public class LambdaConstraint extends AbstractConstraint {
         }
 
         @Override
-        public Object getValue( InternalWorkingMemory workingMemory, Tuple tuple ) {
-            return extractor.apply( d1.getValue( workingMemory, tuple ), d2.getValue( workingMemory, tuple ) );
+        public Object getValue( ReteEvaluator reteEvaluator, Tuple tuple ) {
+            return extractor.apply( d1.getValue( reteEvaluator, tuple ), d2.getValue( reteEvaluator, tuple ) );
         }
 
         @Override
@@ -449,8 +458,8 @@ public class LambdaConstraint extends AbstractConstraint {
         }
 
         @Override
-        public Object getValue( InternalWorkingMemory workingMemory, Tuple tuple ) {
-            return extractor.apply( d1.getValue( workingMemory, tuple ), d2.getValue( workingMemory, tuple ), d3.getValue( workingMemory, tuple ) );
+        public Object getValue( ReteEvaluator reteEvaluator, Tuple tuple ) {
+            return extractor.apply( d1.getValue( reteEvaluator, tuple ), d2.getValue( reteEvaluator, tuple ), d3.getValue( reteEvaluator, tuple ) );
         }
 
         @Override
@@ -495,8 +504,8 @@ public class LambdaConstraint extends AbstractConstraint {
         }
 
         @Override
-        public Object getValue( InternalWorkingMemory workingMemory, Tuple tuple ) {
-            return extractor.apply( d1.getValue( workingMemory, tuple ), d2.getValue( workingMemory, tuple ), d3.getValue( workingMemory, tuple ), d4.getValue( workingMemory, tuple ) );
+        public Object getValue( ReteEvaluator reteEvaluator, Tuple tuple ) {
+            return extractor.apply( d1.getValue( reteEvaluator, tuple ), d2.getValue( reteEvaluator, tuple ), d3.getValue( reteEvaluator, tuple ), d4.getValue( reteEvaluator, tuple ) );
         }
 
         @Override

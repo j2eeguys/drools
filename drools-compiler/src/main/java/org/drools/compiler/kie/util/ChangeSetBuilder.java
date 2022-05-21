@@ -27,19 +27,19 @@ import java.util.Map;
 import java.util.Set;
 
 import org.drools.compiler.builder.impl.KnowledgeBuilderConfigurationImpl;
-import org.drools.compiler.compiler.DrlParser;
+import org.drools.drl.parser.DrlParser;
 import org.drools.compiler.kie.builder.impl.InternalKieModule;
-import org.drools.compiler.lang.descr.BaseDescr;
-import org.drools.compiler.lang.descr.FunctionDescr;
-import org.drools.compiler.lang.descr.GlobalDescr;
-import org.drools.compiler.lang.descr.PackageDescr;
-import org.drools.compiler.lang.descr.RuleDescr;
-import org.drools.compiler.lang.descr.TypeDeclarationDescr;
-import org.drools.compiler.lang.descr.TypeFieldDescr;
-import org.drools.core.addon.TypeResolver;
+import org.drools.drl.ast.descr.BaseDescr;
+import org.drools.drl.ast.descr.FunctionDescr;
+import org.drools.drl.ast.descr.GlobalDescr;
+import org.drools.drl.ast.descr.PackageDescr;
+import org.drools.drl.ast.descr.RuleDescr;
+import org.drools.drl.ast.descr.TypeDeclarationDescr;
+import org.drools.drl.ast.descr.TypeFieldDescr;
+import org.drools.util.TypeResolver;
 import org.drools.core.definitions.InternalKnowledgePackage;
-import org.drools.core.io.impl.ByteArrayResource;
-import org.drools.core.util.StringUtils;
+import org.drools.util.io.ByteArrayResource;
+import org.drools.util.StringUtils;
 import org.kie.api.io.ResourceType;
 import org.kie.internal.builder.ChangeType;
 import org.kie.internal.builder.KnowledgeBuilder;
@@ -49,9 +49,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.drools.compiler.builder.impl.KnowledgeBuilderConfigurationImpl.DEFAULT_PACKAGE;
-import static org.drools.core.util.ClassUtils.convertClassToResourcePath;
-import static org.drools.core.util.ClassUtils.convertResourceToClassName;
-import static org.drools.core.util.StringUtils.isEmpty;
+import static org.drools.util.ClassUtils.convertClassToResourcePath;
+import static org.drools.util.ClassUtils.convertResourceToClassName;
+import static org.drools.util.StringUtils.isEmpty;
 
 public class ChangeSetBuilder {
     
@@ -142,38 +142,39 @@ public class ChangeSetBuilder {
     }
 
 
-    private static ResourceChangeSet diffResource(String file, byte[] ob, byte[] cb, List<TypeDeclarationDescr> typeDeclarations) {
+    private static ResourceChangeSet diffResource(String file, byte[] originalBytes, byte[] currentBytes, List<TypeDeclarationDescr> typeDeclarations) {
         ResourceChangeSet pkgcs = new ResourceChangeSet( file, ChangeType.UPDATED );
         ResourceType type = ResourceType.determineResourceType( file );
         if( ResourceType.DRL.equals( type ) || ResourceType.GDRL.equals( type ) || ResourceType.RDRL.equals( type ) || ResourceType.TDRL.equals( type )) {
             try {
-                PackageDescr opkg = new DrlParser().parse( new ByteArrayResource( ob ) );
-                PackageDescr cpkg = new DrlParser().parse( new ByteArrayResource( cb ) );
-                String pkgName = isEmpty(cpkg.getName()) ? getDefaultPackageName() : cpkg.getName();
-                String oldPkgName = isEmpty(opkg.getName()) ? getDefaultPackageName() : opkg.getName();
+                PackageDescr originalPkg = new DrlParser().parse( new ByteArrayResource( originalBytes ) );
+                PackageDescr currentPkg = new DrlParser().parse( new ByteArrayResource( currentBytes ) );
+                String pkgName = isEmpty(currentPkg.getName()) ? getDefaultPackageName() : currentPkg.getName();
+                String oldPkgName = isEmpty(originalPkg.getName()) ? getDefaultPackageName() : originalPkg.getName();
 
                 if (!oldPkgName.equals(pkgName)) {
                     // if the package name is changed everthing has to be recreated from scratch
                     // so it is useless to further investigate other changes
                     return pkgcs;
                 }
+                pkgcs.setPackageName(pkgName);
 
-                for( RuleDescr crd : cpkg.getRules() ) {
+                for( RuleDescr crd : currentPkg.getRules() ) {
                     pkgcs.getLoadOrder().add(new ResourceChangeSet.RuleLoadOrder(pkgName, crd.getName(), crd.getLoadOrder()));
                 }
 
-                List<RuleDescr> orules = new ArrayList<>( opkg.getRules() ); // needs to be cloned
-                diffDescrs(ob, cb, pkgcs, orules, cpkg.getRules(), ResourceChange.Type.RULE, RULE_CONVERTER);
+                List<RuleDescr> orules = new ArrayList<>( originalPkg.getRules() ); // needs to be cloned
+                diffDescrs(originalBytes, currentBytes, pkgcs, orules, currentPkg.getRules(), ResourceChange.Type.RULE, RULE_CONVERTER);
 
-                List<FunctionDescr> ofuncs = new ArrayList<>( opkg.getFunctions() ); // needs to be cloned
-                diffDescrs(ob, cb, pkgcs, ofuncs, cpkg.getFunctions(), ResourceChange.Type.FUNCTION, FUNC_CONVERTER);
+                List<FunctionDescr> ofuncs = new ArrayList<>( originalPkg.getFunctions() ); // needs to be cloned
+                diffDescrs(originalBytes, currentBytes, pkgcs, ofuncs, currentPkg.getFunctions(), ResourceChange.Type.FUNCTION, FUNC_CONVERTER);
 
-                List<GlobalDescr> oglobals = new ArrayList<>( opkg.getGlobals() ); // needs to be cloned
-                diffDescrs(ob, cb, pkgcs, oglobals, cpkg.getGlobals(), ResourceChange.Type.GLOBAL, GLOBAL_CONVERTER);
+                List<GlobalDescr> oglobals = new ArrayList<>( originalPkg.getGlobals() ); // needs to be cloned
+                diffDescrs(originalBytes, currentBytes, pkgcs, oglobals, currentPkg.getGlobals(), ResourceChange.Type.GLOBAL, GLOBAL_CONVERTER);
 
-                for (TypeDeclarationDescr typeDeclaration : cpkg.getTypeDeclarations()) {
+                for (TypeDeclarationDescr typeDeclaration : currentPkg.getTypeDeclarations()) {
                     if ( isEmpty( typeDeclaration.getNamespace()) ) {
-                        typeDeclaration.setNamespace( isEmpty( cpkg.getNamespace() ) ? DEFAULT_PACKAGE : cpkg.getNamespace() );
+                        typeDeclaration.setNamespace( isEmpty( currentPkg.getNamespace() ) ? DEFAULT_PACKAGE : currentPkg.getNamespace() );
                     }
                     typeDeclarations.add( typeDeclaration );
                 }

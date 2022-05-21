@@ -62,6 +62,7 @@ import org.kie.dmn.core.compiler.DMNTypeRegistry;
 import org.kie.dmn.core.compiler.DMNTypeRegistryV11;
 import org.kie.dmn.core.compiler.DMNTypeRegistryV12;
 import org.kie.dmn.core.compiler.DMNTypeRegistryV13;
+import org.kie.dmn.core.compiler.DMNTypeRegistryV14;
 import org.kie.dmn.core.pmml.DMNImportPMMLInfo;
 import org.kie.dmn.core.util.DefaultDMNMessagesManager;
 import org.kie.dmn.model.api.DMNModelInstrumentedBase;
@@ -87,7 +88,7 @@ public class DMNModelImpl
     private Map<String, DecisionServiceNode> decisionServices    = new LinkedHashMap<>();
 
     // these are messages created at loading/compilation time
-    private DMNMessageManager messages = new DefaultDMNMessagesManager();
+    private DMNMessageManager messages;
 
     private DMNTypeRegistry types;
     /**
@@ -106,11 +107,13 @@ public class DMNModelImpl
         this.definitions = definitions;
         wireTypeRegistry(definitions);
         importChain = new ImportChain(this);
+        messages = new DefaultDMNMessagesManager(null);
     }
 
     public DMNModelImpl(Definitions dmndefs, Resource resource) {
         this(dmndefs);
         this.setResource(resource);
+        messages = new DefaultDMNMessagesManager(resource);
     }
 
     private void wireTypeRegistry(Definitions definitions) {
@@ -118,8 +121,10 @@ public class DMNModelImpl
             types = new DMNTypeRegistryV11(Collections.unmodifiableMap(importAliases));
         } else if (definitions instanceof org.kie.dmn.model.v1_2.TDefinitions) {
             types = new DMNTypeRegistryV12(Collections.unmodifiableMap(importAliases));
-        } else {
+        } else if (definitions instanceof org.kie.dmn.model.v1_3.TDefinitions) {
             types = new DMNTypeRegistryV13(Collections.unmodifiableMap(importAliases));
+        } else {
+            types = new DMNTypeRegistryV14(Collections.unmodifiableMap(importAliases));
         }
     }
     
@@ -432,6 +437,7 @@ public class DMNModelImpl
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
         this.serializedAs = (SerializationFormat) in.readObject();
         this.resource = (Resource) in.readObject();
+        this.messages = new DefaultDMNMessagesManager(this.resource);
         String xml = (String) in.readObject();
         
         if ( !(in instanceof DroolsObjectInputStream) ) {

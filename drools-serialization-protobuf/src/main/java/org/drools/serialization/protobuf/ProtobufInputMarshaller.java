@@ -40,44 +40,50 @@ import org.drools.core.common.DefaultFactHandle;
 import org.drools.core.common.EqualityKey;
 import org.drools.core.common.EventFactHandle;
 import org.drools.core.common.InternalAgenda;
+import org.drools.core.common.InternalAgendaGroup;
 import org.drools.core.common.InternalFactHandle;
 import org.drools.core.common.InternalWorkingMemory;
-import org.drools.core.common.NamedEntryPoint;
 import org.drools.core.common.ObjectStore;
 import org.drools.core.common.PropagationContextFactory;
 import org.drools.core.common.QueryElementFactHandle;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.common.TruthMaintenanceSystem;
+import org.drools.core.common.TruthMaintenanceSystemFactory;
 import org.drools.core.definitions.rule.impl.RuleImpl;
 import org.drools.core.impl.EnvironmentFactory;
-import org.drools.core.impl.StatefulKnowledgeSessionImpl;
-import org.drools.core.marshalling.impl.ActivationKey;
-import org.drools.core.marshalling.impl.KieSessionInitializer;
-import org.drools.core.marshalling.impl.MarshallerReaderContext;
-import org.drools.core.marshalling.impl.ProcessMarshaller;
-import org.drools.core.marshalling.impl.ProcessMarshallerFactory;
-import org.drools.core.marshalling.impl.TupleKey;
+import org.drools.core.marshalling.MarshallerReaderContext;
+import org.drools.core.marshalling.TupleKey;
 import org.drools.core.phreak.PhreakTimerNode.Scheduler;
 import org.drools.core.phreak.RuleAgendaItem;
 import org.drools.core.phreak.RuleExecutor;
-import org.drools.core.process.instance.WorkItem;
+import org.drools.core.process.WorkItem;
 import org.drools.core.reteoo.ObjectTypeConf;
+import org.drools.core.reteoo.RuntimeComponentFactory;
 import org.drools.core.reteoo.TerminalNode;
-import org.drools.core.rule.EntryPointId;
-import org.drools.core.spi.Activation;
-import org.drools.core.spi.FactHandleFactory;
-import org.drools.core.spi.GlobalResolver;
-import org.drools.core.spi.PropagationContext;
-import org.drools.core.spi.Tuple;
+import org.drools.core.rule.consequence.Activation;
+import org.drools.core.rule.accessor.FactHandleFactory;
+import org.drools.core.rule.accessor.GlobalResolver;
+import org.drools.core.common.PropagationContext;
+import org.drools.core.reteoo.Tuple;
 import org.drools.core.time.Trigger;
 import org.drools.core.time.impl.CompositeMaxDurationTrigger;
 import org.drools.core.time.impl.CronTrigger;
 import org.drools.core.time.impl.IntervalTrigger;
 import org.drools.core.time.impl.PointInTimeTrigger;
 import org.drools.core.time.impl.PseudoClockScheduler;
+import org.drools.kiesession.entrypoints.NamedEntryPoint;
+import org.drools.kiesession.factory.PhreakWorkingMemoryFactory;
+import org.drools.kiesession.session.StatefulKnowledgeSessionImpl;
 import org.drools.serialization.protobuf.ProtobufMessages.FactHandle;
 import org.drools.serialization.protobuf.ProtobufMessages.ObjectTypeConfiguration;
 import org.drools.serialization.protobuf.ProtobufMessages.RuleData;
 import org.drools.serialization.protobuf.ProtobufMessages.Timers.Timer;
+import org.drools.serialization.protobuf.marshalling.ActivationKey;
+import org.drools.serialization.protobuf.marshalling.KieSessionInitializer;
+import org.drools.serialization.protobuf.marshalling.ProcessMarshaller;
+import org.drools.serialization.protobuf.marshalling.ProcessMarshallerFactory;
+import org.drools.tms.TruthMaintenanceSystemEqualityKey;
+import org.drools.tms.TruthMaintenanceSystemImpl;
 import org.kie.api.marshalling.ObjectMarshallingStrategy;
 import org.kie.api.runtime.Environment;
 import org.kie.api.runtime.EnvironmentName;
@@ -191,11 +197,12 @@ public class ProtobufInputMarshaller {
         FactHandleFactory handleFactory = context.getKnowledgeBase().newFactHandleFactory( _session.getRuleData().getLastId(),
                                                                                  _session.getRuleData().getLastRecency() );
 
-        InternalAgenda agenda = context.getKnowledgeBase().getConfiguration().getComponentFactory().getAgendaFactory().createAgenda( context.getKnowledgeBase(), false );
+        InternalAgenda agenda = RuntimeComponentFactory.get().getAgendaFactory().createAgenda( context.getKnowledgeBase(), false );
 
-        StatefulKnowledgeSessionImpl session = context.getKnowledgeBase().createSession( id, handleFactory,
-                                            1, // pCTx starts at 1, as InitialFact is 0
-                                            config, agenda, environment );
+        StatefulKnowledgeSessionImpl session = ( StatefulKnowledgeSessionImpl ) PhreakWorkingMemoryFactory.getInstance()
+                .createWorkingMemory( id, context.getKnowledgeBase(), handleFactory,
+                                      1, // pCTx starts at 1, as InitialFact is 0
+                                      config, agenda, environment );
 
         agenda.setWorkingMemory( session );
         readAgenda( context, _session.getRuleData(), agenda );
@@ -238,12 +245,12 @@ public class ProtobufInputMarshaller {
         List<PropagationContext> pctxs = new ArrayList<PropagationContext>();
 
         if ( _session.getRuleData().hasInitialFact() ) {
-            session.setInitialFactHandle( session.initInitialFact(context.getKnowledgeBase(), context) );
+            session.setInitialFactHandle( session.initInitialFact(context) );
             context.getHandles().put( session.getInitialFactHandle().getId(), session.getInitialFactHandle() );
         }
 
         for ( ProtobufMessages.EntryPoint _ep : _session.getRuleData().getEntryPointList() ) {
-            EntryPoint wmep = ((StatefulKnowledgeSessionImpl)context.getWorkingMemory()).getEntryPointMap().get(_ep.getEntryPointId());
+            EntryPoint wmep = context.getWorkingMemory().getEntryPoint(_ep.getEntryPointId());
             readFactHandles( context,
                              _ep,
                              ((WorkingMemoryEntryPoint) wmep).getObjectStore(),
@@ -401,7 +408,7 @@ public class ProtobufInputMarshaller {
         ProtobufMessages.Agenda _agenda = _ruleData.getAgenda();
 
         for ( ProtobufMessages.Agenda.AgendaGroup _agendaGroup : _agenda.getAgendaGroupList() ) {
-            AgendaGroupQueueImpl group = (AgendaGroupQueueImpl) agenda.getAgendaGroup( _agendaGroup.getName(), context.getKnowledgeBase() );
+            AgendaGroupQueueImpl group = (AgendaGroupQueueImpl) agenda.getAgendaGroup( _agendaGroup.getName() );
             group.setActive( _agendaGroup.getIsActive() );
             group.setAutoDeactivate( _agendaGroup.getIsAutoDeactivate() );
             group.setClearedForRecency( _agendaGroup.getClearedForRecency() );
@@ -412,15 +419,15 @@ public class ProtobufInputMarshaller {
                 group.addNodeInstance( _nodeInstance.hasProcessInstanceId() ? _nodeInstance.getProcessInstanceId() : _nodeInstance.getProcessInstanceStringId(),
                                        _nodeInstance.getNodeInstanceId() );
             }
-            agenda.putOnAgendaGroupsMap( group.getName(), group );
+            agenda.getAgendaGroupsManager().putOnAgendaGroupsMap( group.getName(), group );
         }
         
         for ( String _groupName : _agenda.getFocusStack().getGroupNameList() ) {
-            agenda.addAgendaGroupOnStack( agenda.getAgendaGroup( _groupName ) );
+            agenda.getAgendaGroupsManager().addAgendaGroupOnStack( (InternalAgendaGroup) agenda.getAgendaGroup( _groupName ) );
         }
         
         for ( ProtobufMessages.Agenda.RuleFlowGroup _ruleFlowGroup : _agenda.getRuleFlowGroupList() ) {
-            AgendaGroupQueueImpl group = (AgendaGroupQueueImpl) agenda.getAgendaGroup( _ruleFlowGroup.getName(), context.getKnowledgeBase() );
+            AgendaGroupQueueImpl group = (AgendaGroupQueueImpl) agenda.getAgendaGroup( _ruleFlowGroup.getName() );
             group.setActive( _ruleFlowGroup.getIsActive() );
             group.setAutoDeactivate( _ruleFlowGroup.getIsAutoDeactivate() );
             
@@ -429,9 +436,9 @@ public class ProtobufInputMarshaller {
                 group.addNodeInstance( _nodeInstance.getProcessInstanceId(),
                                        _nodeInstance.getNodeInstanceId() );
             }
-            agenda.putOnAgendaGroupsMap( group.getName(), group );
+            agenda.getAgendaGroupsManager().putOnAgendaGroupsMap( group.getName(), group );
             if (group.isActive()) {
-                agenda.addAgendaGroupOnStack( agenda.getAgendaGroup( group.getName() ) );
+                agenda.getAgendaGroupsManager().addAgendaGroupOnStack( (InternalAgendaGroup) agenda.getAgendaGroup( group.getName() ) );
             }
         }
 
@@ -459,7 +466,7 @@ public class ProtobufInputMarshaller {
                                                                           ClassNotFoundException {
         InternalWorkingMemory wm = context.getWorkingMemory();
 
-        EntryPoint entryPoint = ((StatefulKnowledgeSessionImpl)context.getWorkingMemory()).getEntryPointMap().get(_ep.getEntryPointId());
+        EntryPoint entryPoint = context.getWorkingMemory().getEntryPoint(_ep.getEntryPointId());
         
         // load the handles
         for ( ProtobufMessages.FactHandle _handle : _ep.getHandleList() ) {
@@ -495,7 +502,7 @@ public class ProtobufInputMarshaller {
         WorkingMemoryEntryPoint ep = handle.getEntryPoint(wm);
         ObjectTypeConf typeConf = ep.getObjectTypeConfigurationRegistry().getOrCreateObjectTypeConf( ep.getEntryPoint(), object );
 
-        PropagationContextFactory pctxFactory = wm.getKnowledgeBase().getConfiguration().getComponentFactory().getPropagationContextFactory();
+        PropagationContextFactory pctxFactory = RuntimeComponentFactory.get().getPropagationContextFactory();
 
         PropagationContext propagationContext = pctxFactory.createPropagationContext(wm.getNextPropagationIdCounter(), PropagationContext.Type.INSERTION, null, null, handle, ep.getEntryPoint(), context);
         // keeping this list for a later cleanup is necessary because of the lazy propagations that might occur
@@ -530,23 +537,13 @@ public class ProtobufInputMarshaller {
         }
 
 
-        EntryPointId confEP;
-        if ( entryPoint != null ) {
-            confEP = ((NamedEntryPoint) entryPoint).getEntryPoint();
-        } else {
-            confEP = context.getWorkingMemory().getEntryPoint();
-        }
-        ObjectTypeConf typeConf = context.getWorkingMemory().getObjectTypeConfigurationRegistry().getOrCreateObjectTypeConf( confEP, object );
-
-
-        InternalFactHandle handle = null;
+        InternalFactHandle handle;
         switch ( _handle.getType() ) {
             case FACT : {
                 handle = new DefaultFactHandle( _handle.getId(),
                                                 object,
                                                 _handle.getRecency(),
-                                                (WorkingMemoryEntryPoint) entryPoint,
-                                                typeConf != null && typeConf.isTrait() );
+                                                (WorkingMemoryEntryPoint) entryPoint );
                 break;
             }
             case QUERY : {
@@ -561,8 +558,7 @@ public class ProtobufInputMarshaller {
                                               _handle.getRecency(),
                                               _handle.getTimestamp(),
                                               _handle.getDuration(),
-                                              (WorkingMemoryEntryPoint) entryPoint,
-                                              typeConf != null && typeConf.isTrait() );
+                                              (WorkingMemoryEntryPoint) entryPoint );
                 ((EventFactHandle) handle).setExpired( _handle.getIsExpired() );
                 ((EventFactHandle) handle).setOtnCount( _handle.getOtnCount() );
                 // the event is re-propagated through the network, so the activations counter will be recalculated
@@ -581,7 +577,7 @@ public class ProtobufInputMarshaller {
                                                    ProtobufMessages.EntryPoint _ep,
                                                    List<PropagationContext> pctxs) throws IOException,
                                                                                      ClassNotFoundException {
-        TruthMaintenanceSystem tms = ((NamedEntryPoint) wmep).getTruthMaintenanceSystem();
+        TruthMaintenanceSystem tms = TruthMaintenanceSystemFactory.get().getOrCreateTruthMaintenanceSystem((NamedEntryPoint) wmep);
         
         boolean wasOTCSerialized = _ep.getOtcCount() > 0; // if 0, then the OTC was not serialized (older versions of drools)
         Set<String> tmsEnabled = new HashSet<String>();
@@ -603,13 +599,12 @@ public class ProtobufInputMarshaller {
                 typeConf.enableTMS();
             }
 
-            EqualityKey key = new EqualityKey( handle,
-                                               _key.getStatus() );
+            EqualityKey key = new TruthMaintenanceSystemEqualityKey( handle, _key.getStatus() );
             handle.setEqualityKey( key );
 
             if ( key.getStatus() == EqualityKey.JUSTIFIED ) {
                 // not yet added to the object stores
-                ((NamedEntryPoint) handle.getEntryPoint((( NamedEntryPoint ) wmep).getInternalWorkingMemory())).getObjectStore()
+                handle.getEntryPoint((( NamedEntryPoint ) wmep).getReteEvaluator()).getObjectStore()
                         .addHandle( handle, handle.getObject() );
                 // add handle to object type node
                 assertHandleIntoOTN( context,
@@ -626,14 +621,13 @@ public class ProtobufInputMarshaller {
             tms.put( key );
 
             context.getFilter().fireRNEAs( context.getWorkingMemory() );
-            readBeliefSet( context, tms, key, _key );
+            readBeliefSet( context, tms, _key );
         }
 
     }
 
     private static void readBeliefSet( MarshallerReaderContext context,
                                        TruthMaintenanceSystem tms,
-                                       EqualityKey key,
                                        ProtobufMessages.EqualityKey _key) throws IOException,
                                                                             ClassNotFoundException {
         if( _key.hasBeliefSet() ) {
@@ -644,7 +638,7 @@ public class ProtobufInputMarshaller {
                 for ( ProtobufMessages.LogicalDependency _logicalDependency : _beliefSet.getLogicalDependencyList() ) {
                     ProtobufMessages.Activation _activation = _logicalDependency.getActivation();
                     ActivationKey activationKey = getActivationKey( context, _activation );
-                    Activation activation = (Activation) context.getFilter().getTuplesCache().get(activationKey);
+                    Activation activation = (Activation) ((PBActivationsFilter)context.getFilter()).getTuplesCache().get(activationKey);
 
                     Object object = null;
                     ObjectMarshallingStrategy strategy = null;
@@ -667,16 +661,10 @@ public class ProtobufInputMarshaller {
 
                     ObjectTypeConf typeConf = context.getWorkingMemory().getObjectTypeConfigurationRegistry().getOrCreateObjectTypeConf( handle.getEntryPointId(),
                                                                                                                  handle.getObject() );
-                    tms.readLogicalDependency( handle,
-                                               object,
-                                               value,
-                                               activation,
-                                               activation.getPropagationContext(),
-                                               activation.getRule(),
-                                               typeConf );
+                    tms.readLogicalDependency( handle, object, value, activation, typeConf );
                 }
             } else {
-                handle.getEqualityKey().setBeliefSet( tms.getBeliefSystem().newBeliefSet( handle ) );
+                ((TruthMaintenanceSystemEqualityKey)handle.getEqualityKey()).setBeliefSet( ((TruthMaintenanceSystemImpl)tms).getBeliefSystem().newBeliefSet( handle ) );
             }
         }
     }
@@ -814,7 +802,7 @@ public class ProtobufInputMarshaller {
 
         @Override
         public boolean accept(Activation activation,
-                              InternalWorkingMemory workingMemory,
+                              ReteEvaluator reteEvaluator,
                               TerminalNode rtn) {
             if ( activation.isRuleAgendaItem() ) {
                 ActivationKey key = PersisterHelper.createActivationKey( activation.getRule().getPackageName(), activation.getRule().getName(), activation.getTuple() );
@@ -835,7 +823,6 @@ public class ProtobufInputMarshaller {
             }
         }
 
-        @Override
         public Map<ActivationKey, Tuple> getTuplesCache() {
             return tuplesCache;
         }

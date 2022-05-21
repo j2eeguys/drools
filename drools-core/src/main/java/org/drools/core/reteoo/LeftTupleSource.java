@@ -16,10 +16,6 @@
 
 package org.drools.core.reteoo;
 
-import java.io.Externalizable;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
 import java.util.Collection;
 import java.util.List;
 
@@ -28,8 +24,7 @@ import org.drools.core.common.BaseNode;
 import org.drools.core.common.RuleBasePartitionId;
 import org.drools.core.reteoo.builder.BuildContext;
 import org.drools.core.rule.Pattern;
-import org.drools.core.spi.ClassWireable;
-import org.drools.core.spi.ObjectType;
+import org.drools.core.base.ObjectType;
 import org.drools.core.util.bitmask.AllSetBitMask;
 import org.drools.core.util.bitmask.BitMask;
 import org.drools.core.util.bitmask.EmptyBitMask;
@@ -49,10 +44,7 @@ import static org.drools.core.reteoo.PropertySpecificUtil.isPropertyReactive;
  * @see LeftTupleSource
  * @see LeftTuple
  */
-public abstract class LeftTupleSource extends BaseNode
-        implements
-        LeftTupleNode,
-        Externalizable {
+public abstract class LeftTupleSource extends BaseNode implements LeftTupleNode {
 
     protected BitMask                 leftDeclaredMask = EmptyBitMask.get();
     protected BitMask                 leftInferredMask = EmptyBitMask.get();
@@ -90,7 +82,7 @@ public abstract class LeftTupleSource extends BaseNode
     protected LeftTupleSource(int id, BuildContext context) {
         super(id,
               context != null ? context.getPartitionId() : RuleBasePartitionId.MAIN_PARTITION,
-              context != null && context.getKnowledgeBase().getConfiguration().isMultithreadEvaluation());
+              context != null && context.getRuleBase().getConfiguration().isMultithreadEvaluation());
         this.sink = EmptyLeftTupleSinkAdapter.getInstance();
         initMemoryId( context );
     }
@@ -98,26 +90,6 @@ public abstract class LeftTupleSource extends BaseNode
     // ------------------------------------------------------------
     // Instance methods
     // ------------------------------------------------------------
-    public void readExternal(ObjectInput in) throws IOException,
-                                            ClassNotFoundException {
-        super.readExternal( in );
-        sink = (LeftTupleSinkPropagator) in.readObject();
-        leftDeclaredMask = (BitMask) in.readObject();
-        leftInferredMask = (BitMask) in.readObject();
-        leftNegativeMask = (BitMask) in.readObject();
-        pathIndex = in.readInt();
-        objectCount = in.readInt();
-    }
-
-    public void writeExternal(ObjectOutput out) throws IOException {
-        super.writeExternal( out );
-        out.writeObject( sink );
-        out.writeObject(leftDeclaredMask);
-        out.writeObject(leftInferredMask);
-        out.writeObject(leftNegativeMask);
-        out.writeInt(pathIndex);
-        out.writeInt(objectCount);
-    }
 
     public int getPathIndex() {
         return pathIndex;
@@ -260,14 +232,12 @@ public abstract class LeftTupleSource extends BaseNode
             return;
         }
 
-        Class objectClass = ((ClassWireable) objectType).getClassType();
-        // if pattern is null (e.g. for eval or query nodes) we cannot calculate the mask, so we set it all
-        if ( pattern != null && isPropertyReactive(context, objectClass) ) {
+        if ( pattern != null && isPropertyReactive(context, objectType) ) {
             Collection<String> leftListenedProperties = pattern.getListenedProperties();
-            List<String> accessibleProperties = getAccessibleProperties( context.getKnowledgeBase(), objectClass );
-            leftDeclaredMask = calculatePositiveMask( objectClass, leftListenedProperties, accessibleProperties );
-            leftDeclaredMask = setNodeConstraintsPropertyReactiveMask(leftDeclaredMask, objectClass, accessibleProperties);
-            leftNegativeMask = calculateNegativeMask( objectClass, leftListenedProperties, accessibleProperties );
+            List<String> accessibleProperties = getAccessibleProperties( context.getRuleBase(), objectType );
+            leftDeclaredMask = calculatePositiveMask( objectType, leftListenedProperties, accessibleProperties );
+            leftDeclaredMask = setNodeConstraintsPropertyReactiveMask(leftDeclaredMask, objectType, accessibleProperties);
+            leftNegativeMask = calculateNegativeMask( objectType, leftListenedProperties, accessibleProperties );
             setLeftListenedProperties(leftListenedProperties);
         } else {
             // if property specific is not on, then accept all modification propagations
@@ -275,7 +245,7 @@ public abstract class LeftTupleSource extends BaseNode
         }
     }
 
-    protected BitMask setNodeConstraintsPropertyReactiveMask(BitMask mask, Class objectClass, List<String> accessibleProperties) {
+    protected BitMask setNodeConstraintsPropertyReactiveMask(BitMask mask, ObjectType objectType, List<String> accessibleProperties) {
         return mask;
     }
 

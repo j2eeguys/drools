@@ -17,10 +17,10 @@ package org.drools.persistence.jpa.processinstance;
 
 import org.drools.core.WorkItemHandlerNotFoundException;
 import org.drools.core.common.InternalKnowledgeRuntime;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.process.instance.WorkItem;
-import org.drools.core.process.instance.WorkItemManager;
-import org.drools.core.process.instance.impl.WorkItemImpl;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.core.process.WorkItem;
+import org.drools.core.process.WorkItemManager;
+import org.drools.core.process.impl.WorkItemImpl;
 import org.drools.persistence.api.PersistenceContext;
 import org.drools.persistence.api.PersistenceContextManager;
 import org.drools.persistence.info.WorkItemInfo;
@@ -258,7 +258,7 @@ public class JPAWorkItemManager implements WorkItemManager {
         this.kruntime.signalEvent( type, event );
     }
 
-    public void signalEvent( String type, Object event, long processInstanceId ) {
+    public void signalEvent( String type, Object event, String processInstanceId ) {
         this.kruntime.signalEvent( type, event, processInstanceId );
     }
 

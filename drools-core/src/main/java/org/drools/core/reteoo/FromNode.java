@@ -16,32 +16,28 @@
 
 package org.drools.core.reteoo;
 
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.drools.core.RuleBaseConfiguration;
-import org.drools.core.base.ClassObjectType;
 import org.drools.core.common.BetaConstraints;
 import org.drools.core.common.EmptyBetaConstraints;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.InternalWorkingMemory;
 import org.drools.core.common.Memory;
 import org.drools.core.common.MemoryFactory;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.common.UpdateContext;
 import org.drools.core.reteoo.builder.BuildContext;
 import org.drools.core.rule.From;
 import org.drools.core.rule.Pattern;
-import org.drools.core.spi.AlphaNodeFieldConstraint;
-import org.drools.core.spi.ClassWireable;
-import org.drools.core.spi.DataProvider;
-import org.drools.core.spi.ObjectType;
-import org.drools.core.spi.PropagationContext;
+import org.drools.core.rule.constraint.AlphaNodeFieldConstraint;
+import org.drools.core.rule.accessor.DataProvider;
+import org.drools.core.base.ObjectType;
+import org.drools.core.common.PropagationContext;
 import org.drools.core.util.AbstractBaseLinkedListNode;
 import org.drools.core.util.bitmask.AllSetBitMask;
 import org.drools.core.util.bitmask.BitMask;
@@ -51,7 +47,6 @@ import static org.drools.core.reteoo.PropertySpecificUtil.calculateNegativeMask;
 import static org.drools.core.reteoo.PropertySpecificUtil.calculatePositiveMask;
 import static org.drools.core.reteoo.PropertySpecificUtil.getAccessibleProperties;
 import static org.drools.core.reteoo.PropertySpecificUtil.isPropertyReactive;
-import static org.drools.core.util.ClassUtils.areNullSafeEquals;
 
 public class FromNode<T extends FromNode.FromMemory> extends LeftTupleSource
     implements
@@ -67,7 +62,6 @@ public class FromNode<T extends FromNode.FromMemory> extends LeftTupleSource
     protected LeftTupleSinkNode          nextTupleSinkNode;
     
     protected From                       from;
-    protected Class<?>                   resultClass;
 
     protected boolean                    tupleMemoryEnabled;
 
@@ -94,31 +88,10 @@ public class FromNode<T extends FromNode.FromMemory> extends LeftTupleSource
         this.betaConstraints.init(context, getType());
         this.tupleMemoryEnabled = tupleMemoryEnabled;
         this.from = from;
-        resultClass = this.from.getResultClass();
 
         initMasks(context, tupleSource);
 
         hashcode = calculateHashCode();
-    }
-
-    public void readExternal(ObjectInput in) throws IOException,
-                                            ClassNotFoundException {
-        super.readExternal( in );
-        dataProvider = (DataProvider) in.readObject();
-        alphaConstraints = (AlphaNodeFieldConstraint[]) in.readObject();
-        betaConstraints = (BetaConstraints) in.readObject();
-        tupleMemoryEnabled = in.readBoolean();
-        from = (From) in.readObject();
-        resultClass = from.getResultClass();
-    }
-
-    public void writeExternal(ObjectOutput out) throws IOException {
-        super.writeExternal( out );
-        out.writeObject( dataProvider );
-        out.writeObject( alphaConstraints );
-        out.writeObject( betaConstraints );
-        out.writeBoolean( tupleMemoryEnabled );
-        out.writeObject( from );
     }
 
     private int calculateHashCode() {
@@ -149,7 +122,7 @@ public class FromNode<T extends FromNode.FromMemory> extends LeftTupleSource
 
         return this.leftInput.getId() == other.leftInput.getId() &&
                dataProvider.equals( other.dataProvider ) &&
-               areNullSafeEquals(from.getResultPattern(), other.from.getResultPattern() ) &&
+               Objects.equals(from.getResultPattern(), other.from.getResultPattern() ) &&
                Arrays.equals( alphaConstraints, other.alphaConstraints ) &&
                betaConstraints.equals( other.betaConstraints );
     }
@@ -188,15 +161,12 @@ public class FromNode<T extends FromNode.FromMemory> extends LeftTupleSource
 
         ObjectType objectType = pattern.getObjectType();
 
-        if ( objectType instanceof ClassObjectType ) {
-            Class objectClass = (( ClassWireable ) objectType).getClassType();
-            // if pattern is null (e.g. for eval or query nodes) we cannot calculate the mask, so we set it all
-            if ( isPropertyReactive( context, objectClass ) ) {
-                Collection<String> leftListenedProperties = pattern.getListenedProperties();
-                List<String> accessibleProperties = getAccessibleProperties( context.getKnowledgeBase(), objectClass );
-                leftDeclaredMask = leftDeclaredMask.setAll( calculatePositiveMask( objectClass, leftListenedProperties, accessibleProperties ) );
-                leftNegativeMask = leftNegativeMask.setAll( calculateNegativeMask( objectClass, leftListenedProperties, accessibleProperties ) );
-            }
+        // if pattern is null (e.g. for eval or query nodes) we cannot calculate the mask, so we set it all
+        if ( isPropertyReactive( context, objectType ) ) {
+            Collection<String> leftListenedProperties = pattern.getListenedProperties();
+            List<String> accessibleProperties = getAccessibleProperties( context.getRuleBase(), objectType );
+            leftDeclaredMask = leftDeclaredMask.setAll( calculatePositiveMask( objectType, leftListenedProperties, accessibleProperties ) );
+            leftNegativeMask = leftNegativeMask.setAll( calculateNegativeMask( objectType, leftListenedProperties, accessibleProperties ) );
         }
     }
 
@@ -206,15 +176,15 @@ public class FromNode<T extends FromNode.FromMemory> extends LeftTupleSource
     }
 
     @Override
-    protected BitMask setNodeConstraintsPropertyReactiveMask( BitMask mask, Class objectClass, List<String> accessibleProperties) {
+    protected BitMask setNodeConstraintsPropertyReactiveMask( BitMask mask, ObjectType objectType, List<String> accessibleProperties) {
         for (int i = 0; i < alphaConstraints.length; i++) {
-            mask = mask.setAll(alphaConstraints[i].getListenedPropertyMask(objectClass, accessibleProperties));
+            mask = mask.setAll(alphaConstraints[i].getListenedPropertyMask(objectType, accessibleProperties));
         }
         return mask;
     }
 
     public Class< ? > getResultClass() {
-        return resultClass;
+        return from.getResultClass();
     }
 
     public void networkUpdated(UpdateContext updateContext) {
@@ -224,18 +194,23 @@ public class FromNode<T extends FromNode.FromMemory> extends LeftTupleSource
     @SuppressWarnings("unchecked")
     public RightTuple createRightTuple( final LeftTuple leftTuple,
                                         final PropagationContext context,
-                                        final InternalWorkingMemory workingMemory,
+                                        final ReteEvaluator reteEvaluator,
                                         final Object object ) {
-        return new RightTupleImpl( createFactHandle( workingMemory, object ) );
+        return new RightTupleImpl( createFactHandle( reteEvaluator, object ) );
     }
 
-    public InternalFactHandle createFactHandle( InternalWorkingMemory workingMemory, Object object ) {
-        if ( objectTypeConf == null ) {
-            // use default entry point and object class. Notice that at this point object is assignable to resultClass
-            objectTypeConf = new ClassObjectTypeConf( workingMemory.getEntryPoint(), resultClass, workingMemory.getKnowledgeBase() );
+    public InternalFactHandle createFactHandle( ReteEvaluator reteEvaluator, Object object ) {
+        InternalFactHandle handle = reteEvaluator.getFactHandle(object);
+        if (handle != null && handle.getObject() == object) {
+            return handle;
         }
 
-        return workingMemory.getFactHandleFactory().newFactHandle(object, objectTypeConf, workingMemory, null );
+        if ( objectTypeConf == null ) {
+            // use default entry point and object class. Notice that at this point object is assignable to resultClass
+            objectTypeConf = new ClassObjectTypeConf( reteEvaluator.getDefaultEntryPointId(), getResultClass(), reteEvaluator.getKnowledgeBase() );
+        }
+
+        return reteEvaluator.createFactHandle(object, objectTypeConf, null );
     }
 
 
@@ -257,7 +232,7 @@ public class FromNode<T extends FromNode.FromMemory> extends LeftTupleSource
     }
 
 
-    public T createMemory(final RuleBaseConfiguration config, InternalWorkingMemory wm) {
+    public T createMemory(final RuleBaseConfiguration config, ReteEvaluator reteEvaluator) {
         BetaMemory beta = new BetaMemory( new TupleList(),
                                           null,
                                           this.betaConstraints.createContext(),

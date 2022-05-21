@@ -68,6 +68,10 @@ public class FEELOperatorsTest extends BaseFEELTest {
                 {" duration(\"P1Y2M\") in [ duration(\"P1Y2M\") .. duration(\"P1Y3M\")] ", Boolean.TRUE, null},
                 {" duration(\"P1Y4M\") in [ duration(\"P1Y2M\") .. duration(\"P1Y3M\")] ", Boolean.FALSE, null},
                 {" duration(\"PT24H\") in [ duration(\"P1Y2M\") .. duration(\"P1Y3M\")] ", null, FEELEvent.Severity.ERROR},
+                {" date and time(\"2021-07-01T00:00:00@Europe/Rome\") > date and time(\"2021-06-01T00:00:00\") ", Boolean.TRUE, null},
+                {" date and time(\"2021-07-01T00:00:00@Europe/Rome\") in [ date and time(\"2021-06-01T00:00:00\") .. date and time(\"2021-12-31T23:59:59\")] ", Boolean.TRUE, null},
+                { "3 in [2.2, 3.0, 4.0]", Boolean.TRUE , null},
+                { "3.000 in [2, 3, 4]", Boolean.TRUE , null}, 
 
                 // instance of
                 {"10 instance of number", Boolean.TRUE , null},
@@ -100,6 +104,16 @@ public class FEELOperatorsTest extends BaseFEELTest {
                 {"{ f : function(age : number) age > 18, r : f instance of function<number> -> Any }.r", Boolean.TRUE , null},
                 {"{ f : function(age : number) age > 18, r : f instance of function<Any> -> Any }.r", Boolean.FALSE , null},
                 {"{ f : function(age : Any) true       , r : f instance of function<number> -> Any }.r", Boolean.TRUE , null},
+                {"null instance of function<> -> Any", Boolean.FALSE , null},
+                {"{a: \"foo\"} instance of context<a: string>", Boolean.TRUE , null},
+                {"{a: null} instance of context<a: string>", Boolean.TRUE , null},
+                {"{a: \"123\", b: 123} instance of context<a: string>", Boolean.TRUE , null},
+                {"{a: \"123\"} instance of context<a: number>", Boolean.FALSE , null},
+                {"{a: {b: 123}} instance of context<a: context<b: number>>", Boolean.TRUE , null},
+                {"{a: {b: 123}} instance of context<a: context<b: string>>", Boolean.FALSE , null},
+                {"(function(a: context<a: string>) {b: \"b\", c: \"c\"}) instance of function<context<a: string, b: string>>->context<b: string>", Boolean.TRUE , null},
+                {"(function(a: context<a: string, b: string>) \"foo\") instance of function<context<a: string>>->string", Boolean.FALSE , null},
+                {"(function(a: context<a: string>, b: context<a: string, b: string>) \"foo\") instance of function<context<a: string, b: string>,context<a: string, b: string, c: string>>->string", Boolean.TRUE , null},
         };
         return addAdditionalParameters(cases, false);
     }

@@ -25,33 +25,36 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.drools.util.PortablePath;
 import org.kie.memorycompiler.resources.ResourceReader;
 
-import static org.drools.core.util.IoUtils.readBytesFromInputStream;
+import static org.drools.util.IoUtils.readBytesFromInputStream;
 
 public class DiskResourceReader implements ResourceReader {
     private final File root;
+    private final PortablePath rootPath;
 
-    private Map<String, Integer> filesHashing;
+    private Map<PortablePath, Integer> filesHashing;
 
-    public DiskResourceReader( final File pRoot ) {
-        root = pRoot;        
+    public DiskResourceReader( final File root ) {
+        this.root = root;
+        this.rootPath = PortablePath.of(root.getAbsolutePath());
     }
     
-    public boolean isAvailable( final String pResourceName ) {
-        return new File(root, pResourceName).exists();
+    public boolean isAvailable( PortablePath resourcePath ) {
+        return new File(root, resourcePath.asString()).exists();
     }
 
-    public byte[] getBytes( final String pResourceName ) {
+    public byte[] getBytes( PortablePath resourcePath ) {
         try {
-            return readBytesFromInputStream(new FileInputStream(new File(root, pResourceName)));
+            return readBytesFromInputStream(new FileInputStream(new File(root, resourcePath.asString())));
         } catch(Exception e) {
             return null;
         }
     }
     
-    public Collection<String> getFileNames() {
-        List<String> list = new ArrayList();
+    public Collection<PortablePath> getFilePaths() {
+        List<PortablePath> list = new ArrayList<>();
         list(root, list);        
         return list;
     }
@@ -62,52 +65,40 @@ public class DiskResourceReader implements ResourceReader {
 
     public Collection<String> getModifiedResourcesSinceLastMark() {
         Set<String> modifiedResources = new HashSet<String>();
-        Map<String, Integer> newHashing = hashFiles();
-        for (Map.Entry<String, Integer> entry : newHashing.entrySet()) {
+        Map<PortablePath, Integer> newHashing = hashFiles();
+        for (Map.Entry<PortablePath, Integer> entry : newHashing.entrySet()) {
             Integer oldHashing = filesHashing.get(entry.getKey());
             if (oldHashing == null || !oldHashing.equals(entry.getValue())) {
-                modifiedResources.add(entry.getKey());
+                modifiedResources.add(entry.getKey().asString());
             }
         }
-        for (String oldFile : filesHashing.keySet()) {
+        for (PortablePath oldFile : filesHashing.keySet()) {
             if (!newHashing.containsKey(oldFile)) {
-                modifiedResources.add(oldFile);
+                modifiedResources.add(oldFile.asString());
             }
         }
         return modifiedResources;
     }
 
-    private Map<String, Integer> hashFiles() {
-        Map<String, Integer> hashing = new HashMap<String, Integer>();
-        for (String fileName : getFileNames()) {
-            byte[] bytes = getBytes( fileName );
+    private Map<PortablePath, Integer> hashFiles() {
+        Map<PortablePath, Integer> hashing = new HashMap<>();
+        for (PortablePath filePath : getFilePaths()) {
+            byte[] bytes = getBytes( filePath );
             if ( bytes != null ) {
-                hashing.put(fileName, Arrays.hashCode(bytes));
+                hashing.put(filePath, Arrays.hashCode(bytes));
             }
         }
         return hashing;
     }
 
-    /**
-     * @deprecated
-     */
-    public String[] list() {
-        final List<String> files = new ArrayList<String>();
-        list(root, files);
-        return files.toArray(new String[files.size()]);
-    }
-
-    /**
-     * @deprecated
-     */
-    private void list( final File pFile, final List pFiles ) {
+    private void list( final File pFile, final List<PortablePath> pFiles ) {
         if (pFile.isDirectory()) {
             final File[] directoryFiles = pFile.listFiles();
             for (int i = 0; i < directoryFiles.length; i++) {
                 list(directoryFiles[i], pFiles);
             }
         } else {
-            pFiles.add(pFile.getAbsolutePath().substring(root.getAbsolutePath().length()+1));
+            pFiles.add( PortablePath.of( pFile.getAbsolutePath().substring(rootPath.asString().length()+1) ) );
         }
     }   
     

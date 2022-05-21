@@ -29,20 +29,19 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-
 import javax.xml.bind.JAXBContext;
 
 import org.drools.core.QueryResultsImpl;
 import org.drools.core.base.ClassObjectType;
 import org.drools.core.base.DroolsQuery;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.impl.StatefulKnowledgeSessionImpl;
 import org.drools.core.reteoo.EntryPointNode;
 import org.drools.core.reteoo.ObjectTypeNode;
 import org.drools.core.reteoo.ObjectTypeNode.ObjectTypeNodeMemory;
 import org.drools.core.reteoo.ReteDumper;
-import org.drools.core.runtime.rule.impl.FlatQueryResults;
-import org.drools.core.spi.ObjectType;
+import org.drools.commands.runtime.FlatQueryResults;
+import org.drools.core.base.ObjectType;
+import org.drools.kiesession.session.StatefulKnowledgeSessionImpl;
 import org.drools.mvel.compiler.Address;
 import org.drools.mvel.compiler.Cheese;
 import org.drools.mvel.compiler.DomainObject;
@@ -77,7 +76,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
@@ -130,7 +128,7 @@ public class QueryTest {
                 FactHandle fh = row.getFactHandle(id);
                 FactHandle copyFh = copyRow.getFactHandle(id);
                 if( fh != null ) {
-                    assertNotNull( "Flat query result [" + i + "] does not contain facthandle: '" + ((InternalFactHandle) fh).getId() + "'", copyFh);
+                    assertThat(copyFh).as( "Flat query result [" + i + "] does not contain facthandle: '" + ((InternalFactHandle) fh).getId() + "'").isNotNull();
                     String fhStr = fh.toExternalForm();
                     fhStr = fhStr.substring(0, fhStr.lastIndexOf(":"));
                     String copyFhStr = copyFh.toExternalForm();
@@ -439,7 +437,7 @@ public class QueryTest {
         FactHandle handle = ksession.insert( worker );
         ksession.fireAllRules();
 
-        assertNotNull( handle );
+        assertThat(handle).isNotNull();
 
         Object retractedWorker = null;
         for ( int i = 0; i < 100; i++ ) {
@@ -447,7 +445,7 @@ public class QueryTest {
                                                                  new Object[]{workerId} );
         }
 
-        assertNotNull( retractedWorker );
+        assertThat(retractedWorker).isNotNull();
 
         StatefulKnowledgeSessionImpl sessionImpl = (StatefulKnowledgeSessionImpl) ksession;
 
@@ -460,7 +458,7 @@ public class QueryTest {
                 break;
             }
         }
-        assertNotNull( defaultEntryPointNode );
+        assertThat(defaultEntryPointNode).isNotNull();
 
         Map<ObjectType, ObjectTypeNode> obnodes = defaultEntryPointNode.getObjectTypeNodes();
 

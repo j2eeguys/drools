@@ -19,8 +19,8 @@ import java.awt.Dimension;
 import java.util.ArrayList;
 import java.util.Collection;
 
-import org.drools.core.util.debug.SessionInspector;
-import org.drools.core.util.debug.StatefulKnowledgeSessionInfo;
+import org.drools.kiesession.debug.SessionInspector;
+import org.drools.kiesession.debug.StatefulKnowledgeSessionInfo;
 import org.drools.mvel.SessionReporter;
 import org.drools.mvel.compiler.Cheese;
 import org.drools.mvel.compiler.Cheesery;
@@ -36,7 +36,7 @@ import org.kie.api.KieBase;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.rule.FactHandle;
 
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @RunWith(Parameterized.class)
 public class SessionInspectorTest {
@@ -119,7 +119,7 @@ public class SessionInspectorTest {
         
         String report = SessionReporter.generateReport( "simple", info, null );
         
-        assertNotNull( report );
+        assertThat(report).isNotNull();
     }
     
     @Test
@@ -194,7 +194,7 @@ public class SessionInspectorTest {
         SessionReporter.addNamedTemplate( "topten", getClass().getResourceAsStream( "customreports.mvel" ) );
         String report = SessionReporter.generateReport( "topten", info, null );
         
-        assertNotNull( report );
+        assertThat(report).isNotNull();
         
     }
 

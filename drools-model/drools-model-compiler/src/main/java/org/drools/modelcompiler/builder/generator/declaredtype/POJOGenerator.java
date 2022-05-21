@@ -28,55 +28,63 @@ import java.util.Set;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.expr.MethodCallExpr;
-import com.github.javaparser.ast.expr.StringLiteralExpr;
-import org.drools.compiler.builder.impl.KnowledgeBuilderImpl;
-import org.drools.compiler.lang.descr.AnnotationDescr;
-import org.drools.compiler.lang.descr.EnumDeclarationDescr;
-import org.drools.compiler.lang.descr.PackageDescr;
-import org.drools.compiler.lang.descr.TypeDeclarationDescr;
+import org.drools.compiler.builder.impl.BuildResultCollector;
+import org.drools.compiler.builder.impl.BuildResultCollectorImpl;
+import org.drools.compiler.builder.impl.processors.CompilationPhase;
+import org.drools.drl.ast.descr.AnnotationDescr;
+import org.drools.drl.ast.descr.EnumDeclarationDescr;
+import org.drools.drl.ast.descr.PackageDescr;
+import org.drools.drl.ast.descr.TypeDeclarationDescr;
 import org.drools.compiler.rule.builder.ConstraintBuilder;
-import org.drools.core.addon.TypeResolver;
+import org.drools.util.TypeResolver;
 import org.drools.core.definitions.InternalKnowledgePackage;
 import org.drools.core.factmodel.AccessibleFact;
 import org.drools.core.factmodel.GeneratedFact;
 import org.drools.modelcompiler.builder.GeneratedClassWithPackage;
-import org.drools.modelcompiler.builder.ModelBuilderImpl;
 import org.drools.modelcompiler.builder.PackageModel;
 import org.drools.modelcompiler.builder.errors.DuplicatedDeclarationError;
 import org.drools.modelcompiler.builder.errors.InvalidExpressionErrorResult;
 import org.drools.modelcompiler.builder.generator.declaredtype.generator.GeneratedClassDeclaration;
+import org.kie.internal.builder.KnowledgeBuilderResult;
 
 import static org.drools.core.util.Drools.hasMvel;
 import static org.drools.modelcompiler.builder.JavaParserCompiler.compileAll;
+import static org.drools.modelcompiler.builder.generator.DrlxParseUtil.toStringLiteral;
 import static org.drools.modelcompiler.builder.generator.DslMethodNames.ADD_ANNOTATION_CALL;
 import static org.drools.modelcompiler.builder.generator.DslMethodNames.ANNOTATION_VALUE_CALL;
 import static org.drools.modelcompiler.builder.generator.DslMethodNames.TYPE_META_DATA_CALL;
+import static org.drools.modelcompiler.builder.generator.DslMethodNames.createDslTopLevelMethod;
 
-public class POJOGenerator {
+public class POJOGenerator implements CompilationPhase {
 
     private final static List<Class<?>> MARKER_INTERFACES = Arrays.asList(GeneratedFact.class, AccessibleFact.class);
 
-    private ModelBuilderImpl builder;
+    private BuildResultCollector builder;
     private InternalKnowledgePackage pkg;
     private PackageDescr packageDescr;
     private PackageModel packageModel;
 
     private static final List<String> exprAnnotations = Arrays.asList("duration", "timestamp");
 
-    public POJOGenerator(ModelBuilderImpl builder, InternalKnowledgePackage pkg, PackageDescr packageDescr, PackageModel packageModel) {
+    public POJOGenerator(BuildResultCollector builder, InternalKnowledgePackage pkg, PackageDescr packageDescr, PackageModel packageModel) {
         this.builder = builder;
         this.pkg = pkg;
         this.packageDescr = packageDescr;
         this.packageModel = packageModel;
+        packageModel.addImports(pkg.getTypeResolver().getImports());
     }
 
-    public static Map<String, Class<?>> compileType(KnowledgeBuilderImpl kbuilder,
+    public POJOGenerator(InternalKnowledgePackage pkg, PackageDescr packageDescr, PackageModel packageModel) {
+        this(new BuildResultCollectorImpl(), pkg, packageDescr, packageModel);
+    }
+
+    public static Map<String, Class<?>> compileType(BuildResultCollector resultAccumulator,
                                                     ClassLoader packageClassLoader,
                                                     List<GeneratedClassWithPackage> classesWithPackage) {
-        return compileAll(kbuilder, packageClassLoader, classesWithPackage);
+        return compileAll(resultAccumulator, packageClassLoader, classesWithPackage);
     }
 
-    public void findPOJOorGenerate() {
+    private void findPOJOorGenerate() {
         TypeResolver typeResolver = pkg.getTypeResolver();
         Set<String> generatedPojos = new HashSet<>();
         for (TypeDeclarationDescr typeDescr : packageDescr.getTypeDeclarations()) {
@@ -104,6 +112,16 @@ public class POJOGenerator {
                 addTypeMetadata(enumDescr.getTypeName());
             }
         }
+    }
+
+    @Override
+    public void process() {
+        findPOJOorGenerate();
+    }
+
+    @Override
+    public Collection<? extends KnowledgeBuilderResult> getResults() {
+        return builder.getAllResults();
     }
 
     static class SafeTypeResolver implements org.drools.modelcompiler.builder.generator.declaredtype.api.TypeResolver {
@@ -152,10 +170,10 @@ public class POJOGenerator {
 
         for (AnnotationDescr ann : annotations) {
             typeMetaDataCall = new MethodCallExpr(typeMetaDataCall, ADD_ANNOTATION_CALL);
-            typeMetaDataCall.addArgument(new StringLiteralExpr(ann.getName()));
+            typeMetaDataCall.addArgument(toStringLiteral(ann.getName()));
             for (Map.Entry<String, Object> entry : ann.getValueMap().entrySet()) {
-                MethodCallExpr annotationValueCall = new MethodCallExpr(null, ANNOTATION_VALUE_CALL);
-                annotationValueCall.addArgument(new StringLiteralExpr(entry.getKey()));
+                MethodCallExpr annotationValueCall = createDslTopLevelMethod(ANNOTATION_VALUE_CALL);
+                annotationValueCall.addArgument(toStringLiteral(entry.getKey()));
                 String expr = entry.getValue().toString();
                 if (hasMvel() && exprAnnotations.contains(ann.getName()) && ConstraintBuilder.get().analyzeExpression(type, expr) == null) {
                     builder.addBuilderResult(new InvalidExpressionErrorResult("Unable to analyze expression '" + expr + "' for " + ann.getName() + " attribute"));
@@ -169,7 +187,7 @@ public class POJOGenerator {
     }
 
     private static MethodCallExpr registerTypeMetaData(String className) {
-        MethodCallExpr typeMetaDataCall = new MethodCallExpr(null, TYPE_META_DATA_CALL);
+        MethodCallExpr typeMetaDataCall = createDslTopLevelMethod(TYPE_META_DATA_CALL);
         typeMetaDataCall.addArgument(className + ".class");
         return typeMetaDataCall;
     }

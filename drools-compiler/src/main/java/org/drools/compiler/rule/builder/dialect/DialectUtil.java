@@ -21,16 +21,17 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import org.drools.compiler.builder.DroolsAssemblerContext;
+import org.drools.compiler.builder.impl.TypeDeclarationContext;
 import org.kie.memorycompiler.resources.ResourceReader;
-import org.drools.compiler.lang.descr.ImportDescr;
-import org.drools.compiler.lang.descr.PackageDescr;
+import org.drools.drl.ast.descr.ImportDescr;
+import org.drools.drl.ast.descr.PackageDescr;
 import org.drools.compiler.rule.builder.RuleBuildContext;
 import org.drools.compiler.rule.builder.dialect.java.parser.JavaBlockDescr;
 import org.drools.compiler.rule.builder.dialect.java.parser.JavaCatchBlockDescr;
 import org.drools.compiler.rule.builder.dialect.java.parser.JavaContainerBlockDescr;
 import org.drools.compiler.rule.builder.dialect.java.parser.JavaTryBlockDescr;
 
-import static org.drools.core.util.ClassUtils.findClass;
+import static org.drools.util.ClassUtils.findClass;
 
 public final class DialectUtil {
 
@@ -132,7 +133,7 @@ public final class DialectUtil {
         }
 
         String namespace = context.getRuleDescr().getNamespace();
-        DroolsAssemblerContext packageBuilder = context.getKnowledgeBuilder();
+        TypeDeclarationContext packageBuilder = context.getKnowledgeBuilder();
 
         Class<?> clazz = null;
         try {

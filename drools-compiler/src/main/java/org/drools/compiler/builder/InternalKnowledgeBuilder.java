@@ -27,9 +27,10 @@ import org.drools.compiler.builder.impl.KnowledgeBuilderImpl;
 import org.drools.compiler.compiler.PackageBuilderErrors;
 import org.drools.compiler.compiler.PackageBuilderResults;
 import org.drools.compiler.compiler.PackageRegistry;
-import org.drools.compiler.lang.descr.PackageDescr;
+import org.drools.core.base.ObjectType;
+import org.drools.drl.ast.descr.PackageDescr;
 import org.drools.core.definitions.InternalKnowledgePackage;
-import org.drools.core.impl.InternalKnowledgeBase;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
 import org.drools.core.rule.TypeDeclaration;
 import org.kie.api.KieBase;
 import org.kie.api.definition.KiePackage;
@@ -180,6 +181,11 @@ public interface InternalKnowledgeBuilder extends KnowledgeBuilder, DroolsAssemb
         @Override
         public TypeDeclaration getTypeDeclaration( Class<?> typeClass ) {
             return withKnowledgeBuilder(kb -> kb.getTypeDeclaration( typeClass ), null);
+        }
+
+        @Override
+        public TypeDeclaration getTypeDeclaration( ObjectType objectType ) {
+            return withKnowledgeBuilder(kb -> kb.getTypeDeclaration( objectType ), null);
         }
 
         @Override

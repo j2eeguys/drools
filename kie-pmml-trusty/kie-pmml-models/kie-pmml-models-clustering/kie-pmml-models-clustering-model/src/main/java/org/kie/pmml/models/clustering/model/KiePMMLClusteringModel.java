@@ -16,15 +16,24 @@
 package  org.kie.pmml.models.clustering.model;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.kie.pmml.api.enums.ARRAY_TYPE;
+import org.kie.pmml.api.enums.MINING_FUNCTION;
 import org.kie.pmml.api.enums.Named;
+import org.kie.pmml.api.enums.PMML_MODEL;
+import org.kie.pmml.api.exceptions.KieEnumException;
+import org.kie.pmml.api.runtime.PMMLContext;
+import org.kie.pmml.commons.model.IsInterpreted;
 import org.kie.pmml.commons.model.KiePMMLModel;
 
-public abstract class KiePMMLClusteringModel extends KiePMMLModel {
+public class KiePMMLClusteringModel extends KiePMMLModel implements IsInterpreted {
+
+    private static final long serialVersionUID = 2845884699009576755L;
 
     public enum ModelClass implements Named {
         CENTER_BASED("centerBased"),
@@ -36,24 +45,56 @@ public abstract class KiePMMLClusteringModel extends KiePMMLModel {
             this.name = name;
         }
 
+        public static ModelClass byName(String name) {
+            return Arrays.stream(ModelClass.values())
+                    .filter(value -> name.equals(value.name))
+                    .findFirst()
+                    .orElseThrow(() -> new KieEnumException("Failed to find ModelClass with name: " + name));
+        }
+
         @Override
         public String getName() {
             return name;
         }
     }
 
-    protected ModelClass modelClass;
-    protected List<KiePMMLCluster> clusters = new ArrayList<>();
-    protected List<KiePMMLClusteringField> clusteringFields = new ArrayList<>();
-    protected KiePMMLComparisonMeasure comparisonMeasure;
-    protected KiePMMLMissingValueWeights missingValueWeights;
+    private ModelClass modelClass;
+    private List<KiePMMLCluster> clusters = new ArrayList<>();
+    private List<KiePMMLClusteringField> clusteringFields = new ArrayList<>();
+    private KiePMMLComparisonMeasure comparisonMeasure;
+    private KiePMMLMissingValueWeights missingValueWeights;
 
-    protected KiePMMLClusteringModel(String modelName) {
+    private KiePMMLClusteringModel(String modelName) {
         super(modelName, Collections.emptyList());
     }
 
+    public static Builder builder(String name, MINING_FUNCTION miningFunction) {
+        return new Builder(name, miningFunction);
+    }
+
+    public ModelClass getModelClass() {
+        return modelClass;
+    }
+
+    public List<KiePMMLCluster> getClusters() {
+        return Collections.unmodifiableList(clusters);
+    }
+
+    public List<KiePMMLClusteringField> getClusteringFields() {
+        return Collections.unmodifiableList(clusteringFields);
+    }
+
+    public KiePMMLComparisonMeasure getComparisonMeasure() {
+        return comparisonMeasure;
+    }
+
+    public KiePMMLMissingValueWeights getMissingValueWeights() {
+        return missingValueWeights;
+    }
+
     @Override
-    public Object evaluate(final Object knowledgeBase, final Map<String, Object> requestData) {
+    public Object evaluate(final Object knowledgeBase, final Map<String, Object> requestData,
+                           final PMMLContext context) {
         double adjustmentFactor = computeAdjustmentFactor(requestData);
 
         Double[] inputs = new Double[clusteringFields.size()];
@@ -65,11 +106,19 @@ public abstract class KiePMMLClusteringModel extends KiePMMLModel {
         double[] aggregates = new double[clusters.size()];
         for (int i = 0; i < clusters.size(); i++) {
             aggregates[i] = comparisonMeasure.getAggregateFunction()
-                    .apply(clusteringFields, comparisonMeasure.getCompareFunction(), inputs, clusters.get(i).getValuesArray(), adjustmentFactor);
+                    .apply(clusteringFields, comparisonMeasure.getCompareFunction(), inputs,
+                           clusters.get(i).getValuesArray(), adjustmentFactor);
         }
 
-        final int minIndex = findMinIndex(aggregates);
-        return clusters.get(minIndex).getId().orElseGet(() -> Integer.toString(minIndex + 1));
+        final int selectedIndex = findMinIndex(aggregates);
+        final KiePMMLCluster selectedCluster = clusters.get(selectedIndex);
+        final int selectedEntityId = selectedIndex + 1;
+
+        selectedCluster.getName().ifPresent(context::setPredictedDisplayValue);
+        context.setEntityId(selectedEntityId);
+        context.setAffinity(aggregates[selectedIndex]);
+
+        return selectedCluster.getId().orElseGet(() -> Integer.toString(selectedEntityId));
     }
 
     private double computeAdjustmentFactor(Map<String, Object> requestData) {
@@ -105,6 +154,43 @@ public abstract class KiePMMLClusteringModel extends KiePMMLModel {
                 .filter(v -> v.size() >= fieldNumber)
                 .map(v -> v.get(fieldNumber))
                 .orElse(1.0);
+    }
+
+    public static class Builder extends KiePMMLModel.Builder<KiePMMLClusteringModel> {
+
+        private Builder(String name, MINING_FUNCTION miningFunction) {
+            super("Clustering-", PMML_MODEL.CLUSTERING_MODEL, miningFunction, () -> new KiePMMLClusteringModel(name));
+        }
+
+        public Builder withModelClass(ModelClass modelClass) {
+            toBuild.modelClass = modelClass;
+            return this;
+        }
+
+        public Builder withClusters(List<KiePMMLCluster> clusters) {
+            if (clusters != null) {
+                toBuild.clusters.addAll(clusters);
+            }
+            return this;
+        }
+
+        public Builder withClusteringFields(List<KiePMMLClusteringField> clusteringFields) {
+            if (clusteringFields != null) {
+                toBuild.clusteringFields.addAll(clusteringFields);
+            }
+            return this;
+        }
+
+        public Builder withComparisonMeasure(KiePMMLComparisonMeasure comparisonMeasure) {
+            toBuild.comparisonMeasure = comparisonMeasure;
+            return this;
+        }
+
+        public Builder withMissingValueWeights(KiePMMLMissingValueWeights missingValueWeights) {
+            toBuild.missingValueWeights = missingValueWeights;
+            return this;
+        }
+
     }
 
 }

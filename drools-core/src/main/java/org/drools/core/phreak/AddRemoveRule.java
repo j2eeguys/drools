@@ -18,6 +18,7 @@ package org.drools.core.phreak;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.drools.core.common.ActivationsManager;
 import org.drools.core.common.EventFactHandle;
 import org.drools.core.common.InternalAgenda;
 import org.drools.core.common.InternalFactHandle;
@@ -32,10 +34,11 @@ import org.drools.core.common.InternalWorkingMemory;
 import org.drools.core.common.Memory;
 import org.drools.core.common.MemoryFactory;
 import org.drools.core.common.PropagationContextFactory;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.common.TupleSets;
 import org.drools.core.common.TupleSetsImpl;
 import org.drools.core.definitions.rule.impl.RuleImpl;
-import org.drools.core.impl.InternalKnowledgeBase;
+import org.drools.core.impl.RuleBase;
 import org.drools.core.reteoo.AbstractTerminalNode;
 import org.drools.core.reteoo.AccumulateNode.AccumulateContext;
 import org.drools.core.reteoo.AccumulateNode.AccumulateMemory;
@@ -61,13 +64,14 @@ import org.drools.core.reteoo.QueryElementNode;
 import org.drools.core.reteoo.RightInputAdapterNode;
 import org.drools.core.reteoo.RightInputAdapterNode.RiaNodeMemory;
 import org.drools.core.reteoo.RightTuple;
+import org.drools.core.reteoo.RuntimeComponentFactory;
 import org.drools.core.reteoo.SegmentMemory;
 import org.drools.core.reteoo.SegmentNodeMemory;
 import org.drools.core.reteoo.TerminalNode;
 import org.drools.core.reteoo.TupleMemory;
 import org.drools.core.reteoo.WindowNode;
-import org.drools.core.spi.PropagationContext;
-import org.drools.core.spi.Tuple;
+import org.drools.core.common.PropagationContext;
+import org.drools.core.reteoo.Tuple;
 import org.drools.core.util.FastIterator;
 import org.drools.core.util.LinkedList;
 import org.kie.api.definition.rule.Rule;
@@ -75,6 +79,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.drools.core.phreak.SegmentUtilities.isRootNode;
+import static org.drools.core.phreak.SegmentUtilities.nextNodePosMask;
 
 public class AddRemoveRule {
 
@@ -84,7 +89,7 @@ public class AddRemoveRule {
      * This method is called after the rule nodes have been added to the network
      * For add tuples are processed after the segments and pmems have been adjusted
      */
-    public static void addRule(TerminalNode tn, Collection<InternalWorkingMemory> wms, InternalKnowledgeBase kBase) {
+    public static void addRule(TerminalNode tn, Collection<InternalWorkingMemory> wms, RuleBase kBase) {
         if (log.isTraceEnabled()) {
             log.trace("Adding Rule {}", tn.getRule().getName());
         }
@@ -143,7 +148,7 @@ public class AddRemoveRule {
      * This method is called before the rule nodes are removed from the network.
      * For remove tuples are processed before the segments and pmems have been adjusted
      */
-    public static void removeRule( TerminalNode tn, Collection<InternalWorkingMemory> wms, InternalKnowledgeBase kBase) {
+    public static void removeRule( TerminalNode tn, Collection<InternalWorkingMemory> wms, RuleBase kBase) {
         if (log.isTraceEnabled()) {
             log.trace("Removing Rule {}", tn.getRule().getName());
         }
@@ -373,10 +378,10 @@ public class AddRemoveRule {
 
     private static Set<SegmentMemory> handleExistingPaths(TerminalNode tn, Map<PathMemory, SegmentMemory[]> prevSmemsLookup,
                                                           List<PathMemory> pmems, InternalWorkingMemory wm, ExistingPathStrategy strategy) {
-        Set<SegmentMemory>                smemsToNotify    = new HashSet<SegmentMemory>();
-        Set<SegmentMemory>                visitedSegments  = new HashSet<SegmentMemory>();
-        Set<LeftTupleNode> visitedNodes = new HashSet<LeftTupleNode>();
-        Map<LeftTupleNode, SegmentMemory> nodeToSegmentMap = new HashMap<LeftTupleNode, SegmentMemory>();
+        Set<SegmentMemory>                smemsToNotify    = new HashSet<>();
+        Set<SegmentMemory>                visitedSegments  = new HashSet<>();
+        Set<LeftTupleNode> visitedNodes = new HashSet<>();
+        Map<LeftTupleNode, SegmentMemory> nodeToSegmentMap = new HashMap<>();
 
         for (PathMemory pmem : pmems) {
             LeftTupleNode[] nodes = pmem.getPathEndNode().getPathNodes();
@@ -397,7 +402,7 @@ public class AddRemoveRule {
             smems[smemIndex] = prevSmems[prevSmemIndex];
             do {
                 node = nodes[nodeIndex++];
-                LeftTupleNode parentNode = node.getLeftTupleSource();
+                LeftTupleSource parentNode = node.getLeftTupleSource();
                 nodeTypesInSegment = SegmentUtilities.updateNodeTypesMask( parentNode, nodeTypesInSegment );
                 if (isSplit(parentNode)) {
                     smemIndex = strategy.incSmemIndex1(smemIndex);
@@ -415,7 +420,7 @@ public class AddRemoveRule {
                                              smemsToNotify, nodeToSegmentMap, wm);
                         smemSplitAdjustAmount++;
                     }
-                    SegmentUtilities.checkEagerSegmentCreation( (LeftTupleSource) parentNode, wm, nodeTypesInSegment );
+                    SegmentUtilities.checkEagerSegmentCreation(parentNode, wm, nodeTypesInSegment );
                     nodeTypesInSegment = 0;
                 }
             } while (!NodeTypeEnums.isEndNode(node));
@@ -427,9 +432,9 @@ public class AddRemoveRule {
     private static void addNewPaths(InternalWorkingMemory wm, Set<SegmentMemory> smemsToNotify, List<PathMemory> pmems) {
         // Multiple paths may be renetrant, in the case of a second subnetwork on the same rule.
         // Must make sure we don't duplicate the child smem, and when found, just update it with new pmem.
-        Set<LeftTupleNode> visited = new HashSet<LeftTupleNode>();
+        Set<LeftTupleNode> visited = new HashSet<>();
         for (PathMemory pmem : pmems) {
-            LeftTupleSink tipNode = (LeftTupleSink) pmem.getPathEndNode();
+            LeftTupleSink tipNode = pmem.getPathEndNode();
 
             LeftTupleNode child  = tipNode;
             LeftTupleNode parent = tipNode.getLeftTupleSource();
@@ -486,9 +491,9 @@ public class AddRemoveRule {
 
 
     private static void removeNewPaths(InternalWorkingMemory wm, List<PathMemory> pmems) {
-        Set<Integer> visitedNodes = new HashSet<Integer>();
+        Set<Integer> visitedNodes = new HashSet<>();
         for (PathMemory pmem : pmems) {
-            LeftTupleSink tipNode = (LeftTupleSink) pmem.getPathEndNode();
+            LeftTupleSink tipNode = pmem.getPathEndNode();
 
             LeftTupleNode child  = tipNode;
             LeftTupleNode parent = tipNode.getLeftTupleSource();
@@ -563,7 +568,7 @@ public class AddRemoveRule {
         // With the removing rules being flushed, we need to check any splits that will be merged, to see if they need flushing
         // Beware that flushing a higher up node, might again cause lower nodes to have more staged items. So track flushed items
         // incase they need to be reflushed
-        List<Flushed> flushed = new ArrayList<Flushed>();
+        List<Flushed> flushed = new ArrayList<>();
 
         for ( LeftTupleNode node : pathEndNodes.subjectSplits ) {
             if (!isSplit(node, tn)) { // check if the split is there even without the processed rule
@@ -626,22 +631,29 @@ public class AddRemoveRule {
         }
     }
 
-    public static boolean flushLeftTupleIfNecessary(InternalWorkingMemory wm, SegmentMemory sm, boolean streamMode) {
-        return flushLeftTupleIfNecessary(wm, sm, null, streamMode, Tuple.NONE);
+    public static boolean flushLeftTupleIfNecessary(ReteEvaluator reteEvaluator, SegmentMemory sm, boolean streamMode) {
+        return flushLeftTupleIfNecessary(reteEvaluator, sm, null, streamMode, Tuple.NONE);
     }
 
-    public static boolean flushLeftTupleIfNecessary(InternalWorkingMemory wm, SegmentMemory sm, LeftTuple leftTuple, boolean streamMode, short stagedType) {
-        boolean forceFlush = streamMode || ( leftTuple != null && leftTuple.getFactHandle() != null && leftTuple.getFactHandle().isEvent() );
-        // @TODO do we really need the check on ( leftTuple != null && leftTuple.getFactHandle() != null && leftTuple.getFactHandle().isEvent() ) (mdp)
-        PathMemory pmem = forceFlush ?
-                          sm.getPathMemories().get(0) :
-                          sm.getFirstDataDrivenPathMemory();
+    public static boolean flushLeftTupleIfNecessary(ReteEvaluator reteEvaluator, SegmentMemory sm, LeftTuple leftTuple, boolean streamMode, short stagedType) {
+        PathMemory pmem = findPathToFlush(sm, leftTuple, streamMode);
 
         if ( pmem == null ) {
             return false;
         }
 
-        TupleSets<LeftTuple> leftTupleSets = new TupleSetsImpl<LeftTuple>();
+        forceFlushLeftTuple( pmem, sm, reteEvaluator, createLeftTupleTupleSets(leftTuple, stagedType) );
+        forceFlushWhenRiaNode(reteEvaluator, pmem);
+        return true;
+    }
+
+    public static PathMemory findPathToFlush(SegmentMemory sm, LeftTuple leftTuple, boolean streamMode) {
+        boolean forceFlush = streamMode || ( leftTuple != null && leftTuple.getFactHandle() != null && leftTuple.getFactHandle().isEvent() );
+        return forceFlush ? sm.getPathMemories().get(0) : sm.getFirstDataDrivenPathMemory();
+    }
+
+    public static TupleSets<LeftTuple> createLeftTupleTupleSets(LeftTuple leftTuple, short stagedType) {
+        TupleSets<LeftTuple> leftTupleSets = new TupleSetsImpl<>();
         if (leftTuple != null) {
             switch (stagedType) {
                 case Tuple.INSERT:
@@ -655,31 +667,41 @@ public class AddRemoveRule {
                     break;
             }
         }
-
-        forceFlushLeftTuple( pmem, sm, wm, leftTupleSets );
-
-        forceFlushWhenRiaNode(wm, pmem);
-
-        return true;
+        return leftTupleSets;
     }
 
-    public static void forceFlushWhenRiaNode(InternalWorkingMemory wm, PathMemory pmem) {
+    public static void forceFlushWhenRiaNode(ReteEvaluator reteEvaluator, PathMemory pmem) {
+        for (PathMemory outPmem : findPathsToFlushFromRia(reteEvaluator, pmem)) {
+            forceFlushPath(reteEvaluator, outPmem);
+        }
+    }
+
+    public static List<PathMemory> findPathsToFlushFromRia(ReteEvaluator reteEvaluator, PathMemory pmem) {
+        List<PathMemory> paths = null;
         if (pmem.isDataDriven() && pmem.getNodeType() == NodeTypeEnums.RightInputAdaterNode) {
             for (PathEndNode pnode : pmem.getPathEndNode().getPathEndNodes()) {
                 if ( pnode instanceof TerminalNode ) {
-                    PathMemory outPmem = wm.getNodeMemory((TerminalNode) pnode);
+                    PathMemory outPmem = reteEvaluator.getNodeMemory((TerminalNode) pnode);
                     if (outPmem.isDataDriven()) {
-                        SegmentMemory outSmem = outPmem.getSegmentMemories()[0];
-                        if (outSmem != null) {
-                            forceFlushLeftTuple(outPmem, outSmem, wm, new TupleSetsImpl<LeftTuple>());
+                        if (paths == null) {
+                            paths = new ArrayList<>();
                         }
+                        paths.add(outPmem);
                     }
                 }
             }
         }
+        return paths == null ? Collections.emptyList() : paths;
     }
 
-    public static void forceFlushLeftTuple(PathMemory pmem, SegmentMemory sm, InternalWorkingMemory wm, TupleSets<LeftTuple> leftTupleSets) {
+    public static void forceFlushPath(ReteEvaluator reteEvaluator, PathMemory outPmem) {
+        SegmentMemory outSmem = outPmem.getSegmentMemories()[0];
+        if (outSmem != null) {
+            forceFlushLeftTuple(outPmem, outSmem, reteEvaluator, new TupleSetsImpl<>());
+        }
+    }
+
+    public static void forceFlushLeftTuple(PathMemory pmem, SegmentMemory sm, ReteEvaluator reteEvaluator, TupleSets<LeftTuple> leftTupleSets) {
         SegmentMemory[] smems = pmem.getSegmentMemories();
 
         LeftTupleNode node;
@@ -697,25 +719,21 @@ public class AddRemoveRule {
 
         PathMemory rtnPmem = NodeTypeEnums.isTerminalNode(pmem.getPathEndNode()) ?
                              pmem :
-                             wm.getNodeMemory((AbstractTerminalNode) pmem.getPathEndNode().getPathEndNodes()[0]);
+                             reteEvaluator.getNodeMemory((AbstractTerminalNode) pmem.getPathEndNode().getPathEndNodes()[0]);
 
-        InternalAgenda agenda = pmem.getActualAgenda( wm );
-        RuleNetworkEvaluator.INSTANCE.outerEval(pmem, node, bit, mem, smems, sm.getPos(), leftTupleSets, agenda,
-                                                new LinkedList<StackEntry>(),
-                                                true, rtnPmem.getOrCreateRuleAgendaItem(agenda).getRuleExecutor());
+        ActivationsManager activationsManager = pmem.getActualActivationsManager( reteEvaluator );
+        RuleNetworkEvaluator.INSTANCE.outerEval(pmem, node, bit, mem, smems, sm.getPos(), leftTupleSets, activationsManager,
+                                                new LinkedList<>(),
+                                                true, rtnPmem.getOrCreateRuleAgendaItem(activationsManager).getRuleExecutor());
     }
 
 
     private static Map<PathMemory, SegmentMemory[]> reInitPathMemories(List<PathMemory> pathMems, TerminalNode removingTN) {
-        Map<PathMemory, SegmentMemory[]> previousSmems = new HashMap<PathMemory, SegmentMemory[]>();
+        Map<PathMemory, SegmentMemory[]> previousSmems = new HashMap<>();
         for (PathMemory pmem : pathMems) {
             // Re initialise all the PathMemories
             previousSmems.put(pmem, pmem.getSegmentMemories());
-            LeftTupleSource startRianLts = null;
-            if (!NodeTypeEnums.isTerminalNode(pmem.getPathEndNode())) {
-                RightInputAdapterNode rian = (RightInputAdapterNode) pmem.getPathEndNode();
-                startRianLts = rian.getStartTupleSource();
-            }
+
             PathEndNode pathEndNode = pmem.getPathEndNode();
             pathEndNode.resetPathMemSpec(removingTN); // re-initialise the PathMemory
             AbstractTerminalNode.initPathMemory(pathEndNode, pmem);
@@ -766,7 +784,7 @@ public class AddRemoveRule {
 
     private static void insertLiaFacts(LeftTupleNode startNode, InternalWorkingMemory wm) {
         // rule added with no sharing
-        PropagationContextFactory pctxFactory = wm.getKnowledgeBase().getConfiguration().getComponentFactory().getPropagationContextFactory();
+        PropagationContextFactory pctxFactory = RuntimeComponentFactory.get().getPropagationContextFactory();
         final PropagationContext  pctx        = pctxFactory.createPropagationContext(wm.getNextPropagationIdCounter(), PropagationContext.Type.RULE_ADDITION, null, null, null);
         LeftInputAdapterNode      lian        = (LeftInputAdapterNode) startNode;
         RightTupleSinkAdapter     liaAdapter  = new RightTupleSinkAdapter(lian);
@@ -774,7 +792,7 @@ public class AddRemoveRule {
     }
 
     private static void insertFacts(PathEndNodes endNodes, Collection<InternalWorkingMemory> wms) {
-        Set<LeftTupleNode> visited = new HashSet<LeftTupleNode>();
+        Set<LeftTupleNode> visited = new HashSet<>();
 
         for ( PathEndNode endNode : endNodes.subjectEndNodes ) {
             LeftTupleNode[]  nodes = endNode.getPathNodes();
@@ -788,7 +806,7 @@ public class AddRemoveRule {
 
                     if (!bn.isRightInputIsRiaNode()) {
                         for ( InternalWorkingMemory wm : wms ) {
-                            PropagationContextFactory pctxFactory = wm.getKnowledgeBase().getConfiguration().getComponentFactory().getPropagationContextFactory();
+                            PropagationContextFactory pctxFactory = RuntimeComponentFactory.get().getPropagationContextFactory();
                             final PropagationContext pctx = pctxFactory.createPropagationContext(wm.getNextPropagationIdCounter(), PropagationContext.Type.RULE_ADDITION, null, null, null);
                             bn.getRightInput().updateSink(bn, pctx, wm);
                         }
@@ -1068,7 +1086,7 @@ public class AddRemoveRule {
             memory.getSegmentMemory().getStagedLeftTuples().addInsert(peer);
         } else {
             // If parent is Lian, then this must be called, so that any linking or unlinking can be done.
-            LeftInputAdapterNode.doInsertSegmentMemory(wm, true, liaMem, memory.getSegmentMemory(), peer, node.getLeftTupleSource().isStreamMode());
+            LeftInputAdapterNode.doInsertSegmentMemoryWithFlush(wm, true, liaMem, memory.getSegmentMemory(), peer, node.getLeftTupleSource().isStreamMode());
         }
 
         return peer;
@@ -1078,7 +1096,7 @@ public class AddRemoveRule {
         if (NodeTypeEnums.isTerminalNode(lt.getTupleSink())) {
             PathMemory pmem = (PathMemory) wm.getNodeMemories().peekNodeMemory( lt.getTupleSink() );
             if (pmem != null) {
-                PhreakRuleTerminalNode.doLeftDelete( pmem.getActualAgenda( wm ), pmem.getRuleAgendaItem().getRuleExecutor(), lt );
+                PhreakRuleTerminalNode.doLeftDelete( pmem.getActualActivationsManager( wm ), pmem.getRuleAgendaItem().getRuleExecutor(), lt );
             }
         } else {
             if (lt.getContextObject() instanceof AccumulateContext) {
@@ -1307,8 +1325,8 @@ public class AddRemoveRule {
         LinkedList<Memory> smNodeMemories1 = sm1.getNodeMemories();
         LinkedList<Memory> smNodeMemories2 = sm2.getNodeMemories();
 
-        Memory mem         = smNodeMemories1.getFirst();
-        int    nodePosMask = 1;
+        Memory mem = smNodeMemories1.getFirst();
+        long nodePosMask = 1;
         for (int i = 0, length = smNodeMemories1.size(); i < length; i++) {
             Memory next = mem.getNext();
             if (i > pos) {
@@ -1320,7 +1338,7 @@ public class AddRemoveRule {
                 if (mem instanceof SegmentNodeMemory) {
                     ( (SegmentNodeMemory) mem ).setNodePosMaskBit( nodePosMask );
                 }
-                nodePosMask = nodePosMask << 1;
+                nodePosMask = nextNodePosMask(nodePosMask);
             }
             mem = next;
         }
@@ -1407,19 +1425,19 @@ public class AddRemoveRule {
 
     private static class PathEndNodeMemories {
         PathMemory subjectPmem;
-        List<PathMemory> subjectPmems = new ArrayList<PathMemory>();
-        List<PathMemory> otherPmems = new ArrayList<PathMemory>();
+        List<PathMemory> subjectPmems = new ArrayList<>();
+        List<PathMemory> otherPmems = new ArrayList<>();
     }
 
-    private static PathEndNodes getPathEndNodes(InternalKnowledgeBase kBase,
+    private static PathEndNodes getPathEndNodes(RuleBase kBase,
                                                 LeftTupleNode lt,
                                                 TerminalNode tn,
                                                 Rule processedRule,
                                                 boolean hasProtos,
                                                 boolean hasWms) {
         PathEndNodes endNodes = new PathEndNodes();
-        endNodes.subjectEndNode = (PathEndNode) tn;
-        endNodes.subjectEndNodes.add((PathEndNode) tn);
+        endNodes.subjectEndNode = tn;
+        endNodes.subjectEndNodes.add(tn);
         if (hasWms && SegmentUtilities.isTipNode(lt, null)) {
             endNodes.subjectSplit = lt;
             endNodes.subjectSplits.add(lt);
@@ -1434,7 +1452,7 @@ public class AddRemoveRule {
         return endNodes;
     }
 
-    private static void collectPathEndNodes(InternalKnowledgeBase kBase,
+    private static void collectPathEndNodes(RuleBase kBase,
                                             LeftTupleNode lt,
                                             PathEndNodes endNodes,
                                             TerminalNode tn,
@@ -1483,7 +1501,7 @@ public class AddRemoveRule {
         }
     }
 
-    private static void invalidateRootNode( InternalKnowledgeBase kBase, LeftTupleNode lt ) {
+    private static void invalidateRootNode( RuleBase kBase, LeftTupleNode lt ) {
         while (!isRootNode( lt, null )) {
             lt = lt.getLeftTupleSource();
         }
@@ -1493,8 +1511,8 @@ public class AddRemoveRule {
     private static class PathEndNodes {
         PathEndNode   subjectEndNode;
         LeftTupleNode subjectSplit;
-        List<PathEndNode>   subjectEndNodes = new ArrayList<PathEndNode>();
-        List<LeftTupleNode> subjectSplits   = new ArrayList<LeftTupleNode>();
-        List<PathEndNode>   otherEndNodes   = new ArrayList<PathEndNode>();
+        List<PathEndNode>   subjectEndNodes = new ArrayList<>();
+        List<LeftTupleNode> subjectSplits   = new ArrayList<>();
+        List<PathEndNode>   otherEndNodes   = new ArrayList<>();
     }
 }

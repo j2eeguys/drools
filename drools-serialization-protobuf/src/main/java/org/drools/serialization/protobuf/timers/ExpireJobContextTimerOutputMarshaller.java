@@ -17,9 +17,9 @@ package org.drools.serialization.protobuf.timers;
 import java.io.IOException;
 import java.util.Date;
 
-import org.drools.core.impl.StatefulKnowledgeSessionImpl.WorkingMemoryReteExpireAction;
-import org.drools.core.marshalling.impl.MarshallerWriteContext;
-import org.drools.core.marshalling.impl.PersisterEnums;
+import org.drools.core.impl.WorkingMemoryReteExpireAction;
+import org.drools.core.marshalling.MarshallerWriteContext;
+import org.drools.serialization.protobuf.marshalling.PersisterEnums;
 import org.drools.core.reteoo.ObjectTypeNode.ExpireJobContext;
 import org.drools.core.time.JobContext;
 import org.drools.core.time.impl.DefaultJobHandle;

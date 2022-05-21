@@ -19,6 +19,8 @@ package org.drools.modelcompiler.builder;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
+import org.drools.util.PortablePath;
+
 public class GeneratedFile {
 
     public enum Type {
@@ -36,7 +38,7 @@ public class GeneratedFile {
         PMML;
     }
 
-    private final String path;
+    private final PortablePath path;
     private final byte[] data;
     private final Type type;
 
@@ -44,7 +46,7 @@ public class GeneratedFile {
         this(Type.RULE, path, data);
     }
 
-    private GeneratedFile(String path, byte[] data) {
+    public GeneratedFile(String path, byte[] data) {
         this(Type.RULE, path, data);
     }
 
@@ -54,7 +56,7 @@ public class GeneratedFile {
 
     private GeneratedFile(Type type, String path, byte[] data) {
         this.type = type;
-        this.path = path;
+        this.path = PortablePath.of(path);
         this.data = data;
     }
 
@@ -63,6 +65,10 @@ public class GeneratedFile {
     }
 
     public String getPath() {
+        return path.asString();
+    }
+
+    public PortablePath getKiePath() {
         return path;
     }
 
@@ -73,7 +79,7 @@ public class GeneratedFile {
     @Override
     public String toString() {
         return "GeneratedFile{" +
-                "path='" + path + '\'' +
+                "path='" + path.asString() + '\'' +
                 '}';
     }
 

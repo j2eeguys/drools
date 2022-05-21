@@ -21,51 +21,53 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.lang.reflect.Method;
-import java.math.BigDecimal;
-import java.math.BigInteger;
 
 import org.drools.core.base.ValueType;
 import org.drools.core.common.InternalWorkingMemory;
-import org.drools.core.util.ClassUtils;
-import org.drools.core.util.MathUtils;
+import org.drools.core.common.ReteEvaluator;
+import org.drools.core.rule.accessor.ReadAccessor;
+import org.drools.util.ClassUtils;
 
 public class FactTemplateFieldExtractor
     implements
     Externalizable,
-    org.drools.core.spi.InternalReadAccessor {
+        ReadAccessor {
 
     private static final long serialVersionUID = 510l;
-    private FactTemplate      factTemplate;
-    private int               fieldIndex;
+    private FactTemplate factTemplate;
+    private String fieldName;
+    private int fieldIndex;
 
     public FactTemplateFieldExtractor() {
 
     }
 
-    public FactTemplateFieldExtractor(final FactTemplate factTemplate,
-                                      final int fieldIndex) {
+    public FactTemplateFieldExtractor(FactTemplate factTemplate, String fieldName) {
         this.factTemplate = factTemplate;
-        this.fieldIndex = fieldIndex;
+        this.fieldName = fieldName;
+        this.fieldIndex = factTemplate.getFieldTemplateIndex(fieldName);
     }
 
     public void readExternal(ObjectInput in) throws IOException,
                                             ClassNotFoundException {
         factTemplate = (FactTemplate) in.readObject();
+        fieldName = in.readUTF();
         fieldIndex = in.readInt();
     }
 
     public void writeExternal(ObjectOutput out) throws IOException {
         out.writeObject( factTemplate );
+        out.writeUTF( fieldName );
         out.writeInt( fieldIndex );
     }
 
     public ValueType getValueType() {
-        return this.factTemplate.getFieldTemplate( this.fieldIndex ).getValueType();
+        return this.factTemplate.getFieldTemplate( this.fieldName ).getValueType();
     }
 
-    public Object getValue(InternalWorkingMemory workingMemory,
+    public Object getValue(ReteEvaluator reteEvaluator,
                            final Object object) {
-        return ((Fact) object).getFieldValue( this.fieldIndex );
+        return ((Fact) object).get( this.fieldName );
     }
 
     public int getIndex() {
@@ -73,51 +75,51 @@ public class FactTemplateFieldExtractor
     }
 
     public Class getExtractToClass() {
-        return this.factTemplate.getFieldTemplate( fieldIndex ).getValueType().getClassType();
+        return this.factTemplate.getFieldTemplate( fieldName ).getValueType().getClassType();
     }
 
     public String getExtractToClassName() {
         return ClassUtils.canonicalName( getExtractToClass() );
     }
 
-    public boolean getBooleanValue(InternalWorkingMemory workingMemory,
+    public boolean getBooleanValue(ReteEvaluator reteEvaluator,
                                    final Object object) {
-        return ((Boolean) ((Fact) object).getFieldValue( this.fieldIndex )).booleanValue();
+        return ((Boolean) ((Fact) object).get( fieldName )).booleanValue();
     }
 
-    public byte getByteValue(InternalWorkingMemory workingMemory,
+    public byte getByteValue(ReteEvaluator reteEvaluator,
                              final Object object) {
-        return ((Number) ((Fact) object).getFieldValue( this.fieldIndex )).byteValue();
+        return ((Number) ((Fact) object).get( fieldName )).byteValue();
     }
 
-    public char getCharValue(InternalWorkingMemory workingMemory,
+    public char getCharValue(ReteEvaluator reteEvaluator,
                              final Object object) {
-        return ((Character) ((Fact) object).getFieldValue( this.fieldIndex )).charValue();
+        return ((Character) ((Fact) object).get( fieldName )).charValue();
     }
 
-    public double getDoubleValue(InternalWorkingMemory workingMemory,
+    public double getDoubleValue(ReteEvaluator reteEvaluator,
                                  final Object object) {
-        return ((Number) ((Fact) object).getFieldValue( this.fieldIndex )).doubleValue();
+        return ((Number) ((Fact) object).get( fieldName )).doubleValue();
     }
 
-    public float getFloatValue(InternalWorkingMemory workingMemory,
+    public float getFloatValue(ReteEvaluator reteEvaluator,
                                final Object object) {
-        return ((Number) ((Fact) object).getFieldValue( this.fieldIndex )).floatValue();
+        return ((Number) ((Fact) object).get( fieldName )).floatValue();
     }
 
-    public int getIntValue(InternalWorkingMemory workingMemory,
+    public int getIntValue(ReteEvaluator reteEvaluator,
                            final Object object) {
-        return ((Number) ((Fact) object).getFieldValue( this.fieldIndex )).intValue();
+        return ((Number) ((Fact) object).get( fieldName )).intValue();
     }
 
-    public long getLongValue(InternalWorkingMemory workingMemory,
+    public long getLongValue(ReteEvaluator reteEvaluator,
                              final Object object) {
-        return ((Number) ((Fact) object).getFieldValue( this.fieldIndex )).longValue();
+        return ((Number) ((Fact) object).get( fieldName )).longValue();
     }
 
-    public short getShortValue(InternalWorkingMemory workingMemory,
+    public short getShortValue(ReteEvaluator reteEvaluator,
                                final Object object) {
-        return ((Number) ((Fact) object).getFieldValue( this.fieldIndex )).shortValue();
+        return ((Number) ((Fact) object).get( fieldName )).shortValue();
     }
 
     public Method getNativeReadMethod() {
@@ -134,10 +136,8 @@ public class FactTemplateFieldExtractor
         return "getValue";
     }
 
-    public int getHashCode(InternalWorkingMemory workingMemory,
-                           final Object object) {
-        return getValue( workingMemory,
-                         object ).hashCode();
+    public int getHashCode(ReteEvaluator reteEvaluator, Object object) {
+        return getValue( reteEvaluator, object ).hashCode();
     }
 
     public boolean isGlobal() {
@@ -148,86 +148,20 @@ public class FactTemplateFieldExtractor
         return false;
     }
 
-    public boolean isNullValue(InternalWorkingMemory workingMemory,
-                               Object object) {
-        return ((Fact) object).getFieldValue( this.fieldIndex ) == null;
-    }
-
-    public boolean getBooleanValue(Object object) {
-        return getBooleanValue( null,
-                                object );
-    }
-
-    public byte getByteValue(Object object) {
-        return getByteValue( null,
-                             object );
-    }
-
-    public char getCharValue(Object object) {
-        return getCharValue( null,
-                             object );
-    }
-
-    public double getDoubleValue(Object object) {
-        return getDoubleValue( null,
-                               object );
-    }
-
-    public float getFloatValue(Object object) {
-        return getFloatValue( null,
-                              object );
+    public boolean isNullValue(ReteEvaluator reteEvaluator, Object object) {
+        return ((Fact) object).get( this.fieldName ) == null;
     }
 
     public int getHashCode(Object object) {
-        return getHashCode( null,
-                            object );
-    }
-
-    public int getIntValue(Object object) {
-        return getIntValue( null,
-                            object );
-    }
-
-    public long getLongValue(Object object) {
-        return getLongValue( null,
-                             object );
-    }
-
-    public short getShortValue(Object object) {
-        return getShortValue( null,
-                              object );
+        return getHashCode( null, object );
     }
 
     public Object getValue(Object object) {
-        return getValue( null,
-                         object );
-    }
-
-    public BigDecimal getBigDecimalValue(Object object) {
-        return getBigDecimalValue( null,
-                                   object );
-    }
-
-    public BigInteger getBigIntegerValue(Object object) {
-        return getBigIntegerValue( null,
-                                   object );
-    }
-
-    public BigDecimal getBigDecimalValue(InternalWorkingMemory workingMemory,
-                                         Object object) {
-        return MathUtils.getBigDecimal( getValue( workingMemory,
-                                                  object ) );
-    }
-
-    public BigInteger getBigIntegerValue(InternalWorkingMemory workingMemory,
-                                         Object object) {
-        return MathUtils.getBigInteger( getValue( workingMemory,
-                                                  object ) );
+        return getValue( null, object );
     }
 
     public boolean isNullValue(Object object) {
-        return isNullValue( null,
-                            object );
+        return isNullValue( null, object );
     }
 
     @Override

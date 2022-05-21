@@ -17,6 +17,9 @@
 
 package org.drools.model;
 
+import java.util.Objects;
+import java.util.function.BiPredicate;
+
 import org.drools.model.functions.Function1;
 
 public interface Index<A, V> {
@@ -65,6 +68,25 @@ public interface Index<A, V> {
                     return true;
                 default:
                     return false;
+            }
+        }
+
+        public <T, V> BiPredicate<T, V> asPredicate() {
+            switch (this) {
+                case EQUAL:
+                    return (t,v) -> Objects.equals(t, v);
+                case NOT_EQUAL:
+                    return (t,v) -> !Objects.equals(t, v);
+                case GREATER_THAN:
+                    return (t,v) -> t != null && ((Comparable) t).compareTo(v) > 0;
+                case GREATER_OR_EQUAL:
+                    return (t,v) -> t != null && ((Comparable) t).compareTo(v) >= 0;
+                case LESS_THAN:
+                    return (t,v) -> t != null && ((Comparable) t).compareTo(v) < 0;
+                case LESS_OR_EQUAL:
+                    return (t,v) -> t != null && ((Comparable) t).compareTo(v) <= 0;
+                default:
+                    throw new UnsupportedOperationException("Cannot convert " + this + " into a predicate");
             }
         }
 

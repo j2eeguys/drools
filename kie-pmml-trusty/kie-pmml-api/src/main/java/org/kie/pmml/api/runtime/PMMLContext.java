@@ -15,7 +15,10 @@
  */
 package org.kie.pmml.api.runtime;
 
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.kie.api.pmml.PMMLRequestData;
 import org.kie.api.runtime.Context;
@@ -35,4 +38,38 @@ public interface PMMLContext extends Context {
     Map<String, Object> getCommonTransformationMap();
 
     Map<String, Object> getLocalTransformationMap();
+
+    Object getPredictedDisplayValue();
+
+    void setPredictedDisplayValue(Object predictedDisplayValue);
+
+    Object getEntityId();
+
+    void setEntityId(Object entityId);
+
+    Object getAffinity();
+
+    void setAffinity(Object affinity);
+
+    Map<String, Double> getProbabilityMap();
+
+    /**
+     * Returns the <b>probability map</b> evaluated by the model
+     * @return
+     */
+    LinkedHashMap<String, Double> getProbabilityResultMap();
+
+    void setProbabilityResultMap(LinkedHashMap<String, Double> probabilityResultMap);
+
+    Map<String, Object> getOutputFieldsMap();
+
+    /**
+     * Add the given <code>PMMLListener</code> to the current <code>PMMLContext</code>
+     * That listener, in turn, will be available only for evaluation of that specific <code>PMMLContext</code>
+     * @param toAdd
+     */
+    void addPMMLListener(final PMMLListener toAdd);
+
+    Set<PMMLListener> getPMMLListeners();
+
 }

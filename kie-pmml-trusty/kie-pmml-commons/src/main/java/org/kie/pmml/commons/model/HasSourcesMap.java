@@ -30,4 +30,8 @@ public interface HasSourcesMap {
         return null;
     }
 
+    default boolean isInterpreted() {
+        return false;
+    }
+
 }

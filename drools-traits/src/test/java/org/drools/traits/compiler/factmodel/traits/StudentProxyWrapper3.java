@@ -16,17 +16,17 @@
 
 package org.drools.traits.compiler.factmodel.traits;
 
-import org.drools.traits.core.factmodel.TraitProxyImpl;
-import org.drools.traits.core.factmodel.TripleBasedStruct;
-import org.drools.core.spi.InternalReadAccessor;
-import org.drools.core.spi.WriteAccessor;
-import org.drools.core.util.TripleStore;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
+import org.drools.core.rule.accessor.ReadAccessor;
+import org.drools.core.rule.accessor.WriteAccessor;
+import org.drools.traits.core.factmodel.TraitProxyImpl;
+import org.drools.traits.core.factmodel.TripleBasedStruct;
+import org.drools.traits.core.factmodel.TripleStore;
 
 public class StudentProxyWrapper3 extends TripleBasedStruct {
 
@@ -34,10 +34,10 @@ public class StudentProxyWrapper3 extends TripleBasedStruct {
     Imp2 object;
 
 
-    public static InternalReadAccessor name_reader;
+    public static ReadAccessor name_reader;
     public static WriteAccessor name_writer;
 
-    public static InternalReadAccessor bit_reader;
+    public static ReadAccessor bit_reader;
     public static WriteAccessor bit_writer;
 
 
@@ -130,7 +130,7 @@ public class StudentProxyWrapper3 extends TripleBasedStruct {
             return val;
         }
         if ( "bol".equals( key ) ) {
-            val = bit_reader.getIntValue( object );
+            val = bit_reader.getValue( object );
             bit_writer.setIntValue( object, 0 );
             return val;
         }

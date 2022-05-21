@@ -17,6 +17,7 @@ package org.drools.mvel.compiler.rule.builder.dialect.mvel;
 
 import java.io.InputStreamReader;
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -26,31 +27,24 @@ import org.drools.compiler.builder.impl.KnowledgeBuilderConfigurationImpl;
 import org.drools.compiler.builder.impl.KnowledgeBuilderImpl;
 import org.drools.compiler.compiler.Dialect;
 import org.drools.compiler.compiler.DialectCompiletimeRegistry;
-import org.drools.compiler.compiler.DrlParser;
-import org.drools.compiler.compiler.DroolsParserException;
+import org.drools.drl.parser.DrlParser;
+import org.drools.drl.parser.DroolsParserException;
 import org.drools.compiler.compiler.PackageRegistry;
-import org.drools.compiler.lang.descr.AttributeDescr;
-import org.drools.compiler.lang.descr.PackageDescr;
-import org.drools.compiler.lang.descr.RuleDescr;
 import org.drools.compiler.rule.builder.RuleBuildContext;
 import org.drools.compiler.rule.builder.RuleBuilder;
 import org.drools.core.RuleBaseConfiguration;
 import org.drools.core.base.ClassObjectType;
-import org.drools.core.base.DefaultKnowledgeHelper;
 import org.drools.core.common.AgendaItem;
 import org.drools.core.common.AgendaItemImpl;
 import org.drools.core.common.EmptyBetaConstraints;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.InternalWorkingMemory;
 import org.drools.core.common.Memory;
 import org.drools.core.common.PropagationContextFactory;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.definitions.InternalKnowledgePackage;
-import org.drools.core.definitions.impl.KnowledgePackageImpl;
 import org.drools.core.definitions.rule.impl.RuleImpl;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
-import org.drools.core.impl.StatefulKnowledgeSessionImpl;
 import org.drools.core.reteoo.BetaNode;
+import org.drools.core.reteoo.CoreComponentFactory;
 import org.drools.core.reteoo.LeftTuple;
 import org.drools.core.reteoo.LeftTupleImpl;
 import org.drools.core.reteoo.LeftTupleSource;
@@ -61,15 +55,23 @@ import org.drools.core.reteoo.ReteooBuilder;
 import org.drools.core.reteoo.RightTuple;
 import org.drools.core.reteoo.RuleRemovalContext;
 import org.drools.core.reteoo.RuleTerminalNode;
+import org.drools.core.reteoo.RuntimeComponentFactory;
 import org.drools.core.reteoo.Sink;
 import org.drools.core.reteoo.builder.BuildContext;
 import org.drools.core.rule.Declaration;
 import org.drools.core.rule.GroupElement;
 import org.drools.core.rule.ImportDeclaration;
 import org.drools.core.rule.Pattern;
-import org.drools.core.spi.ObjectType;
-import org.drools.core.spi.PatternExtractor;
-import org.drools.core.spi.PropagationContext;
+import org.drools.core.base.ObjectType;
+import org.drools.core.rule.accessor.PatternExtractor;
+import org.drools.core.common.PropagationContext;
+import org.drools.drl.ast.descr.AttributeDescr;
+import org.drools.drl.ast.descr.PackageDescr;
+import org.drools.drl.ast.descr.RuleDescr;
+import org.drools.kiesession.consequence.DefaultKnowledgeHelper;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
+import org.drools.kiesession.session.StatefulKnowledgeSessionImpl;
 import org.drools.mvel.MVELDialectRuntimeData;
 import org.drools.mvel.builder.MVELConsequenceBuilder;
 import org.drools.mvel.builder.MVELDialect;
@@ -82,9 +84,9 @@ import org.mvel2.ParserContext;
 import org.mvel2.compiler.ExpressionCompiler;
 import org.mvel2.debug.DebugTools;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -133,12 +135,12 @@ public class MVELConsequenceBuilderTest {
 
         InternalKnowledgeBase kBase = KnowledgeBaseFactory.newKnowledgeBase();
 
-        PropagationContextFactory pctxFactory = kBase.getConfiguration().getComponentFactory().getPropagationContextFactory();
+        PropagationContextFactory pctxFactory = RuntimeComponentFactory.get().getPropagationContextFactory();
         kBase.addPackage(pkg);
 
         StatefulKnowledgeSessionImpl ksession = (StatefulKnowledgeSessionImpl)kBase.newKieSession();
 
-        BuildContext buildContext = new BuildContext(kBase);
+        BuildContext buildContext = new BuildContext(kBase, Collections.emptyList());
         MockTupleSource      source       = new MockTupleSource(1, buildContext);
         source.setObjectCount(1);
         RuleTerminalNode rtn = new RuleTerminalNode(0, source, context.getRule(), subrule, 0, buildContext);
@@ -162,7 +164,7 @@ public class MVELConsequenceBuilderTest {
 
     @Test
     public void testImperativeCodeError() throws Exception {
-        InternalKnowledgePackage pkg = new KnowledgePackageImpl( "pkg1" );
+        InternalKnowledgePackage pkg = CoreComponentFactory.get().createKnowledgePackage( "pkg1" );
         final RuleDescr ruleDescr = new RuleDescr( "rule 1" );
         ruleDescr.setConsequence( "if (cheese.price == 10) { cheese.price = 5; }" );
 
@@ -285,7 +287,7 @@ public class MVELConsequenceBuilderTest {
             assertFalse( parser.getErrors().toString(),
                                 parser.hasErrors() );
 
-            InternalKnowledgePackage pkg = new KnowledgePackageImpl( "org.drools" );
+            InternalKnowledgePackage pkg = CoreComponentFactory.get().createKnowledgePackage( "org.drools" );
 
             final RuleDescr ruleDescr = pkgDescr.getRules().get( 0 );
 
@@ -361,7 +363,7 @@ public class MVELConsequenceBuilderTest {
     private void setupTest(String consequence, Map<String, Object> namedConsequences) {
         builder = new MVELConsequenceBuilder();
 
-        InternalKnowledgePackage pkg = new KnowledgePackageImpl( "org.drools.mvel.compiler.test" );
+        InternalKnowledgePackage pkg = CoreComponentFactory.get().createKnowledgePackage( "org.drools.mvel.compiler.test" );
         pkg.addImport( new ImportDeclaration( Cheese.class.getCanonicalName() ) );
 
         KnowledgeBuilderConfigurationImpl conf = new KnowledgeBuilderConfigurationImpl();
@@ -415,7 +417,7 @@ public class MVELConsequenceBuilderTest {
         		"c2 = new Cheese().{ type = $map[$cheese.type] };" +
         		"c3 = new Cheese().{ type = $map['key'] };";
         setupTest( consequence, new HashMap<String, Object>() );
-         assertNotNull( context.getRule().getConsequence() );
+         assertThat(context.getRule().getConsequence()).isNotNull();
         assertFalse( context.getRule().hasNamedConsequences() );
         assertTrue( context.getRule().getConsequence() instanceof MVELConsequence );
     }
@@ -494,16 +496,16 @@ public class MVELConsequenceBuilderTest {
 
         public void assertObject(final InternalFactHandle factHandle,
                                  final PropagationContext pctx,
-                                 final InternalWorkingMemory workingMemory) {
+                                 final ReteEvaluator reteEvaluator) {
         }
 
         @Override
-        public void modifyObject( InternalFactHandle factHandle, ModifyPreviousTuples modifyPreviousTuples, PropagationContext context, InternalWorkingMemory workingMemory) {
+        public void modifyObject( InternalFactHandle factHandle, ModifyPreviousTuples modifyPreviousTuples, PropagationContext context, ReteEvaluator reteEvaluator) {
         }
 
         public void retractRightTuple(final RightTuple rightTuple,
                                       final PropagationContext context,
-                                      final InternalWorkingMemory workingMemory) {
+                                      final ReteEvaluator reteEvaluator) {
         }
 
         public short getType() {
@@ -512,7 +514,7 @@ public class MVELConsequenceBuilderTest {
 
         public void modifyRightTuple(RightTuple rightTuple,
                                      PropagationContext context,
-                                     InternalWorkingMemory workingMemory) {
+                                     ReteEvaluator reteEvaluator) {
         }
 
         public LeftTuple createLeftTuple( InternalFactHandle factHandle,
@@ -546,8 +548,8 @@ public class MVELConsequenceBuilderTest {
                                          boolean leftTupleMemoryEnabled) {
             return new LeftTupleImpl(leftTuple, rightTuple, currentLeftChild, currentRightChild, sink, leftTupleMemoryEnabled );        
         }
-        public Memory createMemory(RuleBaseConfiguration config, InternalWorkingMemory wm) {
-            return super.createMemory( config, wm);
+        public Memory createMemory(RuleBaseConfiguration config, ReteEvaluator reteEvaluator) {
+            return super.createMemory( config, reteEvaluator);
         }
 
         @Override

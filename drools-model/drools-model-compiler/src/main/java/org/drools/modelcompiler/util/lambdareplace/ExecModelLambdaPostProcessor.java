@@ -44,8 +44,9 @@ import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
-import com.github.javaparser.printer.PrettyPrinter;
-import com.github.javaparser.printer.PrettyPrinterConfiguration;
+import com.github.javaparser.printer.DefaultPrettyPrinter;
+import com.github.javaparser.printer.configuration.DefaultConfigurationOption;
+import com.github.javaparser.printer.configuration.DefaultPrinterConfiguration;
 import org.drools.compiler.builder.impl.KnowledgeBuilderImpl;
 import org.drools.model.BitMask;
 import org.drools.model.functions.PredicateInformation;
@@ -53,6 +54,7 @@ import org.drools.modelcompiler.builder.PackageModel;
 import org.drools.modelcompiler.builder.generator.DrlxParseUtil;
 import org.drools.modelcompiler.builder.generator.ModelGenerator;
 import org.drools.modelcompiler.util.ClassUtil;
+import org.drools.mvel.parser.printer.PrintUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,10 +62,12 @@ import static org.drools.modelcompiler.builder.generator.DrlxParseUtil.toClassOr
 import static org.drools.modelcompiler.builder.generator.DslMethodNames.ALPHA_INDEXED_BY_CALL;
 import static org.drools.modelcompiler.builder.generator.DslMethodNames.BETA_INDEXED_BY_CALL;
 import static org.drools.modelcompiler.builder.generator.DslMethodNames.BIND_CALL;
+import static org.drools.modelcompiler.builder.generator.DslMethodNames.DSL_NAMESPACE;
 import static org.drools.modelcompiler.builder.generator.DslMethodNames.EVAL_EXPR_CALL;
 import static org.drools.modelcompiler.builder.generator.DslMethodNames.EXECUTE_CALL;
 import static org.drools.modelcompiler.builder.generator.DslMethodNames.EXPR_CALL;
 import static org.drools.modelcompiler.builder.generator.DslMethodNames.FROM_CALL;
+import static org.drools.modelcompiler.builder.generator.DslMethodNames.NOT_CALL;
 import static org.drools.modelcompiler.builder.generator.DslMethodNames.REACTIVE_FROM_CALL;
 import static org.drools.modelcompiler.util.StreamUtils.optionalToStream;
 
@@ -83,13 +87,13 @@ public class ExecModelLambdaPostProcessor {
 
     private final List<Runnable> toBeReplacedLambdas = Collections.synchronizedList(new ArrayList<>());
 
-    private static final PrettyPrinterConfiguration configuration = new PrettyPrinterConfiguration();
+    private static final DefaultPrinterConfiguration configuration = new DefaultPrinterConfiguration();
 
     static {
-        configuration.setEndOfLineCharacter("\n"); // hashes will be stable also while testing on windows
+        configuration.addOption(new DefaultConfigurationOption(DefaultPrinterConfiguration.ConfigOption.END_OF_LINE_CHARACTER, "\n"));
     }
 
-    public static final PrettyPrinter MATERIALIZED_LAMBDA_PRETTY_PRINTER = new PrettyPrinter(configuration);
+    public static final DefaultPrettyPrinter MATERIALIZED_LAMBDA_PRETTY_PRINTER = new DefaultPrettyPrinter(configuration);
 
     public ExecModelLambdaPostProcessor(PackageModel pkgModel,
                                         CompilationUnit cu) {
@@ -213,8 +217,18 @@ public class ExecModelLambdaPostProcessor {
                 .filter(MethodCallExpr.class::isInstance)
                 .map(MethodCallExpr.class::cast)
                 .map(DrlxParseUtil::findLastMethodInChain)
-                .map(MethodCallExpr::getNameAsString)
-                .anyMatch(name -> name.startsWith("D.") && ModelGenerator.temporalOperators.contains(name.substring(2)));
+                .anyMatch(mce -> {
+                              if (mce.getScope().isPresent() && mce.getScope().get().equals(DSL_NAMESPACE)) {
+                                  String methodName = mce.getNameAsString();
+                                  if (ModelGenerator.temporalOperators.contains(methodName)) {
+                                      return true;
+                                  } else if (methodName.equals(NOT_CALL)) {
+                                      return containsTemporalPredicate(mce);
+                                  }
+                              }
+                              return false;
+                          }
+                );
     }
 
     private boolean isExecuteNonNestedCall(MethodCallExpr mc) {
@@ -364,8 +378,8 @@ public class ExecModelLambdaPostProcessor {
             return new MaterializedLambda.AllSetButLastBitMask(maskName);
         } else {
             NodeList<Expression> arguments = maskInit.getArguments();
-            String domainClassMetadata = arguments.get(0).toString();
-            List<String> fields = arguments.subList(1, arguments.size()).stream().map(Expression::toString).collect(Collectors.toList());
+            String domainClassMetadata = PrintUtil.printNode(arguments.get(0));
+            List<String> fields = arguments.subList(1, arguments.size()).stream().map(PrintUtil::printNode).collect(Collectors.toList());
             return new MaterializedLambda.BitMaskVariableWithFields(domainClassMetadata, fields, maskName);
         }
     }

@@ -17,18 +17,13 @@ package org.kie.scanner;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
 
-import org.appformer.maven.integration.embedder.MavenEmbedderUtils;
 import org.drools.compiler.kie.builder.impl.InternalKieModule;
 import org.drools.core.util.FileManager;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 import org.kie.api.KieServices;
 import org.kie.api.builder.KieModule;
 import org.kie.api.builder.ReleaseId;
@@ -50,32 +45,15 @@ import static org.kie.scanner.KieMavenRepository.getKieMavenRepository;
  * 3. Note that this test uses 'http://localhost:8081' as nexus target, with the default nexus user name 'admin' and password 'admin123'
  *
  */
-@RunWith(Parameterized.class)
 @Ignore("ignored because it needs a running nexus server")
 public class KieRepositoryScannerNexusTest extends AbstractKieCiTest {
     private static final Logger LOG = LoggerFactory.getLogger(KieRepositoryScannerNexusTest.class);
 
-    private final boolean useWiredComponentProvider;
-
     private FileManager fileManager;
-
-    @Parameterized.Parameters(name = "Manually wired component provider={0}")
-    public static Collection modes() {
-        Object[][] locking = new Object[][] {
-                { true },
-                { false }
-        };
-        return Arrays.asList(locking);
-    }
-
-    public KieRepositoryScannerNexusTest( boolean useWiredComponentProvider) {
-        this.useWiredComponentProvider = useWiredComponentProvider;
-    }
 
     @Before
     public void setUp() throws Exception {
         System.setProperty("kie.maven.settings.custom", new File("target/test-classes/org/kie/scanner/settings_nexus.xml").getAbsolutePath());
-        MavenEmbedderUtils.enforceWiredComponentProvider = useWiredComponentProvider;
         this.fileManager = new FileManager();
         this.fileManager.setUp();
         ReleaseId releaseId = KieServices.Factory.get().newReleaseId("org.kie", "scanner-test", "1.0-SNAPSHOT");
@@ -84,7 +62,6 @@ public class KieRepositoryScannerNexusTest extends AbstractKieCiTest {
     @After
     public void tearDown() throws Exception {
         this.fileManager.tearDown();
-        MavenEmbedderUtils.enforceWiredComponentProvider = false;
     }
 
     private void resetFileManager() {

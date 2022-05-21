@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.kie.pmml.api.enums.REASONCODE_ALGORITHM;
+import org.kie.pmml.api.runtime.PMMLContext;
 import org.kie.pmml.commons.model.KiePMMLExtension;
 import org.kie.pmml.commons.model.KiePMMLModel;
 import org.kie.pmml.commons.transformations.KiePMMLDefineFunction;
@@ -55,7 +56,8 @@ public class KiePMMLScorecardModel extends KiePMMLModel {
     }
 
     @Override
-    public Object evaluate(final Object knowledgeBase, final Map<String, Object> requestData) {
+    public Object evaluate(final Object knowledgeBase, final Map<String, Object> requestData,
+                           final PMMLContext context) {
         final List<KiePMMLDefineFunction> defineFunctions = transformationDictionary != null ?
                 transformationDictionary.getDefineFunctions() : Collections.emptyList();
         final List<KiePMMLDerivedField> derivedFields = new ArrayList<>();
@@ -66,10 +68,11 @@ public class KiePMMLScorecardModel extends KiePMMLModel {
             derivedFields.addAll(localTransformations.getDerivedFields());
         }
         return characteristics.evaluate(defineFunctions, derivedFields, kiePMMLOutputFields, requestData,
-                                        outputFieldsMap,
+                                        context,
                                         initialScore,
                                         reasonCodeAlgorithm,
                                         useReasonCodes,
                                         baselineScore).orElse(null);
     }
+
 }

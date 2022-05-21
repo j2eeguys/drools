@@ -2,10 +2,9 @@ package org.drools.modelcompiler.drlx;
 
 import java.time.LocalDate;
 
-import org.drools.ruleunit.DataSource;
-import org.drools.ruleunit.RuleUnit;
+import org.drools.model.datasources.DataSource;
 
-public class Example implements RuleUnit {
+public class Example /*implements RuleUnit*/ {
 
     DataSource<LocalDate> dates;
 

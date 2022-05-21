@@ -29,7 +29,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import org.drools.core.base.EvaluatorWrapper;
+import org.drools.compiler.rule.builder.EvaluatorWrapper;
 import org.drools.core.rule.Declaration;
 import org.mvel2.Operator;
 import org.mvel2.ParserContext;
@@ -80,7 +80,7 @@ import org.mvel2.optimizers.impl.refl.nodes.StaticVarAccessor;
 import org.mvel2.optimizers.impl.refl.nodes.ThisValueAccessor;
 import org.mvel2.optimizers.impl.refl.nodes.VariableAccessor;
 
-import static org.drools.core.util.ClassUtils.convertToPrimitiveType;
+import static org.drools.util.ClassUtils.convertToPrimitiveType;
 import static org.mvel2.asm.Opcodes.IADD;
 import static org.mvel2.asm.Opcodes.IAND;
 import static org.mvel2.asm.Opcodes.IDIV;
@@ -538,14 +538,17 @@ public class ConditionAnalyzer {
             return;
         }
 
+        // if it's a vararg, but the last argument is already an array there's no need for any special treatment
+        isVarArgs &= !(params.length == paramTypes.length && params[paramTypes.length-1].getKnownEgressType().isArray());
+
         for (int i = 0; i < (isVarArgs ? paramTypes.length-1 : paramTypes.length); i++) {
             invocation.addArgument(statementToExpression(params[i], paramTypes[i]));
         }
 
         if (isVarArgs) {
-            Class<?> varargType = paramTypes[paramTypes.length-1];
+            Class<?> varargType = paramTypes[paramTypes.length - 1];
             ArrayCreationExpression varargParam = new ArrayCreationExpression(varargType);
-            for (int i = paramTypes.length-1; i < params.length; i++) {
+            for (int i = paramTypes.length - 1; i < params.length; i++) {
                 varargParam.addItem(statementToExpression(params[i], varargType.getComponentType()));
             }
             invocation.addArgument(varargParam);

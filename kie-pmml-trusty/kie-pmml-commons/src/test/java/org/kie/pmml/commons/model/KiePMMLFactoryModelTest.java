@@ -23,8 +23,9 @@ import java.util.Map;
 import org.junit.Before;
 import org.junit.Test;
 import org.kie.pmml.api.exceptions.KiePMMLException;
+import org.kie.pmml.commons.testingutility.PMMLContextTest;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class KiePMMLFactoryModelTest {
 
@@ -44,21 +45,17 @@ public class KiePMMLFactoryModelTest {
     @Test
     public void addSourceMap() {
         Map<String, String> retrieved = kiePMMLFactoryModel.getSourcesMap();
-        assertTrue(retrieved.isEmpty());
+        assertThat(retrieved).isEmpty();
         kiePMMLFactoryModel.addSourceMap("KEY", "VALUE");
         retrieved = kiePMMLFactoryModel.getSourcesMap();
-        assertTrue(retrieved.containsKey("KEY"));
-        assertEquals("VALUE", retrieved.get("KEY"));
+        assertThat(retrieved).containsKey("KEY");
+        assertThat(retrieved.get("KEY")).isEqualTo("VALUE");
     }
 
 
     @Test(expected = KiePMMLException.class)
     public void evaluate() {
-        kiePMMLFactoryModel.evaluate("", Collections.emptyMap());
+        kiePMMLFactoryModel.evaluate("", Collections.emptyMap(), new PMMLContextTest());
     }
 
-    @Test(expected = KiePMMLException.class)
-    public void getOutputFieldsMap() {
-        kiePMMLFactoryModel.getOutputFieldsMap();
-    }
 }

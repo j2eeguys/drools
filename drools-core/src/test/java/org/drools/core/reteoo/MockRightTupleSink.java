@@ -16,16 +16,13 @@
 
 package org.drools.core.reteoo;
 
-import org.drools.core.common.InternalWorkingMemory;
-import org.drools.core.common.RuleBasePartitionId;
-import org.drools.core.spi.PropagationContext;
-import org.kie.api.definition.rule.Rule;
-
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.drools.core.common.ReteEvaluator;
+import org.drools.core.common.RuleBasePartitionId;
+import org.drools.core.common.PropagationContext;
+import org.kie.api.definition.rule.Rule;
 
 public class MockRightTupleSink
     implements
@@ -35,8 +32,8 @@ public class MockRightTupleSink
 
     public void retractRightTuple(RightTuple rightTuple,
                                   PropagationContext context,
-                                  InternalWorkingMemory workingMemory) {
-        this.retracted.add( new Object[]{rightTuple, context, workingMemory} );
+                                  ReteEvaluator reteEvaluator) {
+        this.retracted.add( new Object[]{rightTuple, context, reteEvaluator} );
 
     }
     
@@ -52,12 +49,6 @@ public class MockRightTupleSink
         return null;
     }
 
-    public void writeExternal( ObjectOutput out ) throws IOException {
-    }
-
-    public void readExternal( ObjectInput in ) throws IOException, ClassNotFoundException {
-    }
-
     public short getType() {
         return NodeTypeEnums.JoinNode;
     }
@@ -65,7 +56,7 @@ public class MockRightTupleSink
 
     public void modifyRightTuple(RightTuple rightTuple,
                                  PropagationContext context,
-                                 InternalWorkingMemory workingMemory) {
+                                 ReteEvaluator reteEvaluator) {
         // TODO Auto-generated method stub
         
     }
@@ -82,7 +73,11 @@ public class MockRightTupleSink
         return 0;
     }
 
-    public boolean isAssociatedWith( Rule rule ) {
+    @Override public Rule[] getAssociatedRules() {
+        return new Rule[0];
+    }
+
+    public boolean isAssociatedWith(Rule rule) {
         return false;
     }
 

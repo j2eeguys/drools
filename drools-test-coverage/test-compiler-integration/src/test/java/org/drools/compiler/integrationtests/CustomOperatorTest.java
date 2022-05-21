@@ -20,17 +20,16 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.util.Collection;
 
-import org.drools.core.base.BaseEvaluator;
 import org.drools.core.base.ValueType;
-import org.drools.core.base.evaluators.EvaluatorDefinition;
-import org.drools.core.base.evaluators.Operator;
+import org.drools.compiler.rule.builder.EvaluatorDefinition;
+import org.drools.drl.parser.impl.Operator;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.InternalWorkingMemory;
-import org.drools.core.rule.VariableRestriction.ObjectVariableContextEntry;
-import org.drools.core.rule.VariableRestriction.VariableContextEntry;
-import org.drools.core.spi.Evaluator;
-import org.drools.core.spi.FieldValue;
-import org.drools.core.spi.InternalReadAccessor;
+import org.drools.core.common.ReteEvaluator;
+import org.drools.core.rule.accessor.Evaluator;
+import org.drools.core.rule.accessor.FieldValue;
+import org.drools.core.rule.accessor.ReadAccessor;
+import org.drools.mvel.evaluators.BaseEvaluator;
+import org.drools.mvel.evaluators.VariableRestriction;
 import org.drools.testcoverage.common.model.Address;
 import org.drools.testcoverage.common.model.Person;
 import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
@@ -148,23 +147,23 @@ public class CustomOperatorTest {
             super(type, isNegated ? SupersetOfEvaluatorDefinition.NOT_SUPERSET_OF : SupersetOfEvaluatorDefinition.SUPERSET_OF);
         }
 
-        public boolean evaluate(final InternalWorkingMemory workingMemory, final InternalReadAccessor extractor, final InternalFactHandle factHandle, final FieldValue value) {
-            final Object objectValue = extractor.getValue(workingMemory, factHandle);
+        public boolean evaluate(final ReteEvaluator reteEvaluator, final ReadAccessor extractor, final InternalFactHandle factHandle, final FieldValue value) {
+            final Object objectValue = extractor.getValue(reteEvaluator, factHandle);
             return evaluateAll((Collection) value.getValue(), (Collection) objectValue);
         }
 
-        public boolean evaluate(final InternalWorkingMemory iwm, final InternalReadAccessor ira, final InternalFactHandle left, final InternalReadAccessor ira1, final InternalFactHandle right) {
+        public boolean evaluate(final ReteEvaluator reteEvaluator, final ReadAccessor ira, final InternalFactHandle left, final ReadAccessor ira1, final InternalFactHandle right) {
             return evaluateAll((Collection) left.getObject(), (Collection) right.getObject());
         }
 
-        public boolean evaluateCachedLeft(final InternalWorkingMemory workingMemory, final VariableContextEntry context, final InternalFactHandle right) {
-            final Object valRight = context.extractor.getValue(workingMemory, right.getObject());
-            return evaluateAll((Collection) ((ObjectVariableContextEntry) context).left, (Collection) valRight);
+        public boolean evaluateCachedLeft(final ReteEvaluator reteEvaluator, final VariableRestriction.VariableContextEntry context, final InternalFactHandle right) {
+            final Object valRight = context.extractor.getValue(reteEvaluator, right.getObject());
+            return evaluateAll((Collection) ((VariableRestriction.ObjectVariableContextEntry) context).left, (Collection) valRight);
         }
 
-        public boolean evaluateCachedRight(final InternalWorkingMemory workingMemory, final VariableContextEntry context, final InternalFactHandle left) {
-            final Object varLeft = context.declaration.getExtractor().getValue(workingMemory, left);
-            return evaluateAll((Collection) varLeft, (Collection) ((ObjectVariableContextEntry) context).right);
+        public boolean evaluateCachedRight(final ReteEvaluator reteEvaluator, final VariableRestriction.VariableContextEntry context, final InternalFactHandle left) {
+            final Object varLeft = context.declaration.getExtractor().getValue(reteEvaluator, left);
+            return evaluateAll((Collection) varLeft, (Collection) ((VariableRestriction.ObjectVariableContextEntry) context).right);
         }
 
         public boolean evaluateAll(final Collection leftCollection, final Collection rightCollection) {

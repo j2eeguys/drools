@@ -15,16 +15,17 @@
 package org.drools.serialization.protobuf.actions;
 
 import org.drools.core.definitions.InternalKnowledgePackage;
-import org.drools.core.impl.StatefulKnowledgeSessionImpl;
-import org.drools.core.marshalling.impl.MarshallerReaderContext;
-import org.drools.core.marshalling.impl.MarshallerWriteContext;
-import org.drools.core.spi.Tuple;
+import org.drools.serialization.protobuf.WorkingMemoryReteAssertAction;
+import org.drools.core.marshalling.MarshallerReaderContext;
+import org.drools.core.marshalling.MarshallerWriteContext;
+import org.drools.core.reteoo.Tuple;
 import org.drools.serialization.protobuf.PersisterHelper;
+import org.drools.serialization.protobuf.ProtobufInputMarshaller;
 import org.drools.serialization.protobuf.ProtobufMessages;
 import org.drools.serialization.protobuf.ProtobufWorkingMemoryAction;
 
 public class ProtobufWorkingMemoryReteAssertAction
-        extends StatefulKnowledgeSessionImpl.WorkingMemoryReteAssertAction
+        extends WorkingMemoryReteAssertAction
         implements ProtobufWorkingMemoryAction {
 
     public ProtobufWorkingMemoryReteAssertAction( MarshallerReaderContext context,
@@ -39,7 +40,7 @@ public class ProtobufWorkingMemoryReteAssertAction
             String ruleName = _assert.getOriginRuleName();
             InternalKnowledgePackage pkg = context.getKnowledgeBase().getPackage( pkgName );
             this.ruleOrigin = pkg.getRule( ruleName );
-            this.tuple = context.getFilter().getTuplesCache().get( PersisterHelper.createActivationKey(pkgName, ruleName, _assert.getTuple()) );
+            this.tuple = ((ProtobufInputMarshaller.PBActivationsFilter)context.getFilter()).getTuplesCache().get( PersisterHelper.createActivationKey(pkgName, ruleName, _assert.getTuple()) );
         }
     }
 

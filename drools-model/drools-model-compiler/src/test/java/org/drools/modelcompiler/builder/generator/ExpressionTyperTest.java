@@ -13,10 +13,11 @@ import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.SimpleName;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
 import org.drools.compiler.builder.impl.KnowledgeBuilderImpl;
-import org.drools.compiler.lang.descr.RuleDescr;
-import org.drools.core.addon.ClassTypeResolver;
-import org.drools.core.addon.TypeResolver;
+import org.drools.drl.ast.descr.RuleDescr;
+import org.drools.util.ClassTypeResolver;
+import org.drools.util.TypeResolver;
 import org.drools.modelcompiler.builder.PackageModel;
+import org.drools.modelcompiler.builder.generator.expressiontyper.CannotTypeExpressionException;
 import org.drools.modelcompiler.builder.generator.expressiontyper.ExpressionTyper;
 import org.drools.modelcompiler.builder.generator.expressiontyper.TypedExpressionResult;
 import org.drools.modelcompiler.domain.Overloaded;
@@ -29,11 +30,13 @@ import org.drools.modelcompiler.inlinecast.ICB;
 import org.drools.modelcompiler.inlinecast.ICC;
 import org.drools.mvel.parser.ast.expr.DrlxExpression;
 import org.drools.mvel.parser.ast.expr.PointFreeExpr;
+import org.drools.mvel.parser.printer.PrintUtil;
 import org.junit.Before;
 import org.junit.Test;
 
 import static org.drools.modelcompiler.builder.generator.DrlxParseUtil.THIS_PLACEHOLDER;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 public class ExpressionTyperTest {
 
@@ -144,7 +147,7 @@ public class ExpressionTyperTest {
 
     @Test
     public void mapAccessExpr() {
-        final TypedExpression expected3 = typedResult(THIS_PLACEHOLDER + ".get(\"type\")", Map.class);
+        final TypedExpression expected3 = typedResult(THIS_PLACEHOLDER + ".get(\"type\")", Object.class);
         final TypedExpression actual3 = toTypedExpression("this[\"type\"]", Map.class);
         assertEquals(expected3, actual3);
     }
@@ -212,7 +215,37 @@ public class ExpressionTyperTest {
         final DrlxExpression expr = DrlxParseUtil.parseExpression("address#InternationalAddress.state");
         final MethodCallExpr expected = StaticJavaParser.parseExpression("((org.drools.modelcompiler.domain.InternationalAddress)_this.getAddress()).getState()");
 
-        assertEquals(expected.toString(),  toTypedExpression(expr.getExpr().toString(), Person.class).getExpression().toString());
+        assertEquals(PrintUtil.printNode(expected), toTypedExpression(PrintUtil.printNode(expr.getExpr()), Person.class).getExpression().toString());
+    }
+
+    @Test
+    public void halfBinaryOrAndAmpersand() {
+        String expected = "_this.getAge() < 15 || _this.getAge() > 20 && _this.getAge() < 30";
+        assertEquals(expected, toTypedExpression("age < 15 || > 20 && < 30", Person.class).getExpression().toString());
+    }
+
+    @Test(expected = CannotTypeExpressionException.class)
+    public void invalidHalfBinary() {
+        toTypedExpression("> 20 && < 30", Person.class).getExpression();
+    }
+
+    @Test
+    public void halfPointFreeOrAndAmpersand() {
+        String expected = "D.eval(org.drools.model.operators.StringStartsWithOperator.INSTANCE, _this.getName(), \"M\") || D.eval(org.drools.model.operators.StringEndsWithOperator.INSTANCE, _this.getName(), \"a\") && D.eval(org.drools.model.operators.StringLengthWithOperator.INSTANCE, _this.getName(), 4)";
+        assertEquals(expected, toTypedExpression("name str[startsWith] \"M\" || str[endsWith] \"a\" && str[length] 4", Person.class).getExpression().toString());
+    }
+
+    @Test(expected = CannotTypeExpressionException.class)
+    public void invalidHalfPointFree() {
+        toTypedExpression("str[endsWith] \"a\" && str[length] 4", Person.class).getExpression();
+    }
+
+    @Test
+    public void parseIntStringConcatenation() {
+        TypedExpression typedExpression = toTypedExpression("Integer.parseInt('1' + this) > 3", String.class);
+        assertFalse(ruleContext.hasCompilationError());
+        String expected = "Integer.parseInt('1' + _this) > 3";
+        assertEquals(expected, typedExpression.getExpression().toString());
     }
 
     private TypedExpression toTypedExpression(String inputExpression, Class<?> patternType, DeclarationSpec... declarations) {

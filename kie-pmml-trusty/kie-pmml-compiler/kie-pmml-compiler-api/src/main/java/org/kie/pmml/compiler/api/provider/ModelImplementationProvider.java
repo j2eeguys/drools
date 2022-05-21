@@ -17,17 +17,15 @@ package org.kie.pmml.compiler.api.provider;
 
 import java.util.Map;
 
-import org.dmg.pmml.DataDictionary;
 import org.dmg.pmml.Model;
-import org.dmg.pmml.TransformationDictionary;
 import org.kie.pmml.api.enums.PMML_MODEL;
 import org.kie.pmml.api.exceptions.KiePMMLException;
 import org.kie.pmml.api.exceptions.KiePMMLInternalException;
-import org.kie.pmml.commons.model.HasClassLoader;
 import org.kie.pmml.commons.model.HasSourcesMap;
+import org.kie.pmml.commons.model.IsInterpreted;
 import org.kie.pmml.commons.model.KiePMMLModel;
-
-import static org.kie.pmml.commons.utils.KiePMMLModelUtils.getSanitizedClassName;
+import org.kie.pmml.commons.model.KiePMMLModelWithSources;
+import org.kie.pmml.compiler.api.dto.CompilationDTO;
 
 /**
  * API for actual PMML model implementations
@@ -36,54 +34,52 @@ public interface ModelImplementationProvider<T extends Model, E extends KiePMMLM
 
     PMML_MODEL getPMMLModelType();
 
+    Class<E> getKiePMMLModelClass();
+
     /**
      * Method to be called for a <b>runtime</b> compilation
-     *
-     * @param packageName the package into which put all the generated classes out of the given <code>Model</code>
-     * @param dataDictionary
-     * @param transformationDictionary
-     * @param model
-     * @param hasClassloader Using <code>HasClassloader</code> to avoid coupling with drools
+     * @param compilationDTO
      * @return
      * @throws KiePMMLInternalException
      */
-    E getKiePMMLModel(final String packageName, final DataDictionary dataDictionary, final TransformationDictionary transformationDictionary, final T model, final HasClassLoader hasClassloader);
+    E getKiePMMLModel(final CompilationDTO<T> compilationDTO);
 
     /**
      * Method to be called following a <b>kie-maven-plugin</b> invocation
-     *
-     * @param packageName the package into which put all the generated classes out of the given <code>Model</code>
-     * @param dataDictionary
-     * @param transformationDictionary
-     * @param model
-     * @param hasClassloader Using <code>HasClassloader</code> to avoid coupling with drools
+     * @param compilationDTO
      * @return
      * @throws KiePMMLInternalException
      */
-    E getKiePMMLModelWithSources(final String packageName, final DataDictionary dataDictionary, final TransformationDictionary transformationDictionary, final T model, final HasClassLoader hasClassloader);
+    default KiePMMLModelWithSources getKiePMMLModelWithSources(final CompilationDTO<T> compilationDTO) {
+        final Map<String, String> sourcesMap = getSourcesMap(compilationDTO);
+        boolean isInterpreted = IsInterpreted.class.isAssignableFrom(getKiePMMLModelClass());
+        return new KiePMMLModelWithSources(compilationDTO.getModelName(),
+                                           compilationDTO.getPackageName(),
+                                           compilationDTO.getKieMiningFields(),
+                                           compilationDTO.getKieOutputFields(),
+                                           compilationDTO.getKieTargetFields(),
+                                           sourcesMap,
+                                           isInterpreted);
+    }
+
+    Map<String, String> getSourcesMap(final CompilationDTO<T> compilationDTO);
 
     /**
-     * Method provided only to have <b>drools</b> models working when invoked by a <code>KiePMMLMiningModel</code>
+     * Method provided only to have <b>drools</b> models working when invoked by a <code>MiningModel</code>
      * Default implementation provided for <b>not-drools</b> models.
-     *
-     * @param packageName the package into which put all the generated classes out of the given <code>Model</code>
-     * @param dataDictionary
-     * @param transformationDictionary
-     * @param model
-     * @param hasClassloader Using <code>HasClassloader</code> to avoid coupling with drools
+     * @param compilationDTO
      * @return
      * @throws KiePMMLInternalException
      */
-    default E getKiePMMLModelWithSourcesCompiled(final String packageName, final DataDictionary dataDictionary, final TransformationDictionary transformationDictionary, final T model, final HasClassLoader hasClassloader) {
-        E toReturn = getKiePMMLModelWithSources(packageName, dataDictionary, transformationDictionary, model, hasClassloader);
-        final Map<String, String> sourcesMap = ((HasSourcesMap)toReturn).getSourcesMap();
-        String className = getSanitizedClassName(model.getModelName());
-        String fullClassName = packageName + "." + className;
+    default KiePMMLModelWithSources getKiePMMLModelWithSourcesCompiled(final CompilationDTO<T> compilationDTO) {
+        KiePMMLModelWithSources toReturn = getKiePMMLModelWithSources(compilationDTO);
+        final Map<String, String> sourcesMap = ((HasSourcesMap) toReturn).getSourcesMap();
         try {
-            hasClassloader.compileAndLoadClass(sourcesMap, fullClassName);
+            compilationDTO.compileAndLoadClass(sourcesMap);
         } catch (Exception e) {
             throw new KiePMMLException(e);
         }
         return toReturn;
     }
+
 }

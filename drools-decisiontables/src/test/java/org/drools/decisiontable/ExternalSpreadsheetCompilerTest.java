@@ -23,9 +23,8 @@ import java.util.regex.Pattern;
 
 import org.acme.insurance.Driver;
 import org.acme.insurance.Policy;
-import org.drools.compiler.compiler.DroolsError;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
 import org.drools.template.parser.DataListener;
 import org.drools.template.parser.TemplateDataListener;
 import org.junit.Test;
@@ -34,9 +33,11 @@ import org.kie.api.runtime.KieSession;
 import org.kie.internal.builder.KnowledgeBuilder;
 import org.kie.internal.builder.KnowledgeBuilderFactory;
 import org.kie.internal.io.ResourceFactory;
-import org.kie.internal.runtime.StatefulKnowledgeSession;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  *         basic tests for converter utility. Note that some of this may
@@ -48,11 +49,11 @@ public class ExternalSpreadsheetCompilerTest {
     @Test
     public void testLoadFromClassPath() {
         final ExternalSpreadsheetCompiler converter = new ExternalSpreadsheetCompiler();
-        final String drl = converter.compile( "/data/MultiSheetDST.xls",
+        final String drl = converter.compile("/data/MultiSheetDST.drl.xls",
                                               "/templates/test_template1.drl",
                                               11,
                                               2 );
-        assertNotNull( drl );
+        assertThat(drl).isNotNull();
 
         // System.out.println(drl);
 
@@ -65,24 +66,24 @@ public class ExternalSpreadsheetCompilerTest {
     @Test
     public void testLoadSpecificWorksheet() {
         final ExternalSpreadsheetCompiler converter = new ExternalSpreadsheetCompiler();
-        final String drl = converter.compile( "/data/MultiSheetDST.xls",
+        final String drl = converter.compile("/data/MultiSheetDST.drl.xls",
                                               "Another Sheet",
                                               "/templates/test_template1.drl",
                                               11,
                                               2 );
         // System.out.println(drl);
-        assertNotNull( drl );
+        assertThat(drl).isNotNull();
     }
 
     @Test
     public void testLoadCsv() {
         final ExternalSpreadsheetCompiler converter = new ExternalSpreadsheetCompiler();
-        final String drl = converter.compile( "/data/ComplexWorkbook.csv",
+        final String drl = converter.compile("/data/ComplexWorkbook.drl.csv",
                                               "/templates/test_template2.drl",
                                               InputType.CSV,
                                               10,
                                               2 );
-        assertNotNull( drl );
+        assertThat(drl).isNotNull();
 
         assertTrue( drl.indexOf( "myObject.setIsValid(1, 2)" ) > 0 );
         assertTrue( drl.indexOf( "myObject.size () > 2" ) > 0 );
@@ -93,19 +94,19 @@ public class ExternalSpreadsheetCompilerTest {
     @Test
     public void testLoadBasicWithMergedCells() {
         final ExternalSpreadsheetCompiler converter = new ExternalSpreadsheetCompiler();
-        final String drl = converter.compile( "/data/BasicWorkbook.xls",
+        final String drl = converter.compile("/data/BasicWorkbook.drl.xls",
                                               "/templates/test_template3.drl",
                                               InputType.XLS,
                                               10,
                                               2 );
 
-        final String drl1 = converter.compile( "/data/BasicWorkbook.xls",
+        final String drl1 = converter.compile("/data/BasicWorkbook.drl.xls",
                                                "/templates/test_template3.drl",
                                                InputType.XLS,
                                                21,
                                                2 );
 
-        assertNotNull( drl );
+        assertThat(drl).isNotNull();
 
         Pattern p = Pattern.compile( ".*setIsValid\\(Y\\).*setIsValid\\(Y\\).*setIsValid\\(Y\\).*",
                                      Pattern.DOTALL | Pattern.MULTILINE );
@@ -128,12 +129,12 @@ public class ExternalSpreadsheetCompilerTest {
     @Test
     public void testLoadBasicWithExtraCells() {
         final ExternalSpreadsheetCompiler compiler = new ExternalSpreadsheetCompiler();
-        final String drl = compiler.compile( "/data/BasicWorkbook.xls",
+        final String drl = compiler.compile("/data/BasicWorkbook.drl.xls",
                                              "/templates/test_template4.drl",
                                              InputType.XLS,
                                              10,
                                              2 );
-        assertNotNull( drl );
+        assertThat(drl).isNotNull();
 
         assertTrue( drl.indexOf( "This is a function block" ) > -1 );
         assertTrue( drl.indexOf( "global Class1 obj1;" ) > -1 );
@@ -150,7 +151,7 @@ public class ExternalSpreadsheetCompilerTest {
     @Test
     public void testIntegration() throws Exception {
         final ExternalSpreadsheetCompiler converter = new ExternalSpreadsheetCompiler();
-        final String drl = converter.compile("/data/IntegrationExampleTest.xls", "/templates/test_integration.drl", 18, 3);
+        final String drl = converter.compile("/data/IntegrationExampleTestForTemplates.drl.xls", "/templates/test_integration.drl", 18, 3);
 
         KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
         kbuilder.add(ResourceFactory.newByteArrayResource(drl.getBytes()), ResourceType.DRL);
@@ -163,7 +164,7 @@ public class ExternalSpreadsheetCompilerTest {
         //ASSERT AND FIRE
         kSession.insert( new Cheese( "stilton", 42 ) );
         kSession.insert( new Person( "michael", "stilton", 42 ) );
-        List<String> list = new ArrayList<String>();
+        List<String> list = new ArrayList<>();
         kSession.setGlobal( "list", list );
         kSession.fireAllRules();
         assertEquals( 1, list.size() );
@@ -177,7 +178,7 @@ public class ExternalSpreadsheetCompilerTest {
         listeners.add(l1);
         TemplateDataListener l2 = new TemplateDataListener(30, 3, "/templates/test_pricing2.drl");
         listeners.add(l2);
-        converter.compile("/data/ExamplePolicyPricing.xls", InputType.XLS, listeners);
+        converter.compile("/data/ExamplePolicyPricing.drl.xls", InputType.XLS, listeners);
 
         //COMPILE
         KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();

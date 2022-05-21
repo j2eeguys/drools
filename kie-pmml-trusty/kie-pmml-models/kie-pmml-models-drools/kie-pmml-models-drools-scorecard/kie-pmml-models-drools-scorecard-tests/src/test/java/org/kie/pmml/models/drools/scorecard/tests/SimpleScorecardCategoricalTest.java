@@ -19,9 +19,11 @@ package org.kie.pmml.models.drools.scorecard.tests;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
-import org.assertj.core.api.Assertions;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -29,6 +31,8 @@ import org.junit.runners.Parameterized;
 import org.kie.api.pmml.PMML4Result;
 import org.kie.pmml.api.runtime.PMMLRuntime;
 import org.kie.pmml.models.tests.AbstractPMMLTest;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 @RunWith(Parameterized.class)
 public class SimpleScorecardCategoricalTest extends AbstractPMMLTest {
@@ -38,6 +42,7 @@ public class SimpleScorecardCategoricalTest extends AbstractPMMLTest {
     private static final String TARGET_FIELD = "Score";
     private static final String REASON_CODE1_FIELD = "Reason Code 1";
     private static final String REASON_CODE2_FIELD = "Reason Code 2";
+    private static final String[] CATEGORY = new String[]{"classA", "classB", "classC", "classD", "classE", "NA"};
     private static PMMLRuntime pmmlRuntime;
 
     private String input1;
@@ -46,7 +51,8 @@ public class SimpleScorecardCategoricalTest extends AbstractPMMLTest {
     private String reasonCode1;
     private String reasonCode2;
 
-    public SimpleScorecardCategoricalTest(String input1, String input2, double score, String reasonCode1, String reasonCode2) {
+    public SimpleScorecardCategoricalTest(String input1, String input2, double score, String reasonCode1,
+                                          String reasonCode2) {
         this.input1 = input1;
         this.input2 = input2;
         this.score = score;
@@ -54,7 +60,7 @@ public class SimpleScorecardCategoricalTest extends AbstractPMMLTest {
         this.reasonCode2 = reasonCode2;
     }
 
-  @BeforeClass
+    @BeforeClass
     public static void setupClass() {
         pmmlRuntime = getPMMLRuntime(FILE_NAME);
     }
@@ -76,9 +82,31 @@ public class SimpleScorecardCategoricalTest extends AbstractPMMLTest {
         inputData.put("input2", input2);
         PMML4Result pmml4Result = evaluate(pmmlRuntime, inputData, MODEL_NAME);
 
-        Assertions.assertThat(pmml4Result.getResultVariables().get(TARGET_FIELD)).isNotNull();
-        Assertions.assertThat(pmml4Result.getResultVariables().get(TARGET_FIELD)).isEqualTo(score);
-        Assertions.assertThat(pmml4Result.getResultVariables().get(REASON_CODE1_FIELD)).isEqualTo(reasonCode1);
-        Assertions.assertThat(pmml4Result.getResultVariables().get(REASON_CODE2_FIELD)).isEqualTo(reasonCode2);
+        assertThat(pmml4Result.getResultVariables().get(TARGET_FIELD)).isNotNull();
+        assertThat(pmml4Result.getResultVariables().get(TARGET_FIELD)).isEqualTo(score);
+        assertThat(pmml4Result.getResultVariables().get(REASON_CODE1_FIELD)).isEqualTo(reasonCode1);
+        assertThat(pmml4Result.getResultVariables().get(REASON_CODE2_FIELD)).isEqualTo(reasonCode2);
+    }
+
+    @Test
+    public void testSimpleScorecardCategoricalVerifyNoException() {
+        getSamples().stream().map(sample -> evaluate(pmmlRuntime, sample, MODEL_NAME)).forEach((x) -> assertThat(x).isNotNull());
+    }
+
+    @Test
+    public void testSimpleScorecardCategoricalVerifyNoReasonCodeWithoutScore() {
+        getSamples().stream().map(sample -> evaluate(pmmlRuntime, sample, MODEL_NAME))
+                .filter(pmml4Result -> pmml4Result.getResultVariables().get(TARGET_FIELD) == null)
+                .forEach(pmml4Result -> {
+                    assertThat(pmml4Result.getResultVariables()).doesNotContainKey(REASON_CODE1_FIELD);
+                    assertThat(pmml4Result.getResultVariables()).doesNotContainKey(REASON_CODE2_FIELD);
+                });
+    }
+
+    private List<Map<String, Object>> getSamples() {
+        return IntStream.range(0, 10).boxed().map(i -> new HashMap<String, Object>() {{
+            put("input1", CATEGORY[i % CATEGORY.length]);
+            put("input2", CATEGORY[Math.abs(CATEGORY.length - i) % CATEGORY.length]);
+        }}).collect(Collectors.toList());
     }
 }

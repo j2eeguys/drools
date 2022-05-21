@@ -28,18 +28,16 @@ import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import org.appformer.maven.support.DependencyFilter;
-import org.appformer.maven.support.PomModel;
 import org.drools.compiler.compiler.io.memory.MemoryFileSystem;
 import org.drools.compiler.kie.util.ChangeSetBuilder;
 import org.drools.compiler.kie.util.KieJarChangeSet;
 import org.drools.compiler.kproject.models.KieBaseModelImpl;
 import org.drools.compiler.kproject.models.KieModuleModelImpl;
 import org.drools.core.definitions.InternalKnowledgePackage;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.io.internal.InternalResource;
-import org.drools.reflective.ResourceProvider;
-import org.drools.reflective.classloader.ProjectClassLoader;
+import org.drools.util.io.InternalResource;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.wiring.api.ResourceProvider;
+import org.drools.wiring.api.classloader.ProjectClassLoader;
 import org.kie.api.KieBaseConfiguration;
 import org.kie.api.builder.KieModule;
 import org.kie.api.builder.ReleaseId;
@@ -47,7 +45,7 @@ import org.kie.api.builder.Results;
 import org.kie.api.builder.model.KieBaseModel;
 import org.kie.api.builder.model.KieModuleModel;
 import org.kie.api.definition.KiePackage;
-import org.kie.api.internal.utils.ServiceRegistry;
+import org.kie.api.internal.utils.KieService;
 import org.kie.api.io.ResourceConfiguration;
 import org.kie.internal.builder.CompositeKnowledgeBuilder;
 import org.kie.internal.builder.KnowledgeBuilder;
@@ -55,14 +53,16 @@ import org.kie.internal.builder.KnowledgeBuilderConfiguration;
 import org.kie.internal.builder.ResourceChangeSet;
 import org.kie.internal.utils.ClassLoaderResolver;
 import org.kie.internal.utils.NoDepsClassLoaderResolver;
+import org.drools.util.PortablePath;
+import org.kie.util.maven.support.DependencyFilter;
+import org.kie.util.maven.support.PomModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.drools.compiler.kie.builder.impl.KieBuilderImpl.buildKieModule;
 import static org.drools.compiler.kie.builder.impl.KieBuilderImpl.filterFileInKBase;
 import static org.drools.compiler.kie.builder.impl.KieBuilderImpl.setDefaultsforEmptyKieModule;
-import static org.drools.compiler.kproject.ReleaseIdImpl.adapt;
-import static org.drools.reflective.classloader.ProjectClassLoader.createProjectClassLoader;
+import static org.drools.wiring.api.classloader.ProjectClassLoader.createProjectClassLoader;
 
 public interface InternalKieModule extends KieModule, Serializable {
 
@@ -99,7 +99,10 @@ public interface InternalKieModule extends KieModule, Serializable {
     boolean isAvailable( final String pResourceName );
     
     byte[] getBytes( final String pResourceName );
-    
+    default byte[] getBytes( final PortablePath resourcePath ) {
+        return getBytes(resourcePath.asString());
+    }
+
     Collection<String> getFileNames();  
     
     File getFile();
@@ -145,7 +148,7 @@ public interface InternalKieModule extends KieModule, Serializable {
 
     default ProjectClassLoader createModuleClassLoader( ClassLoader parent ) {
         if( parent == null ) {
-            ClassLoaderResolver resolver = ServiceRegistry.getService(ClassLoaderResolver.class);
+            ClassLoaderResolver resolver = KieService.load(ClassLoaderResolver.class);
             if (resolver==null)  {
                 resolver = new NoDepsClassLoaderResolver();
             }
@@ -165,7 +168,7 @@ public interface InternalKieModule extends KieModule, Serializable {
             return null;
         }
         try (ZipFile zipFile = new ZipFile(jar)) {
-            ZipEntry zipEntry = zipFile.getEntry(KieModuleModelImpl.KMODULE_JAR_PATH);
+            ZipEntry zipEntry = zipFile.getEntry(KieModuleModelImpl.KMODULE_JAR_PATH.asString());
             if (zipEntry != null) {
                 return internalCreateKieModule( releaseId, jar, zipFile, zipEntry );
             }
@@ -182,7 +185,7 @@ public interface InternalKieModule extends KieModule, Serializable {
         try (InputStream xmlStream = zipFile.getInputStream( zipEntry )) {
             KieModuleModel kieModuleModel = KieModuleModelImpl.fromXML( xmlStream );
             setDefaultsforEmptyKieModule( kieModuleModel );
-            return kieModuleModel != null ? InternalKieModuleProvider.get( adapt( releaseId ), kieModuleModel, jar ) : null;
+            return kieModuleModel != null ? InternalKieModuleProvider.get( releaseId, kieModuleModel, jar ) : null;
         } catch (Exception e) {
             throw new MalformedKieModuleException( e );
         }

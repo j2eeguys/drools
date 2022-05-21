@@ -29,7 +29,7 @@ import org.kie.pmml.commons.model.expressions.KiePMMLConstant;
 import org.kie.pmml.commons.model.expressions.KiePMMLFieldRef;
 import org.kie.pmml.commons.transformations.KiePMMLDerivedField;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class KiePMMLComplexPartialScoreTest {
 
@@ -44,12 +44,12 @@ public class KiePMMLComplexPartialScoreTest {
         // <ComplexPartialScore>
         //     <Constant>100.0</Constant>
         // </ComplexPartialScore>
-        final KiePMMLConstant kiePMMLConstant1 = new KiePMMLConstant(PARAM_1, Collections.emptyList(), value1);
+        final KiePMMLConstant kiePMMLConstant1 = new KiePMMLConstant(PARAM_1, Collections.emptyList(), value1, null);
         final KiePMMLComplexPartialScore complexPartialScore = new KiePMMLComplexPartialScore(CUSTOM_FIELD, Collections.emptyList(),
                                                                                        kiePMMLConstant1);
         Object retrieved = complexPartialScore.evaluate(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(),
                                                  Collections.emptyMap());
-        assertEquals(value1, retrieved);
+        assertThat(retrieved).isEqualTo(value1);
     }
 
     @Test
@@ -64,7 +64,7 @@ public class KiePMMLComplexPartialScoreTest {
         inputData.put(PARAM_1, value1);
         Object retrieved = complexPartialScore.evaluate(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(),
                                                  inputData);
-        assertEquals(value1, retrieved);
+        assertThat(retrieved).isEqualTo(value1);
     }
 
     @Test
@@ -85,7 +85,7 @@ public class KiePMMLComplexPartialScoreTest {
         Object retrieved = complexPartialScore.evaluate(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(),
                                                  getInputData());
         Object expected = value1 / value2;
-        assertEquals(expected, retrieved);
+        assertThat(retrieved).isEqualTo(expected);
     }
 
     @Test
@@ -106,7 +106,7 @@ public class KiePMMLComplexPartialScoreTest {
         Object retrieved = complexPartialScore.evaluate(Collections.emptyList(), getDerivedFields(), Collections.emptyList(),
                                                  Collections.emptyMap());
         Object expected = value1 / value2;
-        assertEquals(expected, retrieved);
+        assertThat(retrieved).isEqualTo(expected);
     }
 
     private Map<String, Object> getInputData() {
@@ -120,19 +120,19 @@ public class KiePMMLComplexPartialScoreTest {
         // <DerivedField name="PARAM_1" optype="continuous" dataType="double">
         //     <Constant>100.0</Constant>
         // </DerivedField>
-        final KiePMMLConstant kiePMMLConstant1 = new KiePMMLConstant(PARAM_1, Collections.emptyList(), value1);
+        final KiePMMLConstant kiePMMLConstant1 = new KiePMMLConstant(PARAM_1, Collections.emptyList(), value1, null);
         final KiePMMLDerivedField derivedField1 = KiePMMLDerivedField.builder(PARAM_1, Collections.emptyList(),
-                                                                              DATA_TYPE.DOUBLE.getName(),
-                                                                              OP_TYPE.CONTINUOUS.getName(),
+                                                                              DATA_TYPE.DOUBLE,
+                                                                              OP_TYPE.CONTINUOUS,
                                                                               kiePMMLConstant1)
                 .build();
         // <DerivedField name="PARAM_1" optype="continuous" dataType="double">
         //     <Constant>5.0</Constant>
         // </DerivedField>
-        final KiePMMLConstant kiePMMLConstant2 = new KiePMMLConstant(PARAM_2, Collections.emptyList(), value2);
+        final KiePMMLConstant kiePMMLConstant2 = new KiePMMLConstant(PARAM_2, Collections.emptyList(), value2, null);
         final KiePMMLDerivedField derivedField2 = KiePMMLDerivedField.builder(PARAM_2, Collections.emptyList(),
-                                                                              DATA_TYPE.DOUBLE.getName(),
-                                                                              OP_TYPE.CONTINUOUS.getName(),
+                                                                              DATA_TYPE.DOUBLE,
+                                                                              OP_TYPE.CONTINUOUS,
                                                                               kiePMMLConstant2)
                 .build();
         return Arrays.asList(derivedField1, derivedField2);

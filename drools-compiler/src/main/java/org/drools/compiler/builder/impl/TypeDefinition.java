@@ -15,10 +15,10 @@
 
 package org.drools.compiler.builder.impl;
 
-import org.drools.compiler.lang.descr.AbstractClassTypeDeclarationDescr;
+import org.drools.drl.ast.descr.AbstractClassTypeDeclarationDescr;
 import org.drools.core.rule.TypeDeclaration;
 
-class TypeDefinition {
+public class TypeDefinition {
 
     final AbstractClassTypeDeclarationDescr typeDescr;
     final TypeDeclaration type;

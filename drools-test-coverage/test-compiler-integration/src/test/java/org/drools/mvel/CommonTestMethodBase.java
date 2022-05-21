@@ -21,13 +21,12 @@ import java.util.function.Predicate;
 
 import org.drools.compiler.builder.impl.KnowledgeBuilderConfigurationImpl;
 import org.drools.compiler.kie.builder.impl.InternalKieModule;
-import org.drools.compiler.lang.descr.PackageDescr;
+import org.drools.drl.ast.descr.PackageDescr;
 import org.drools.core.common.InternalAgenda;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
-import org.drools.core.impl.KnowledgeBaseImpl;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.core.impl.RuleBaseFactory;
 import org.drools.core.integrationtests.SerializationHelper;
-import org.drools.core.reteoo.builder.NodeFactory;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
 import org.kie.api.KieBase;
 import org.kie.api.KieBaseConfiguration;
 import org.kie.api.KieServices;
@@ -79,7 +78,7 @@ public class CommonTestMethodBase {
     }
 
     protected KieSession createKieSession(KieBase kbase, KieSessionOption option) {
-        KieSessionConfiguration ksconf = KnowledgeBaseFactory.newKnowledgeSessionConfiguration();
+        KieSessionConfiguration ksconf = RuleBaseFactory.newKnowledgeSessionConfiguration();
         ksconf.setOption(option);
         return kbase.newKieSession(ksconf, null);
     }
@@ -93,7 +92,7 @@ public class CommonTestMethodBase {
     }
 
     protected KieSession createKnowledgeSession(KieBase kbase, KieSessionOption option) {
-        KieSessionConfiguration ksconf = KnowledgeBaseFactory.newKnowledgeSessionConfiguration();
+        KieSessionConfiguration ksconf = RuleBaseFactory.newKnowledgeSessionConfiguration();
         ksconf.setOption(option);
         return kbase.newKieSession(ksconf, null);
     }
@@ -110,28 +109,11 @@ public class CommonTestMethodBase {
         return kbase.newStatelessKieSession();
     }
 
-    protected KieBase loadKnowledgeBaseFromString(NodeFactory nodeFactory, String... drlContentStrings) {
-        return loadKnowledgeBaseFromString(null, null, nodeFactory, drlContentStrings);
-    }
-
     protected KieBase loadKnowledgeBaseFromString(String... drlContentStrings) {
         return loadKnowledgeBaseFromString(null, null, drlContentStrings);
     }
 
-    protected KieBase loadKnowledgeBaseFromString(KnowledgeBuilderConfiguration config, String... drlContentStrings) {
-        return loadKnowledgeBaseFromString(config, null, drlContentStrings);
-    }
-
-    protected KieBase loadKnowledgeBaseFromString(
-            KieBaseConfiguration kBaseConfig, String... drlContentStrings) {
-        return loadKnowledgeBaseFromString(null, kBaseConfig, drlContentStrings);
-    }
-
     protected KieBase loadKnowledgeBaseFromString( KnowledgeBuilderConfiguration config, KieBaseConfiguration kBaseConfig, String... drlContentStrings) {
-        return loadKnowledgeBaseFromString( config, kBaseConfig, (NodeFactory)null, drlContentStrings);
-    }
-
-    protected KieBase loadKnowledgeBaseFromString( KnowledgeBuilderConfiguration config, KieBaseConfiguration kBaseConfig, NodeFactory nodeFactory, String... drlContentStrings) {
         KnowledgeBuilder kbuilder = config == null ? KnowledgeBuilderFactory.newKnowledgeBuilder() : KnowledgeBuilderFactory.newKnowledgeBuilder(config);
         for (String drlContentString : drlContentStrings) {
             kbuilder.add(ResourceFactory.newByteArrayResource(drlContentString
@@ -142,12 +124,9 @@ public class CommonTestMethodBase {
             fail(kbuilder.getErrors().toString());
         }
         if (kBaseConfig == null) {
-            kBaseConfig = KnowledgeBaseFactory.newKnowledgeBaseConfiguration();
+            kBaseConfig = RuleBaseFactory.newKnowledgeBaseConfiguration();
         }
         InternalKnowledgeBase kbase = kBaseConfig == null ? KnowledgeBaseFactory.newKnowledgeBase() : KnowledgeBaseFactory.newKnowledgeBase(kBaseConfig);
-        if (nodeFactory != null) {
-            ((KnowledgeBaseImpl) kbase).getConfiguration().getComponentFactory().setNodeFactoryProvider(nodeFactory);
-        }
         kbase.addPackages( kbuilder.getKnowledgePackages());
         return kbase;
     }
@@ -156,7 +135,7 @@ public class CommonTestMethodBase {
         Collection<KiePackage> knowledgePackages = loadKnowledgePackages(kbuilderConf, classPathResources);
 
         if (kbaseConf == null) {
-            kbaseConf = KnowledgeBaseFactory.newKnowledgeBaseConfiguration();
+            kbaseConf = RuleBaseFactory.newKnowledgeBaseConfiguration();
         }
         InternalKnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase(kbaseConf);
         kbase.addPackages(knowledgePackages);
@@ -176,7 +155,7 @@ public class CommonTestMethodBase {
         Collection<KiePackage> knowledgePackages = loadKnowledgePackages(kbuilderConf, descr);
 
         if (kbaseConf == null) {
-            kbaseConf = KnowledgeBaseFactory.newKnowledgeBaseConfiguration();
+            kbaseConf = RuleBaseFactory.newKnowledgeBaseConfiguration();
         }
         InternalKnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase(kbaseConf);
         kbase.addPackages(knowledgePackages);
@@ -269,7 +248,7 @@ public class CommonTestMethodBase {
 
 
     protected KieBase getKnowledgeBase() {
-        KieBaseConfiguration kBaseConfig = KnowledgeBaseFactory.newKnowledgeBaseConfiguration();
+        KieBaseConfiguration kBaseConfig = RuleBaseFactory.newKnowledgeBaseConfiguration();
         return getKnowledgeBase(kBaseConfig);
     }
 

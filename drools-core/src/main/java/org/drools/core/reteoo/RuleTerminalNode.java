@@ -16,24 +16,20 @@
 
 package org.drools.core.reteoo;
 
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
 import java.util.Comparator;
 import java.util.Map;
 
 import org.drools.core.base.SalienceInteger;
 import org.drools.core.common.AgendaItem;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.InternalWorkingMemoryActions;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.definitions.rule.impl.RuleImpl;
 import org.drools.core.phreak.PhreakRuleTerminalNode;
 import org.drools.core.phreak.RuleExecutor;
 import org.drools.core.reteoo.builder.BuildContext;
 import org.drools.core.rule.Declaration;
 import org.drools.core.rule.GroupElement;
-import org.drools.core.spi.PropagationContext;
-import org.drools.core.spi.Tuple;
+import org.drools.core.common.PropagationContext;
 
 /**
  * Leaf Rete-OO node responsible for enacting <code>Action</code> s on a
@@ -83,7 +79,7 @@ public class RuleTerminalNode extends AbstractTerminalNode {
                             final BuildContext context) {
         super( id,
                context.getPartitionId(),
-               context.getKnowledgeBase().getConfiguration().isMultithreadEvaluation(),
+               context.getRuleBase().getConfiguration().isMultithreadEvaluation(),
                source,
                context );
 
@@ -115,36 +111,6 @@ public class RuleTerminalNode extends AbstractTerminalNode {
     // ------------------------------------------------------------
     // Instance methods
     // ------------------------------------------------------------
-    @SuppressWarnings("unchecked")
-    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        super.readExternal(in);
-        rule = (RuleImpl) in.readObject();
-        subrule = (GroupElement) in.readObject();
-        subruleIndex = in.readInt();
-        previousTupleSinkNode = (LeftTupleSinkNode) in.readObject();
-        nextTupleSinkNode = (LeftTupleSinkNode) in.readObject();
-
-        salienceDeclarations = ( Declaration[]) in.readObject();
-        enabledDeclarations = ( Declaration[]) in.readObject();
-        consequenceName = (String) in.readObject();
-
-        fireDirect = rule.getActivationListener().equals( "direct" );
-
-        initDeclarations();
-    }
-
-    public void writeExternal(ObjectOutput out) throws IOException {
-        super.writeExternal( out );
-        out.writeObject( rule );
-        out.writeObject( subrule );
-        out.writeInt( subruleIndex );
-        out.writeObject( previousTupleSinkNode );
-        out.writeObject( nextTupleSinkNode );
-
-        out.writeObject( salienceDeclarations );
-        out.writeObject( enabledDeclarations );
-        out.writeObject( consequenceName );
-    }
 
     /**
      * Retrieve the <code>Action</code> associated with this node.
@@ -216,7 +182,7 @@ public class RuleTerminalNode extends AbstractTerminalNode {
         return consequenceName == null ? RuleImpl.DEFAULT_CONSEQUENCE_NAME : consequenceName;
     }
 
-    public void cancelMatch(AgendaItem match, InternalWorkingMemoryActions workingMemory) {
+    public void cancelMatch(AgendaItem match, ReteEvaluator reteEvaluator) {
         match.cancel();
         if ( match.isQueued() ) {
             Tuple leftTuple = match.getTuple();
@@ -227,7 +193,7 @@ public class RuleTerminalNode extends AbstractTerminalNode {
                 }
             }
             RuleExecutor ruleExecutor = ((RuleTerminalNodeLeftTuple)leftTuple).getRuleAgendaItem().getRuleExecutor();
-            PhreakRuleTerminalNode.doLeftDelete(ruleExecutor.getPathMemory().getActualAgenda( workingMemory ), ruleExecutor, leftTuple);
+            PhreakRuleTerminalNode.doLeftDelete(ruleExecutor.getPathMemory().getActualActivationsManager( reteEvaluator ), ruleExecutor, leftTuple);
         }
     }
 
@@ -303,25 +269,25 @@ public class RuleTerminalNode extends AbstractTerminalNode {
     public LeftTuple createLeftTuple(final InternalFactHandle factHandle,
                                      final LeftTuple leftTuple,
                                      final Sink sink) {
-        return new RuleTerminalNodeLeftTuple(factHandle,leftTuple, sink );
+        return AgendaComponentFactory.get().createTerminalTuple(factHandle,leftTuple, sink );
     }
 
     public LeftTuple createLeftTuple(InternalFactHandle factHandle,
                                      boolean leftTupleMemoryEnabled) {
-        return new RuleTerminalNodeLeftTuple( factHandle, this, leftTupleMemoryEnabled );
+        return AgendaComponentFactory.get().createTerminalTuple( factHandle, this, leftTupleMemoryEnabled );
     }
 
     public LeftTuple createLeftTuple(LeftTuple leftTuple,
                                      Sink sink,
                                      PropagationContext pctx,
                                      boolean leftTupleMemoryEnabled) {
-        return new RuleTerminalNodeLeftTuple( leftTuple, sink, pctx, leftTupleMemoryEnabled );
+        return AgendaComponentFactory.get().createTerminalTuple( leftTuple, sink, pctx, leftTupleMemoryEnabled );
     }
 
     public LeftTuple createLeftTuple(LeftTuple leftTuple,
                                      RightTuple rightTuple,
                                      Sink sink) {
-        return new RuleTerminalNodeLeftTuple( leftTuple, rightTuple, sink );
+        return AgendaComponentFactory.get().createTerminalTuple( leftTuple, rightTuple, sink );
     }
 
     public LeftTuple createLeftTuple(LeftTuple leftTuple,
@@ -330,7 +296,7 @@ public class RuleTerminalNode extends AbstractTerminalNode {
                                      LeftTuple currentRightChild,
                                      Sink sink,
                                      boolean leftTupleMemoryEnabled) {
-        return new RuleTerminalNodeLeftTuple(leftTuple, rightTuple, currentLeftChild, currentRightChild, sink, leftTupleMemoryEnabled );        
+        return AgendaComponentFactory.get().createTerminalTuple(leftTuple, rightTuple, currentLeftChild, currentRightChild, sink, leftTupleMemoryEnabled );
 
     }      
     

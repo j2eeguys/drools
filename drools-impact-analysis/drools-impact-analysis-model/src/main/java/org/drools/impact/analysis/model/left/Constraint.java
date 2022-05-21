@@ -16,10 +16,10 @@ package org.drools.impact.analysis.model.left;
 
 public class Constraint {
 
-    private Type type;
+    protected Type type;
 
-    private String property;
-    private Object value;
+    protected String property;
+    protected Object value;
 
     public enum Type {
         EQUAL,
@@ -30,6 +30,14 @@ public class Constraint {
         LESS_OR_EQUAL,
         RANGE,
         UNKNOWN;
+    }
+
+    public Constraint() {}
+
+    public Constraint(Type type, String property, Object value) {
+        this.type = type;
+        this.property = property;
+        this.value = value;
     }
 
     public Type getType() {

@@ -16,9 +16,6 @@
 
 package org.drools.mvel.model;
 
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -29,7 +26,8 @@ import org.drools.core.common.RuleBasePartitionId;
 import org.drools.core.reteoo.ObjectSink;
 import org.drools.core.reteoo.ObjectSource;
 import org.drools.core.reteoo.builder.BuildContext;
-import org.drools.core.spi.PropagationContext;
+import org.drools.core.base.ObjectType;
+import org.drools.core.common.PropagationContext;
 import org.drools.core.util.bitmask.BitMask;
 
 public class MockObjectSource extends ObjectSource {
@@ -49,23 +47,8 @@ public class MockObjectSource extends ObjectSource {
         this.facts = new ArrayList();
     }
 
-    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        super.readExternal(in);
-        attached    = in.readInt();
-        updated    = in.readInt();
-        facts = (List)in.readObject();
-    }
-
-    public void writeExternal(ObjectOutput out) throws IOException {
-        super.writeExternal(out);
-        out.writeInt(attached);
-        out.writeInt(updated);
-        out.writeObject(facts);
-    }
-
     public void attach() {
         this.attached++;
-
     }
 
     public int getAttached() {
@@ -105,7 +88,7 @@ public class MockObjectSource extends ObjectSource {
     }
     
     @Override
-    public BitMask calculateDeclaredMask(Class modifiedClass, List<String> settableProperties) {
+    public BitMask calculateDeclaredMask(ObjectType modifiedType, List<String> settableProperties) {
         throw new UnsupportedOperationException();
     }
 }

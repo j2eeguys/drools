@@ -16,30 +16,25 @@
 
 package org.drools.core.reteoo;
 
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Objects;
 
 import org.drools.core.RuleBaseConfiguration;
 import org.drools.core.common.BetaConstraints;
 import org.drools.core.common.EmptyBetaConstraints;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.InternalWorkingMemory;
 import org.drools.core.common.Memory;
 import org.drools.core.common.MemoryFactory;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.common.UpdateContext;
 import org.drools.core.reteoo.builder.BuildContext;
 import org.drools.core.rule.AsyncSend;
-import org.drools.core.spi.AlphaNodeFieldConstraint;
-import org.drools.core.spi.DataProvider;
-import org.drools.core.spi.PropagationContext;
-import org.drools.core.spi.Tuple;
+import org.drools.core.rule.constraint.AlphaNodeFieldConstraint;
+import org.drools.core.rule.accessor.DataProvider;
+import org.drools.core.common.PropagationContext;
 import org.drools.core.util.AbstractBaseLinkedListNode;
 import org.drools.core.util.index.TupleList;
-
-import static org.drools.core.util.ClassUtils.areNullSafeEquals;
 
 public class AsyncSendNode<T extends AsyncSendNode.AsyncSendMemory> extends LeftTupleSource
     implements
@@ -88,25 +83,6 @@ public class AsyncSendNode<T extends AsyncSendNode.AsyncSendMemory> extends Left
         hashcode = calculateHashCode();
     }
 
-    public void readExternal(ObjectInput in) throws IOException,
-                                            ClassNotFoundException {
-        super.readExternal( in );
-        dataProvider = (DataProvider) in.readObject();
-        alphaConstraints = (AlphaNodeFieldConstraint[]) in.readObject();
-        betaConstraints = (BetaConstraints) in.readObject();
-        tupleMemoryEnabled = in.readBoolean();
-        send = (AsyncSend) in.readObject();
-    }
-
-    public void writeExternal(ObjectOutput out) throws IOException {
-        super.writeExternal( out );
-        out.writeObject( dataProvider );
-        out.writeObject( alphaConstraints );
-        out.writeObject( betaConstraints );
-        out.writeBoolean( tupleMemoryEnabled );
-        out.writeObject( send );
-    }
-
     private int calculateHashCode() {
         int hash = ( 23 * leftInput.hashCode() ) + ( 29 * dataProvider.hashCode() );
         if (send.getResultPattern() != null) {
@@ -143,7 +119,7 @@ public class AsyncSendNode<T extends AsyncSendNode.AsyncSendMemory> extends Left
 
         return this.leftInput.getId() == other.leftInput.getId() &&
                dataProvider.equals( other.dataProvider ) &&
-               areNullSafeEquals(send.getResultPattern(), other.send.getResultPattern() ) &&
+               Objects.equals(send.getResultPattern(), other.send.getResultPattern() ) &&
                Arrays.equals( alphaConstraints, other.alphaConstraints ) &&
                betaConstraints.equals( other.betaConstraints );
     }
@@ -168,30 +144,27 @@ public class AsyncSendNode<T extends AsyncSendNode.AsyncSendMemory> extends Left
         this.leftInput.networkUpdated(updateContext);
     }
 
-    public InternalFactHandle createFactHandle( Tuple leftTuple, PropagationContext context, InternalWorkingMemory workingMemory, Object object ) {
+    public InternalFactHandle createFactHandle(Tuple leftTuple, PropagationContext context, ReteEvaluator reteEvaluator, Object object ) {
         InternalFactHandle handle = null;
         if ( context.getReaderContext() != null ) {
-            handle = context.getReaderContext().createAsyncNodeHandle( leftTuple, workingMemory, object, getId(), getObjectTypeConf( workingMemory ) );
+            handle = context.getReaderContext().createAsyncNodeHandle( leftTuple, reteEvaluator, object, getId(), getObjectTypeConf( reteEvaluator ) );
         }
 
         if (handle == null) {
-            handle = workingMemory.getFactHandleFactory().newFactHandle( object,
-                                                                         getObjectTypeConf( workingMemory ),
-                                                                         workingMemory,
-                                                                         null );
+            handle = reteEvaluator.createFactHandle( object, getObjectTypeConf( reteEvaluator ), null );
         }
         return handle;
     }
 
-    public ObjectTypeConf getObjectTypeConf( InternalWorkingMemory workingMemory ) {
+    public ObjectTypeConf getObjectTypeConf( ReteEvaluator reteEvaluator ) {
         if ( objectTypeConf == null ) {
             // use default entry point and object class. Notice that at this point object is assignable to resultClass
-            objectTypeConf = new ClassObjectTypeConf( workingMemory.getEntryPoint(), getResultClass(), workingMemory.getKnowledgeBase() );
+            objectTypeConf = new ClassObjectTypeConf( reteEvaluator.getDefaultEntryPointId(), getResultClass(), reteEvaluator.getKnowledgeBase() );
         }
         return objectTypeConf;
     }
 
-    public T createMemory(final RuleBaseConfiguration config, InternalWorkingMemory wm) {
+    public T createMemory(final RuleBaseConfiguration config, ReteEvaluator reteEvaluator) {
         BetaMemory beta = new BetaMemory( new TupleList(),
                                           null,
                                           this.betaConstraints.createContext(),

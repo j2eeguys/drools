@@ -27,13 +27,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.drools.core.base.ClassFieldReader;
+import org.drools.mvel.accessors.ClassFieldReader;
 import org.drools.core.base.ClassObjectType;
-import org.drools.core.impl.InternalKnowledgeBase;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
 import org.drools.core.reteoo.AlphaNode;
 import org.drools.core.reteoo.ObjectTypeNode;
-import org.drools.core.spi.AlphaNodeFieldConstraint;
-import org.drools.core.util.DateUtils;
+import org.drools.core.rule.constraint.AlphaNodeFieldConstraint;
+import org.drools.util.DateUtils;
 import org.drools.mvel.MVELConstraint;
 import org.drools.mvel.compiler.Address;
 import org.drools.mvel.compiler.Cheese;

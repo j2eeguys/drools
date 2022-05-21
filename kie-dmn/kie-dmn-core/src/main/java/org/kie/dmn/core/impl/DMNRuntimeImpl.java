@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 
 import javax.xml.namespace.QName;
 
-import org.drools.core.impl.InternalKnowledgeBase;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
 import org.kie.api.runtime.KieRuntimeFactory;
 import org.kie.dmn.api.core.DMNContext;
 import org.kie.dmn.api.core.DMNDecisionResult;
@@ -73,6 +73,8 @@ public class DMNRuntimeImpl
     private final DMNRuntimeKB runtimeKB;
 
     private boolean overrideRuntimeTypeCheck = false;
+
+    private DMNResultImplFactory dmnResultFactory = new DMNResultImplFactory();
 
     public DMNRuntimeImpl(DMNRuntimeKB runtimeKB) {
         this.runtimeKB = runtimeKB != null ? runtimeKB : new VoidDMNRuntimeKB();
@@ -246,9 +248,13 @@ public class DMNRuntimeImpl
     }
 
     private DMNResultImpl createResultImpl(DMNModel model, DMNContext context) {
-        DMNResultImpl result = new DMNResultImpl(model);
+        DMNResultImpl result = dmnResultFactory.newDMNResultImpl(model);
         result.setContext(context.clone()); // DMNContextFPAImpl.clone() creates DMNContextImpl
         return result;
+    }
+
+    public void setDMNResultImplFactory(DMNResultImplFactory dmnResultFactory) {
+        this.dmnResultFactory = dmnResultFactory;
     }
 
     @Override

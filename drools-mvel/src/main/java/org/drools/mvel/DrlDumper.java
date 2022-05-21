@@ -31,9 +31,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.drools.compiler.lang.ExpressionRewriter;
-import org.drools.compiler.lang.MVELDumper;
-import org.drools.compiler.lang.descr.BaseDescr;
-import org.drools.compiler.lang.descr.PackageDescr;
+import org.drools.compiler.lang.DescrDumper;
+import org.drools.drl.ast.descr.BaseDescr;
+import org.drools.drl.ast.descr.PackageDescr;
 import org.mvel2.integration.impl.MapVariableResolverFactory;
 import org.mvel2.optimizers.OptimizerFactory;
 import org.mvel2.templates.SimpleTemplateRegistry;
@@ -49,7 +49,7 @@ public class DrlDumper  {
 
     protected final TemplateRegistry REPORT_REGISTRY = new SimpleTemplateRegistry();
 
-    protected ExpressionRewriter mvel = new MVELDumper();
+    protected ExpressionRewriter mvel = new DescrDumper();
 
     static {
         OptimizerFactory.setDefaultOptimizer( OptimizerFactory.SAFE_REFLECTIVE );

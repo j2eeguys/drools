@@ -26,8 +26,9 @@ import org.drools.core.reteoo.BetaMemory;
 import org.drools.core.reteoo.builder.BuildContext;
 import org.drools.core.rule.ContextEntry;
 import org.drools.core.rule.MutableTypeConstraint;
-import org.drools.core.spi.BetaNodeFieldConstraint;
-import org.drools.core.spi.Tuple;
+import org.drools.core.rule.constraint.BetaNodeFieldConstraint;
+import org.drools.core.base.ObjectType;
+import org.drools.core.reteoo.Tuple;
 import org.drools.core.util.bitmask.BitMask;
 
 public class QuadroupleNonIndexSkipBetaConstraints
@@ -86,19 +87,15 @@ public class QuadroupleNonIndexSkipBetaConstraints
     }
 
     public void updateFromTuple(ContextEntry[] context,
-                                InternalWorkingMemory workingMemory,
+                                ReteEvaluator reteEvaluator,
                                 Tuple tuple) {
-        constraints.updateFromTuple(context,
-                                    workingMemory,
-                                    tuple);
+        constraints.updateFromTuple(context, reteEvaluator, tuple);
     }
 
     public void updateFromFactHandle(ContextEntry[] context,
-                                     InternalWorkingMemory workingMemory,
+                                     ReteEvaluator reteEvaluator,
                                      InternalFactHandle handle) {
-        constraints.updateFromFactHandle(context,
-                                         workingMemory,
-                                         handle);
+        constraints.updateFromFactHandle(context, reteEvaluator, handle);
     }
 
     public boolean isIndexed() {
@@ -156,11 +153,11 @@ public class QuadroupleNonIndexSkipBetaConstraints
         return this.constraints.isAllowedCachedRight(context, tuple);
     }
 
-    public BitMask getListenedPropertyMask(Class modifiedClass, List<String> settableProperties) {
-        return constraint0.getListenedPropertyMask(modifiedClass, settableProperties)
-                .setAll(constraint1.getListenedPropertyMask(modifiedClass, settableProperties))
-                .setAll(constraint2.getListenedPropertyMask(modifiedClass, settableProperties))
-                .setAll(constraint3.getListenedPropertyMask(modifiedClass, settableProperties));
+    public BitMask getListenedPropertyMask(ObjectType modifiedType, List<String> settableProperties) {
+        return constraint0.getListenedPropertyMask(modifiedType, settableProperties)
+                .setAll(constraint1.getListenedPropertyMask(modifiedType, settableProperties))
+                .setAll(constraint2.getListenedPropertyMask(modifiedType, settableProperties))
+                .setAll(constraint3.getListenedPropertyMask(modifiedType, settableProperties));
     }
 
     public boolean isLeftUpdateOptimizationAllowed() {

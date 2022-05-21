@@ -23,7 +23,6 @@ import java.util.Map;
 import org.dmg.pmml.PMML;
 import org.dmg.pmml.scorecard.Scorecard;
 import org.drools.compiler.builder.impl.KnowledgeBuilderImpl;
-import org.drools.compiler.kproject.ReleaseIdImpl;
 import org.drools.modelcompiler.ExecutableModelProject;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -34,22 +33,21 @@ import org.kie.api.builder.ReleaseId;
 import org.kie.api.pmml.PMML4Result;
 import org.kie.api.pmml.PMMLRequestData;
 import org.kie.internal.utils.KieHelper;
-import org.kie.pmml.api.enums.ResultCode;
 import org.kie.pmml.api.enums.PMML_MODEL;
-import org.kie.pmml.compiler.testutils.TestUtils;
+import org.kie.pmml.api.enums.ResultCode;
 import org.kie.pmml.api.runtime.PMMLContext;
+import org.kie.pmml.compiler.api.dto.CommonCompilationDTO;
+import org.kie.pmml.compiler.api.testutils.TestUtils;
 import org.kie.pmml.evaluator.core.PMMLContextImpl;
 import org.kie.pmml.evaluator.core.utils.PMMLRequestDataBuilder;
 import org.kie.pmml.models.drools.scorecard.compiler.executor.ScorecardModelImplementationProvider;
 import org.kie.pmml.models.drools.scorecard.evaluator.implementations.HasKnowledgeBuilderMock;
 import org.kie.pmml.models.drools.scorecard.model.KiePMMLScorecardModel;
+import org.kie.util.maven.support.ReleaseIdImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @RunWith(Parameterized.class)
 public class PMMLScorecardModelEvaluatorTest {
@@ -87,20 +85,22 @@ public class PMMLScorecardModelEvaluatorTest {
     public static void setUp() throws Exception {
         evaluator = new PMMLScorecardModelEvaluator();
         final PMML pmml = TestUtils.loadFromFile(SOURCE_1);
-        assertNotNull(pmml);
-        assertEquals(1, pmml.getModels().size());
-        assertTrue(pmml.getModels().get(0) instanceof Scorecard);
+        assertThat(pmml).isNotNull();
+        assertThat(pmml.getModels()).hasSize(1);
+        assertThat(pmml.getModels().get(0)).isInstanceOf(Scorecard.class);
         KnowledgeBuilderImpl knowledgeBuilder = new KnowledgeBuilderImpl();
-        kiePMMLModel = provider.getKiePMMLModel(PACKAGE_NAME,
-                                                pmml.getDataDictionary(),
-                                                pmml.getTransformationDictionary(),
-                                                (Scorecard) pmml.getModels().get(0),
-                                                new HasKnowledgeBuilderMock(knowledgeBuilder));
+        final CommonCompilationDTO<Scorecard> compilationDTO =
+                CommonCompilationDTO.fromGeneratedPackageNameAndFields(PACKAGE_NAME,
+                                                                       pmml,
+                                                                       (Scorecard) pmml.getModels().get(0),
+                                                                       new HasKnowledgeBuilderMock(knowledgeBuilder));
+
+        kiePMMLModel = provider.getKiePMMLModel(compilationDTO);
         kieBase = new KieHelper()
                 .addContent(knowledgeBuilder.getPackageDescrs(kiePMMLModel.getKModulePackageName()).get(0))
                 .setReleaseId(RELEASE_ID)
-                .build( ExecutableModelProject.class );
-        assertNotNull(kieBase);
+                .build(ExecutableModelProject.class);
+        assertThat(kieBase).isNotNull();
     }
 
     @Parameterized.Parameters
@@ -291,7 +291,7 @@ public class PMMLScorecardModelEvaluatorTest {
 
     @Test
     public void getPMMLModelType() {
-        assertEquals(PMML_MODEL.SCORECARD_MODEL, evaluator.getPMMLModelType());
+        assertThat(evaluator.getPMMLModelType()).isEqualTo(PMML_MODEL.SCORECARD_MODEL);
     }
 
     @Test
@@ -312,15 +312,15 @@ public class PMMLScorecardModelEvaluatorTest {
 
     private void commonEvaluate(PMMLContext pmmlContext) {
         PMML4Result retrieved = evaluator.evaluate(kieBase, kiePMMLModel, pmmlContext);
-        assertNotNull(retrieved);
+        assertThat(retrieved).isNotNull();
         logger.trace(retrieved.toString());
-        assertEquals(TARGET_FIELD, retrieved.getResultObjectName());
+        assertThat(retrieved.getResultObjectName()).isEqualTo(TARGET_FIELD);
         final Map<String, Object> resultVariables = retrieved.getResultVariables();
-        assertNotNull(resultVariables);
-        assertEquals(ResultCode.OK.getName(), retrieved.getResultCode());
-        assertFalse(resultVariables.isEmpty());
-        assertTrue(resultVariables.containsKey(TARGET_FIELD));
-        assertEquals(expectedResult, resultVariables.get(TARGET_FIELD));
+        assertThat(resultVariables).isNotNull();
+        assertThat(retrieved.getResultCode()).isEqualTo(ResultCode.OK.getName());
+        assertThat(resultVariables).isNotEmpty();
+        assertThat(resultVariables).containsKey(TARGET_FIELD);
+        assertThat(resultVariables.get(TARGET_FIELD)).isEqualTo(expectedResult);
     }
 
     private PMMLRequestData getPMMLRequestData(String modelName, Map<String, Object> parameters) {

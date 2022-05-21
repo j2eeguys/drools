@@ -29,8 +29,9 @@ import java.util.function.Predicate;
 import org.drools.core.common.InternalWorkingMemory;
 import org.drools.core.common.Memory;
 import org.drools.core.common.NodeMemories;
+import org.drools.core.common.TruthMaintenanceSystemFactory;
 import org.drools.core.common.TupleSets;
-import org.drools.core.impl.KnowledgeBaseImpl;
+import org.drools.core.impl.RuleBase;
 import org.drools.core.reteoo.AlphaNode;
 import org.drools.core.reteoo.BetaMemory;
 import org.drools.core.reteoo.JoinNode;
@@ -44,6 +45,7 @@ import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
 import org.drools.testcoverage.common.util.KieBaseUtil;
 import org.drools.testcoverage.common.util.KieUtil;
 import org.drools.testcoverage.common.util.TestParametersUtil;
+import org.drools.tms.TruthMaintenanceSystemFactoryImpl;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -56,8 +58,8 @@ import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.rule.FactHandle;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -100,12 +102,15 @@ public class MemoryLeakTest {
         KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("test", kieBaseTestConfiguration, str);
         KieSession ksession = kbase.newKieSession();
 
+        TruthMaintenanceSystemFactoryImpl tms = (TruthMaintenanceSystemFactoryImpl) TruthMaintenanceSystemFactory.get();
+        tms.clearEntryPointsMap();
+
         for ( int i = 0; i < 10; i++ ) {
             ksession.insert( i );
             ksession.fireAllRules();
         }
 
-        Rete rete = ( (KnowledgeBaseImpl) kbase ).getRete();
+        Rete rete = ( (RuleBase) kbase ).getRete();
         JoinNode joinNode = null;
         for ( ObjectTypeNode otn : rete.getObjectTypeNodes() ) {
             if ( String.class == otn.getObjectType().getValueType().getClassType() ) {
@@ -114,12 +119,17 @@ public class MemoryLeakTest {
             }
         }
 
-        assertNotNull( joinNode );
+        assertThat(joinNode).isNotNull();
         InternalWorkingMemory wm = (InternalWorkingMemory) ksession;
         BetaMemory memory = (BetaMemory) wm.getNodeMemory( joinNode );
         TupleSets<RightTuple> stagedRightTuples = memory.getStagedRightTuples();
         assertNull( stagedRightTuples.getDeleteFirst() );
         assertNull( stagedRightTuples.getInsertFirst() );
+
+        // DROOLS-6809
+        assertEquals(1, tms.getEntryPointsMapSize());
+        ksession.dispose();
+        assertEquals(0, tms.getEntryPointsMapSize());
     }
 
     @Test
@@ -143,7 +153,7 @@ public class MemoryLeakTest {
             ksession.fireAllRules();
         }
 
-        Rete rete = ( (KnowledgeBaseImpl) kbase ).getRete();
+        Rete rete = ( (RuleBase) kbase ).getRete();
         LeftInputAdapterNode liaNode = null;
         for ( ObjectTypeNode otn : rete.getObjectTypeNodes() ) {
             if ( String.class == otn.getObjectType().getValueType().getClassType() ) {
@@ -153,7 +163,7 @@ public class MemoryLeakTest {
             }
         }
 
-        assertNotNull( liaNode );
+        assertThat(liaNode).isNotNull();
         InternalWorkingMemory wm = (InternalWorkingMemory) ksession;
         LeftInputAdapterNode.LiaNodeMemory memory = (LeftInputAdapterNode.LiaNodeMemory) wm.getNodeMemory( liaNode );
         TupleSets<LeftTuple> stagedLeftTuples = memory.getSegmentMemory().getStagedLeftTuples();

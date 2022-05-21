@@ -17,6 +17,7 @@ package org.drools.serialization.protobuf;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.lang.reflect.Field;
 import java.util.Collections;
@@ -24,22 +25,27 @@ import java.util.Date;
 
 import org.drools.core.SessionConfiguration;
 import org.drools.core.WorkingMemoryEntryPoint;
+import org.drools.core.common.DefaultFactHandle;
 import org.drools.core.common.EventFactHandle;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.NamedEntryPoint;
+import org.drools.core.common.QueryElementFactHandle;
 import org.drools.core.common.RuleBasePartitionId;
 import org.drools.core.impl.EnvironmentFactory;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
-import org.drools.core.impl.StatefulKnowledgeSessionImpl;
-import org.drools.core.marshalling.impl.InputMarshaller;
-import org.drools.core.marshalling.impl.ObjectMarshallingStrategyStoreImpl;
+import org.drools.core.impl.RuleBaseFactory;
+import org.drools.core.marshalling.MarshallerReaderContext;
+import org.drools.core.reteoo.CoreComponentFactory;
 import org.drools.core.reteoo.EntryPointNode;
-import org.drools.core.reteoo.ObjectSource;
+import org.drools.core.reteoo.ObjectTypeConf;
 import org.drools.core.reteoo.Rete;
 import org.drools.core.reteoo.builder.NodeFactory;
 import org.drools.core.rule.EntryPointId;
+import org.drools.kiesession.entrypoints.NamedEntryPoint;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
+import org.drools.kiesession.session.StatefulKnowledgeSessionImpl;
 import org.drools.mvel.compiler.Person;
+import org.drools.serialization.protobuf.marshalling.ObjectMarshallingStrategyStoreImpl;
+import org.drools.util.StringUtils;
 import org.junit.Assert;
 import org.junit.Test;
 import org.kie.api.KieBaseConfiguration;
@@ -47,6 +53,8 @@ import org.kie.api.conf.EventProcessingOption;
 import org.kie.api.marshalling.ObjectMarshallingStrategy;
 import org.kie.api.runtime.KieSessionConfiguration;
 import org.kie.api.runtime.conf.ClockTypeOption;
+import org.kie.api.runtime.rule.EntryPoint;
+import org.kie.api.runtime.rule.RuleRuntime;
 import org.kie.internal.marshalling.MarshallerFactory;
 
 import static org.junit.Assert.assertTrue;
@@ -54,29 +62,29 @@ import static org.junit.Assert.assertTrue;
 public class FactHandleMarshallingTest {
 
     private InternalKnowledgeBase createKnowledgeBase() {
-        KieBaseConfiguration config = KnowledgeBaseFactory.newKnowledgeBaseConfiguration();
+        KieBaseConfiguration config = RuleBaseFactory.newKnowledgeBaseConfiguration();
         config.setOption( EventProcessingOption.STREAM );
-        return (InternalKnowledgeBase)KnowledgeBaseFactory.newKnowledgeBase( config );
+        return KnowledgeBaseFactory.newKnowledgeBase( config );
     }
     
     private InternalFactHandle createEventFactHandle(StatefulKnowledgeSessionImpl wm, InternalKnowledgeBase kBase) {
         // EntryPointNode
         Rete rete = kBase.getRete();
 
-        NodeFactory nFacotry = kBase.getConfiguration().getComponentFactory().getNodeFactoryService();
+        NodeFactory nFacotry = CoreComponentFactory.get().getNodeFactoryService();
 
         RuleBasePartitionId partionId = RuleBasePartitionId.MAIN_PARTITION;
-        EntryPointNode entryPointNode = nFacotry.buildEntryPointNode(1, partionId, false, (ObjectSource) rete , EntryPointId.DEFAULT);
+        EntryPointNode entryPointNode = nFacotry.buildEntryPointNode(1, partionId, false, rete , EntryPointId.DEFAULT);
         WorkingMemoryEntryPoint wmEntryPoint = new NamedEntryPoint( EntryPointId.DEFAULT, entryPointNode, wm);
 
-        EventFactHandle factHandle = new EventFactHandle(1, (Object) new Person(),0, (new Date()).getTime(), 0, wmEntryPoint);
+        EventFactHandle factHandle = new EventFactHandle(1, new Person(),0, (new Date()).getTime(), 0, wmEntryPoint);
         
         return factHandle;
     }
        
     private StatefulKnowledgeSessionImpl createWorkingMemory(InternalKnowledgeBase kBase) {
         // WorkingMemoryEntryPoint
-        KieSessionConfiguration ksconf = KnowledgeBaseFactory.newKnowledgeSessionConfiguration();
+        KieSessionConfiguration ksconf = RuleBaseFactory.newKnowledgeSessionConfiguration();
         ksconf.setOption( ClockTypeOption.PSEUDO );
         SessionConfiguration sessionConf = ((SessionConfiguration) ksconf);
         StatefulKnowledgeSessionImpl wm = new StatefulKnowledgeSessionImpl(1L, kBase, true, sessionConf, EnvironmentFactory.newEnvironment());
@@ -120,14 +128,103 @@ public class FactHandleMarshallingTest {
                 new ObjectMarshallingStrategyStoreImpl(newStrats), Collections.EMPTY_MAP,
                 true, true, null);
             inContext.setWorkingMemory( wm );
-            newFactHandle = InputMarshaller.readFactHandle(inContext);
+            newFactHandle = readFactHandle(inContext);
             inContext.close();
         }
 
         assertTrue( "Serialized FactHandle not the same as the original.", compareInstances(factHandle, newFactHandle) );
     }
 
-    private boolean compareInstances(Object objA, Object objB) { 
+    private static InternalFactHandle readFactHandle( MarshallerReaderContext context ) throws IOException,
+            ClassNotFoundException {
+        int type = context.readInt();
+        long id = context.readLong();
+        long recency = context.readLong();
+
+        long startTimeStamp = 0;
+        long duration = 0;
+        boolean expired = false;
+        long activationsCount = 0;
+        if (type == 2) {
+            startTimeStamp = context.readLong();
+            duration = context.readLong();
+            expired = context.readBoolean();
+            activationsCount = context.readLong();
+        }
+
+        int strategyIndex = context.readInt();
+        ObjectMarshallingStrategy strategy = null;
+        // This is the old way of de/serializing strategy objects
+        if (strategyIndex >= 0) {
+            strategy = context.getResolverStrategyFactory().getStrategy( strategyIndex );
+        }
+        // This is the new way
+        else if (strategyIndex == -2) {
+            String strategyClassName = context.readUTF();
+            if (!StringUtils.isEmpty( strategyClassName )) {
+                strategy = context.getResolverStrategyFactory().getStrategyObject( strategyClassName );
+                if (strategy == null) {
+                    throw new IllegalStateException( "No strategy of type " + strategyClassName + " available." );
+                }
+            }
+        }
+
+        // If either way retrieves a strategy, use it
+        Object object = null;
+        if (strategy != null) {
+            object = strategy.read( (ObjectInputStream) context );
+        }
+
+        EntryPoint entryPoint = null;
+        if (context.readBoolean()) {
+            String entryPointId = context.readUTF();
+            if (entryPointId != null && !entryPointId.equals( "" )) {
+                entryPoint = ((RuleRuntime)context.getWorkingMemory()).getEntryPoint( entryPointId );
+            }
+        }
+
+        EntryPointId confEP;
+        if ( entryPoint != null ) {
+            confEP = ((NamedEntryPoint) entryPoint).getEntryPoint();
+        } else {
+            confEP = context.getWorkingMemory().getEntryPoint();
+        }
+        ObjectTypeConf typeConf = context.getWorkingMemory().getObjectTypeConfigurationRegistry().getOrCreateObjectTypeConf( confEP, object );
+
+
+        InternalFactHandle handle = null;
+        switch (type) {
+            case 0: {
+
+                handle = new DefaultFactHandle( id,
+                        object,
+                        recency,
+                        (WorkingMemoryEntryPoint) entryPoint );
+                break;
+
+            }
+            case 1: {
+                handle = new QueryElementFactHandle( object,
+                        id,
+                        recency );
+                break;
+            }
+            case 2: {
+                handle = new EventFactHandle( id, object, recency, startTimeStamp, duration,
+                        (WorkingMemoryEntryPoint) entryPoint );
+                ( (EventFactHandle) handle ).setExpired( expired );
+                ( (EventFactHandle) handle ).setActivationsCount( activationsCount );
+                break;
+            }
+            default: {
+                throw new IllegalStateException( "Unable to marshal FactHandle, as type does not exist:" + type );
+            }
+        }
+
+        return handle;
+    }
+
+    private boolean compareInstances(Object objA, Object objB) {
         boolean same = true;
         if( objA != null && objB != null ) { 
             if( ! objA.getClass().equals(objB.getClass()) ) { 

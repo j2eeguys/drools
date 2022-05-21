@@ -96,15 +96,18 @@ public class Expressions {
     public static final String LEFT = "left";
     public static final NameExpr LEFT_EXPR = new NameExpr(LEFT);
     public static final UnknownType UNKNOWN_TYPE = new UnknownType();
-    public static final NameExpr STDLIB = new NameExpr(CompiledFEELSupport.class.getSimpleName());
+    public static final NameExpr STDLIB = new NameExpr(CompiledFEELSupport.class.getCanonicalName());
 
     public static Expression dash() {
         return DASH_UNARY_TEST;
     }
 
     public static Expression negate(Expression expression) {
-        EnclosedExpr e = castTo(BigDecimalT, expression);
-        return new MethodCallExpr(e, "negate");
+        return new MethodCallExpr(STDLIB, "negate", NodeList.nodeList(FeelCtx.FEELCTX, expression));
+    }
+
+    public static Expression positive(Expression expression) {
+        return new MethodCallExpr(STDLIB, "positive", NodeList.nodeList(FeelCtx.FEELCTX, expression));
     }
 
     public static MethodCallExpr binary(
@@ -145,22 +148,22 @@ public class Expressions {
     }
 
     private static MethodCallExpr arithmetic(String op, Expression left, Expression right) {
-        return new MethodCallExpr(null, op, new NodeList<>(left, right));
+        return new MethodCallExpr(compiledFeelSemanticMappingsFQN(), op, new NodeList<>(left, right));
     }
 
     private static MethodCallExpr equality(String op, Expression left, Expression right) {
-        return new MethodCallExpr(null, op, new NodeList<>(left, right));
+        return new MethodCallExpr(compiledFeelSemanticMappingsFQN(), op, new NodeList<>(left, right));
     }
 
     private static MethodCallExpr comparison(String op, Expression left, Expression right) {
-        return new MethodCallExpr(null, op, new NodeList<>(left, right));
+        return new MethodCallExpr(compiledFeelSemanticMappingsFQN(), op, new NodeList<>(left, right));
     }
 
     private static MethodCallExpr booleans(String op, Expression left, Expression right) {
         Expression l = coerceToBoolean(left);
         Expression r = supplierLambda(coerceToBoolean(right));
 
-        return new MethodCallExpr(null, op, new NodeList<>(l, r));
+        return new MethodCallExpr(compiledFeelSemanticMappingsFQN(), op, new NodeList<>(l, r));
     }
 
     public static Expression unary(

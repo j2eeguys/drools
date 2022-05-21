@@ -53,19 +53,22 @@ public class ExampleUsageTest {
         ReleaseId releaseId = ks.newReleaseId("org.drools.impact.analysis.example", "order-process", "1.0.0");
 
         KieFileSystem kfs = createKieFileSystemWithClassPathResourceNames(releaseId, getClass(),
-                                                                          "/org/drools/impact/analysis/example/CustomerCheck.xls",
-                                                                          "/org/drools/impact/analysis/example/PriceCheck.xls",
-                                                                          "/org/drools/impact/analysis/example/StatusCheck.xls",
+                                                                          "/org/drools/impact/analysis/example/CustomerCheck.drl.xls",
+                                                                          "/org/drools/impact/analysis/example/PriceCheck.drl.xls",
+                                                                          "/org/drools/impact/analysis/example/StatusCheck.drl.xls",
                                                                           "/org/drools/impact/analysis/example/inventory.drl");
 
-        // just to confirm this rule can run
+        //--- Just to confirm that this rule can run. This part is not actually required for impact analysis
         Order order = new Order(1, "Guitar", 6000, 65, 5);
         Product guitar = new Product("Guitar", 5500, 8);
         KieSession kieSession = RuleExecutionHelper.getKieSession(kfs);
+        List<Order> resultList = new ArrayList<>();
+        kieSession.setGlobal("resultList", resultList);
         kieSession.insert(order);
         kieSession.insert(guitar);
         kieSession.fireAllRules();
         kieSession.dispose();
+        //---
 
         KieBuilder kieBuilder = ks.newKieBuilder(kfs).buildAll(ImpactAnalysisProject.class);
         ImpactAnalysisKieModule analysisKieModule = (ImpactAnalysisKieModule) kieBuilder.getKieModule();
@@ -75,25 +78,25 @@ public class ExampleUsageTest {
         Graph graph = converter.toGraph(analysisModel);
 
         // whole graph
-        generateSvg(graph, "example-whole-graph");
+        generateImage(graph, "example-whole-graph");
 
         ImpactAnalysisHelper impactFilter = new ImpactAnalysisHelper();
         // Assume you want to modify RHS of PriceCheck_11
         Graph impactedSubGraph = impactFilter.filterImpactedNodes(graph, "org.drools.impact.analysis.example.PriceCheck_11");
 
         // changed node and impacted nodes
-        generateSvg(impactedSubGraph, "example-impacted-sub-graph");
+        generateImage(impactedSubGraph, "example-impacted-sub-graph");
 
         // whole graph with impact coloring
-        generateSvg(graph, "example-impacted-whole-graph");
+        generateImage(graph, "example-impacted-whole-graph");
 
         // Collapse graph based on rule name prefix (= RuleSet in spreadsheet)
         Graph collapsedGraph = new GraphCollapsionHelper().collapseWithRuleNamePrefix(graph);
-        generateSvg(collapsedGraph, "example-collapsed-graph");
+        generateImage(collapsedGraph, "example-collapsed-graph");
 
         // You can also do impact analysis for the collapsedGraph
         Graph impactedCollapsedSubGraph = impactFilter.filterImpactedNodes(collapsedGraph, "org.drools.impact.analysis.example.PriceCheck");
-        generateSvg(impactedCollapsedSubGraph, "example-impacted-collapsed-sub-graph");
+        generateImage(impactedCollapsedSubGraph, "example-impacted-collapsed-sub-graph");
 
         // Simple text output
         System.out.println("--- toHierarchyText ---");
@@ -103,6 +106,14 @@ public class ExampleUsageTest {
         System.out.println("--- toFlatText ---");
         String flatText = TextReporter.toFlatText(impactedSubGraph);
         System.out.println(flatText);
+
+        // Reusing the Graph instance for another filtering is allowed. All nodes status are reset to NONE implicitly
+
+        // Backward analysis. View which rules affect StatusCheck_11
+        Graph impactingSubGraph = impactFilter.filterImpactingNodes(graph, "org.drools.impact.analysis.example.StatusCheck_11");
+
+        // target node and impacting nodes
+        generateImage(impactingSubGraph, "example-impacting-sub-graph");
     }
 
     /*
@@ -126,11 +137,11 @@ public class ExampleUsageTest {
         return kfs;
     }
 
-    protected void generateSvg(Graph graph, String fileName) {
+    protected void generateImage(Graph graph, String fileName) {
         GraphImageGenerator generator = new GraphImageGenerator(fileName);
 
-        //        generator.generateDot(graph);  // DOT : Quick. Can be visualized by other Graphviz tools
+        // generator.generateDot(graph);  // DOT : Quick. Can be visualized by other Graphviz tools
         generator.generateSvg(graph); // SVG : Quicker than PNG
-        //                generator.generatePng(graph); // Slow. Probably not useful for a large number of rules (e.g. more than 200)
+        // generator.generatePng(graph); // Slow. Probably not useful for a large number of rules (e.g. more than 200)
     }
 }

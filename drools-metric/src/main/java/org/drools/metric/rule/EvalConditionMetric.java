@@ -19,11 +19,11 @@ package org.drools.metric.rule;
 import java.util.ArrayList;
 import java.util.Collections;
 
-import org.drools.core.WorkingMemory;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.rule.Declaration;
 import org.drools.core.rule.EvalCondition;
-import org.drools.core.spi.EvalExpression;
-import org.drools.core.spi.Tuple;
+import org.drools.core.rule.accessor.EvalExpression;
+import org.drools.core.reteoo.Tuple;
 import org.drools.metric.util.MetricLogUtils;
 
 public class EvalConditionMetric extends EvalCondition {
@@ -42,10 +42,10 @@ public class EvalConditionMetric extends EvalCondition {
 
     @Override
     public boolean isAllowed(final Tuple tuple,
-                             final WorkingMemory workingMemory,
+                             final ReteEvaluator reteEvaluator,
                              final Object context) {
         MetricLogUtils.getInstance().incrementEvalCount();
-        return super.isAllowed(tuple, workingMemory, context);
+        return super.isAllowed(tuple, reteEvaluator, context);
     }
 
     @Override

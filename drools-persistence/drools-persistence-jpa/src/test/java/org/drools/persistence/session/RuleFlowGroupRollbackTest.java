@@ -21,11 +21,11 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import org.drools.core.command.impl.CommandBasedStatefulKnowledgeSession;
+import org.drools.commands.impl.CommandBasedStatefulKnowledgeSessionImpl;
 import org.drools.core.common.InternalAgenda;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
-import org.drools.core.io.impl.ClassPathResource;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.util.io.ClassPathResource;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
 import org.drools.persistence.util.DroolsPersistenceUtil;
 import org.junit.After;
 import org.junit.Before;
@@ -87,7 +87,7 @@ public class RuleFlowGroupRollbackTest {
     @Test	
 	public void testRuleFlowGroupRollback() throws Exception {
 		
-		CommandBasedStatefulKnowledgeSession ksession = createSession();
+		CommandBasedStatefulKnowledgeSessionImpl ksession = createSession();
 		
 		List<String> list = new ArrayList<String>();
 		list.add("Test");
@@ -109,7 +109,7 @@ public class RuleFlowGroupRollbackTest {
 		
 	}
 	
-	private CommandBasedStatefulKnowledgeSession createSession() {
+	private CommandBasedStatefulKnowledgeSessionImpl createSession() {
 		
 		KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
         kbuilder.add( new ClassPathResource("ruleflowgroup_rollback.drl"), ResourceType.DRL );
@@ -125,7 +125,7 @@ public class RuleFlowGroupRollbackTest {
         if( locking ) { 
             env.set(EnvironmentName.USE_PESSIMISTIC_LOCKING, true);
         }
-        return (CommandBasedStatefulKnowledgeSession) JPAKnowledgeService.newStatefulKnowledgeSession( kbase, null, env );
+        return (CommandBasedStatefulKnowledgeSessionImpl) JPAKnowledgeService.newStatefulKnowledgeSession( kbase, null, env );
 	}
 	
 	@SuppressWarnings("serial")

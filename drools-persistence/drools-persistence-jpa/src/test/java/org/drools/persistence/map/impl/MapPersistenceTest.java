@@ -15,23 +15,24 @@
  */
 package org.drools.persistence.map.impl;
 
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
-import org.drools.core.io.impl.ByteArrayResource;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.util.io.ByteArrayResource;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
 import org.drools.persistence.jpa.marshaller.JPAPlaceholderResolverStrategy;
 import org.junit.Assert;
 import org.junit.Test;
-import org.kie.internal.builder.KnowledgeBuilder;
-import org.kie.internal.builder.KnowledgeBuilderError;
-import org.kie.internal.builder.KnowledgeBuilderErrors;
-import org.kie.internal.builder.KnowledgeBuilderFactory;
-import org.kie.internal.runtime.StatefulKnowledgeSession;
 import org.kie.api.KieBase;
 import org.kie.api.io.ResourceType;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.rule.FactHandle;
+import org.kie.internal.builder.KnowledgeBuilder;
+import org.kie.internal.builder.KnowledgeBuilderError;
+import org.kie.internal.builder.KnowledgeBuilderErrors;
+import org.kie.internal.builder.KnowledgeBuilderFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public abstract class MapPersistenceTest {
 
@@ -45,7 +46,7 @@ public abstract class MapPersistenceTest {
         crmPersistentSession.fireAllRules();
 
         crmPersistentSession = createSession( kbase );
-        Assert.assertNotNull( crmPersistentSession );
+        assertThat(crmPersistentSession).isNotNull();
     }
 
 
@@ -87,7 +88,7 @@ public abstract class MapPersistenceTest {
         ksession = disposeAndReloadSession( ksession,
                                             kbase );
 
-        Assert.assertNotNull( ksession );
+        assertThat(ksession).isNotNull();
 
         Assert.assertEquals( 1,
                              ksession.getObjects().size() );

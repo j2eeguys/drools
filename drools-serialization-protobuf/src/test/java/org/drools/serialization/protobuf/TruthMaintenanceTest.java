@@ -23,13 +23,13 @@ import java.util.Map;
 import org.drools.core.ClassObjectFilter;
 import org.drools.core.common.InternalAgenda;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.NamedEntryPoint;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.common.TruthMaintenanceSystem;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
-import org.drools.core.impl.StatefulKnowledgeSessionImpl;
-import org.drools.core.rule.EntryPointId;
+import org.drools.core.common.TruthMaintenanceSystemFactory;
 import org.drools.core.util.ObjectHashMap;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
+import org.drools.kiesession.session.StatefulKnowledgeSessionImpl;
 import org.drools.mvel.CommonTestMethodBase;
 import org.drools.mvel.compiler.Cheese;
 import org.drools.mvel.compiler.CheeseEqual;
@@ -46,11 +46,10 @@ import org.kie.internal.builder.KnowledgeBuilder;
 import org.kie.internal.builder.KnowledgeBuilderFactory;
 import org.kie.internal.io.ResourceFactory;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.drools.serialization.protobuf.SerializationHelper.getSerialisedStatefulKnowledgeSession;
-import static org.drools.serialization.protobuf.SerializationHelper.serializeObject;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -106,7 +105,6 @@ public class TruthMaintenanceTest extends CommonTestMethodBase {
             }
             Collection<KiePackage> kpkgs2 = kbuilder.getKnowledgePackages();
             kbase.addPackages( kpkgs2 );
-            kbase = serializeObject(kbase);
 
             ksession.fireAllRules();
 
@@ -138,8 +136,8 @@ public class TruthMaintenanceTest extends CommonTestMethodBase {
                 }
             }
 
-            assertNotNull( test );
-            assertNotNull( test2 );
+            assertThat(test).isNotNull();
+            assertThat(test2).isNotNull();
             assertEquals( "rule1",
                           test.getRules().iterator().next().getName() );
             assertEquals( "rule2",
@@ -156,8 +154,8 @@ public class TruthMaintenanceTest extends CommonTestMethodBase {
                     test2 = kpkg;
                 }
             }
-            assertNotNull( test );
-            assertNotNull( test2 );
+            assertThat(test).isNotNull();
+            assertThat(test2).isNotNull();
 
             // Check the rule was correctly remove
             assertEquals( 0,
@@ -202,12 +200,11 @@ public class TruthMaintenanceTest extends CommonTestMethodBase {
                     test2 = kpkg;
                 }
             }
-            assertNotNull( test );
-            assertNotNull( test2 );
+            assertThat(test).isNotNull();
+            assertThat(test2).isNotNull();
 
             kbase.removeRule( test2.getName(),
                               test2.getRules().iterator().next().getName() );
-            kbase = serializeObject(kbase);
 
             // different JVMs return the package list in different order
             for( KiePackage kpkg : kbase.getKiePackages() ) {
@@ -217,8 +214,8 @@ public class TruthMaintenanceTest extends CommonTestMethodBase {
                     test2 = kpkg;
                 }
             }
-            assertNotNull( test );
-            assertNotNull( test2 );
+            assertThat(test).isNotNull();
+            assertThat(test2).isNotNull();
 
             assertEquals( 0,
                           test.getRules().size() );
@@ -242,7 +239,6 @@ public class TruthMaintenanceTest extends CommonTestMethodBase {
 
         InternalKnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
         kbase.addPackages( kpkgs );
-        kbase = serializeObject(kbase);
         KieSession session = createKnowledgeSession(kbase);
         try {
             final List list = new ArrayList();
@@ -299,7 +295,6 @@ public class TruthMaintenanceTest extends CommonTestMethodBase {
 
         InternalKnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
         kbase.addPackages( kpkgs );
-        kbase = serializeObject(kbase);
         KieSession session = createKnowledgeSession(kbase);
         try {
             final Cheese cheese1 = new Cheese( "c",
@@ -395,7 +390,7 @@ public class TruthMaintenanceTest extends CommonTestMethodBase {
             assertEquals( 0,
                           ksession.getObjects().size() );
 
-            TruthMaintenanceSystem tms =  ((NamedEntryPoint)ksession.getEntryPoint(EntryPointId.DEFAULT.getEntryPointId()) ).getTruthMaintenanceSystem();
+            TruthMaintenanceSystem tms = TruthMaintenanceSystemFactory.get().getOrCreateTruthMaintenanceSystem((ReteEvaluator) ksession);
 
             final java.lang.reflect.Field field = tms.getClass().getDeclaredField( "equalityKeyMap" );
             field.setAccessible( true );
@@ -452,7 +447,7 @@ public class TruthMaintenanceTest extends CommonTestMethodBase {
                           1,
                           list.size() );
 
-            TruthMaintenanceSystem tms =  ((NamedEntryPoint)ksession.getEntryPoint(EntryPointId.DEFAULT.getEntryPointId()) ).getTruthMaintenanceSystem();
+            TruthMaintenanceSystem tms =  TruthMaintenanceSystemFactory.get().getOrCreateTruthMaintenanceSystem( (ReteEvaluator) ksession );
             assertTrue(tms.getEqualityKeyMap().isEmpty());
         } finally {
             ksession.dispose();
@@ -503,7 +498,7 @@ public class TruthMaintenanceTest extends CommonTestMethodBase {
             // workingMemory.fireAllRules();
             assertEquals("agenda should be empty.",
                          0,
-                         ((InternalAgenda)((StatefulKnowledgeSessionImpl) ksession).getAgenda()).agendaSize());
+                         ((InternalAgenda)((StatefulKnowledgeSessionImpl) ksession).getAgenda()).getAgendaGroupsManager().agendaSize());
 
             h = getFactHandle( h, ksession );
             ksession.delete( h );
@@ -563,7 +558,7 @@ public class TruthMaintenanceTest extends CommonTestMethodBase {
             assertEquals( 0,
                           list.size() );
 
-            TruthMaintenanceSystem tms =  ((NamedEntryPoint)ksession.getEntryPoint(EntryPointId.DEFAULT.getEntryPointId()) ).getTruthMaintenanceSystem();
+            TruthMaintenanceSystem tms =  TruthMaintenanceSystemFactory.get().getOrCreateTruthMaintenanceSystem( (ReteEvaluator) ksession );
 
             final java.lang.reflect.Field field = tms.getClass().getDeclaredField( "equalityKeyMap" );
             field.setAccessible( true );
@@ -741,7 +736,6 @@ public class TruthMaintenanceTest extends CommonTestMethodBase {
     public void testLogicalInsertionsAccumulatorPattern() throws Exception {
         // JBRULES-449
         KieBase kbase = loadKnowledgeBase( "test_LogicalInsertionsAccumulatorPattern.drl" );
-        kbase = serializeObject(kbase);
         KieSession ksession = kbase.newKieSession();
         try {
             ksession.setGlobal( "ga",
@@ -753,16 +747,14 @@ public class TruthMaintenanceTest extends CommonTestMethodBase {
 
             ksession.fireAllRules();
 
-            ksession = getSerialisedStatefulKnowledgeSession(ksession,
-                                                                                 true);
+            ksession = getSerialisedStatefulKnowledgeSession(ksession, true);
 
             FactHandle h = ksession.insert( new Integer( 6 ) );
             assertEquals( 1,
                           ksession.getObjects().size() );
 
             ksession.fireAllRules();
-            ksession = getSerialisedStatefulKnowledgeSession(ksession,
-                                                                                 true);
+            ksession = getSerialisedStatefulKnowledgeSession(ksession, true);
             assertEquals( "There should be 2 CheeseEqual in Working Memory, 1 justified, 1 stated",
                           2,
                           ksession.getObjects( new ClassObjectFilter( CheeseEqual.class ) ).size() );
@@ -777,8 +769,7 @@ public class TruthMaintenanceTest extends CommonTestMethodBase {
                 System.out.println( o );
             }
 
-            ksession = getSerialisedStatefulKnowledgeSession(ksession,
-                                                                                 true);
+            ksession = getSerialisedStatefulKnowledgeSession(ksession, true);
             assertEquals( 0,
                           ksession.getObjects( new ClassObjectFilter( CheeseEqual.class ) ).size() );
             assertEquals( 0,
@@ -802,7 +793,6 @@ public class TruthMaintenanceTest extends CommonTestMethodBase {
 
         InternalKnowledgeBase kbase = (InternalKnowledgeBase) getKnowledgeBase();
         kbase.addPackages( pkgs );
-        kbase = serializeObject(kbase);
         KieSession session = createKnowledgeSession(kbase);
         try {
             Sensor sensor1 = new Sensor( 100,

@@ -27,7 +27,7 @@ import org.drools.core.base.ValueType;
 import org.drools.core.reteoo.AlphaNode;
 import org.drools.core.reteoo.CompositeObjectSinkAdapter;
 import org.drools.core.rule.IndexableConstraint;
-import org.drools.core.spi.FieldValue;
+import org.drools.core.rule.accessor.FieldValue;
 import org.drools.core.util.index.IndexUtil.ConstraintType;
 import org.drools.core.util.index.RangeIndex.IndexType;
 
@@ -141,7 +141,7 @@ public class AlphaRangeIndex implements Externalizable {
             default:
                 break;
         }
-        throw new RuntimeException("Non relational oparator must not be added to range index : constraint = " + constraint + ", constraintType = " + constraintType);
+        throw new RuntimeException("Non relational operator must not be added to range index : constraint = " + constraint + ", constraintType = " + constraintType);
     }
 
     public int size() {
@@ -149,7 +149,7 @@ public class AlphaRangeIndex implements Externalizable {
     }
 
     public Collection<AlphaNode> getMatchingAlphaNodes(Object object) {
-        Object value = fieldIndex.getFieldExtactor().getValue(object);
+        Object value = fieldIndex.getFieldExtractor().getValue(object);
         if (value == null) {
             return Collections.emptyList();
         }

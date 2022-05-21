@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.drools.core.common.BaseNode;
 import org.drools.core.common.DroolsObjectInputStream;
@@ -39,13 +38,12 @@ import org.drools.core.common.InternalWorkingMemory;
 import org.drools.core.common.MemoryFactory;
 import org.drools.core.common.NetworkNode;
 import org.drools.core.definitions.rule.impl.RuleImpl;
-import org.drools.core.impl.InternalKnowledgeBase;
+import org.drools.core.impl.RuleBase;
 import org.drools.core.phreak.AddRemoveRule;
+import org.drools.core.reteoo.builder.ReteooRuleBuilder;
 import org.drools.core.rule.InvalidPatternException;
 import org.drools.core.rule.WindowDeclaration;
 import org.kie.api.definition.rule.Rule;
-
-import static org.drools.core.impl.StatefulKnowledgeSessionImpl.DEFAULT_RULE_UNIT;
 
 /**
  * Builds the Rete-OO network for a <code>Package</code>.
@@ -61,16 +59,17 @@ public class ReteooBuilder
     private static final long           serialVersionUID = 510l;
 
     /** The RuleBase */
-    private transient InternalKnowledgeBase  kBase;
+    private transient RuleBase  kBase;
 
-    private Map<String, BaseNode[]>     rules;
-    private Map<String, BaseNode[]>     queries;
+    private Map<String, TerminalNode[]>          rules;
+    private Map<String, QueryTerminalNode[]>     queries;
 
     private Map<String, WindowNode>     namedWindows;
 
     private transient RuleBuilder       ruleBuilder;
 
-    private IdGenerator                 idGenerator;
+    private IdGenerator nodeIdsGenerator = new IdGenerator(1);
+    private IdGenerator memoryIdsGenerator = new IdGenerator(1);
 
     // ------------------------------------------------------------
     // Constructors
@@ -84,15 +83,13 @@ public class ReteooBuilder
      * Construct a <code>Builder</code> against an existing <code>Rete</code>
      * network.
      */
-    public ReteooBuilder( final InternalKnowledgeBase  kBase ) {
+    public ReteooBuilder( final RuleBase kBase ) {
         this.kBase = kBase;
         this.rules = new HashMap<>();
         this.queries = new HashMap<>();
         this.namedWindows = new HashMap<>();
 
-        //Set to 1 as Rete node is set to 0
-        this.idGenerator = new IdGenerator();
-        this.ruleBuilder = kBase.getConfiguration().getComponentFactory().getRuleBuilderFactory().newRuleBuilder();
+        this.ruleBuilder = new ReteooRuleBuilder();
     }
 
     // ------------------------------------------------------------
@@ -106,74 +103,75 @@ public class ReteooBuilder
      *            The rule to add.
      * @throws InvalidPatternException
      */
-    public synchronized void addRule(final RuleImpl rule) {
-        final List<TerminalNode> terminals = this.ruleBuilder.addRule( rule,
-                                                                       this.kBase );
+    public synchronized void addRule(final RuleImpl rule, Collection<InternalWorkingMemory> workingMemories) {
+        final List<TerminalNode> terminals = this.ruleBuilder.addRule( rule, this.kBase, workingMemories );
 
-        BaseNode[] nodes = terminals.toArray( new BaseNode[terminals.size()] );
+        TerminalNode[] nodes = terminals.toArray( new TerminalNode[terminals.size()] );
         this.rules.put( rule.getFullyQualifiedName(), nodes );
         if (rule.isQuery()) {
-            this.queries.put( rule.getName(), nodes );
+            this.queries.put( rule.getName(), terminals.toArray( new QueryTerminalNode[terminals.size()] ) );
         }
     }
 
-    public void addEntryPoint( String id ) {
-        this.ruleBuilder.addEntryPoint( id,
-                                        this.kBase );
+    public void addEntryPoint( String id, Collection<InternalWorkingMemory> workingMemories ) {
+        this.ruleBuilder.addEntryPoint( id, this.kBase, workingMemories );
     }
 
-    public synchronized void addNamedWindow( WindowDeclaration window ) {
-        final WindowNode wnode = this.ruleBuilder.addWindowNode( window,
-                                                                 this.kBase );
+    public synchronized void addNamedWindow( WindowDeclaration window, Collection<InternalWorkingMemory> workingMemories ) {
+        final WindowNode wnode = this.ruleBuilder.addWindowNode( window, this.kBase, workingMemories );
 
-        this.namedWindows.put( window.getName(),
-                               wnode );
+        this.namedWindows.put( window.getName(), wnode );
     }
 
     public WindowNode getWindowNode( String name ) {
         return this.namedWindows.get( name );
     }
 
-    public IdGenerator getIdGenerator() {
-        return this.idGenerator;
+    public synchronized void releaseId(NetworkNode node) {
+        nodeIdsGenerator.releaseId( node.getId() );
+        if (node instanceof MemoryFactory) {
+            memoryIdsGenerator.releaseId( ( (MemoryFactory) node ).getMemoryId() );
+        }
     }
 
-    public synchronized BaseNode[] getTerminalNodes(final RuleImpl rule) {
-        return getTerminalNodes( rule.getFullyQualifiedName() );
+    public IdGenerator getNodeIdsGenerator() {
+        return this.nodeIdsGenerator;
     }
 
-    public synchronized BaseNode[] getTerminalNodes(final String ruleName) {
+    public IdGenerator getMemoryIdsGenerator() {
+        return this.memoryIdsGenerator;
+    }
+
+    public synchronized TerminalNode[] getTerminalNodes(final String ruleName) {
         return this.rules.get( ruleName );
     }
 
-    public synchronized BaseNode[] getTerminalNodesForQuery(final String ruleName) {
-        BaseNode[] nodes = this.queries.get( ruleName );
-        return nodes != null ? nodes : getTerminalNodes(ruleName);
+    public synchronized QueryTerminalNode[] getTerminalNodesForQuery(final String ruleName) {
+        QueryTerminalNode[] nodes = this.queries.get( ruleName );
+        return nodes;
     }
 
-    public synchronized Map<String, BaseNode[]> getTerminalNodes() {
+    public synchronized Map<String, TerminalNode[]> getTerminalNodes() {
         return this.rules;
     }
 
-    public synchronized void removeRules(Collection<RuleImpl> rulesToBeRemoved) {
-        // reset working memories for potential propagation
-        Collection<InternalWorkingMemory> workingMemories = this.kBase.getWorkingMemories();
-
-        for (RuleImpl rule : rulesToBeRemoved) {
+    public synchronized void removeRules(Collection<? extends Rule> rulesToBeRemoved, Collection<InternalWorkingMemory> workingMemories) {
+        for (Rule r : rulesToBeRemoved) {
+            RuleImpl rule = (RuleImpl) r;
             if (rule.hasChildren() && !rulesToBeRemoved.containsAll( rule.getChildren() )) {
-                throw new RuntimeException("Cannot remove parent rule " + rule + " without having removed all its chikdren");
+                throw new RuntimeException("Cannot remove parent rule " + rule + " without having removed all its children");
             }
 
             final RuleRemovalContext context = new RuleRemovalContext( rule );
-            context.setKnowledgeBase( kBase );
+            context.setRuleBase( kBase );
 
-            BaseNode[] rulesTerminalNodes = rules.remove( rule.getFullyQualifiedName() );
+            TerminalNode[] rulesTerminalNodes = rules.remove( rule.getFullyQualifiedName() );
             if (rulesTerminalNodes == null) {
                 // there couldn't be any rule to be removed if it comes from a broken drl
                 continue;
             }
 
-            for ( BaseNode node : rulesTerminalNodes ) {
+            for ( TerminalNode node : rulesTerminalNodes ) {
                 removeTerminalNode( context, (TerminalNode) node, workingMemories );
             }
 
@@ -366,55 +364,18 @@ public class ReteooBuilder
         }
     }
 
-    public static class IdGenerator implements Externalizable {
-        private InternalIdGenerator defaultGenerator = new InternalIdGenerator( 1 );
-        private Map<String, InternalIdGenerator> generators = new ConcurrentHashMap<>();
-
-        public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-            defaultGenerator = (InternalIdGenerator) in.readObject();
-            generators = (Map<String, InternalIdGenerator>) in.readObject();
-        }
-
-        public void writeExternal(ObjectOutput out) throws IOException {
-            out.writeObject( defaultGenerator );
-            out.writeObject( generators );
-        }
-
-        public int getNextId() {
-            return defaultGenerator.getNextId();
-        }
-
-        public int getNextId(String topic) {
-            return generators.computeIfAbsent( topic, key -> new InternalIdGenerator( 1 ) ).getNextId();
-        }
-
-        public synchronized void releaseId(NetworkNode node) {
-            defaultGenerator.releaseId( node.getId() );
-            if (node instanceof MemoryFactory) {
-                generators.get( DEFAULT_RULE_UNIT ).releaseId( ( (MemoryFactory) node ).getMemoryId() );
-            }
-        }
-
-        public int getLastId() {
-            return defaultGenerator.getLastId();
-        }
-
-        public int getLastId(String topic) {
-            InternalIdGenerator gen = generators.get( topic );
-            return gen != null ? gen.getLastId() : 0;
-        }
-    }
-
-    private static class InternalIdGenerator implements Externalizable {
+     public static class IdGenerator implements Externalizable {
 
         private static final long serialVersionUID = 510l;
 
         private Queue<Integer>    recycledIds;
         private int               nextId;
 
-        public InternalIdGenerator() { }
+        public IdGenerator() {
+            this(1);
+        }
 
-        public InternalIdGenerator(final int firstId) {
+        public IdGenerator(final int firstId) {
             this.nextId = firstId;
             this.recycledIds = new ArrayDeque<>();
         }
@@ -459,7 +420,8 @@ public class ReteooBuilder
             droolsStream.writeObject( rules );
             droolsStream.writeObject( queries );
             droolsStream.writeObject( namedWindows );
-            droolsStream.writeObject( idGenerator );
+            droolsStream.writeObject( nodeIdsGenerator );
+            droolsStream.writeObject( memoryIdsGenerator );
         } finally {
             if ( bytes != null ) {
                 droolsStream.flush();
@@ -484,10 +446,11 @@ public class ReteooBuilder
             droolsStream = new DroolsObjectInputStream( bytes );
         }
         try {
-            this.rules = (Map<String, BaseNode[]>) droolsStream.readObject();
-            this.queries = (Map<String, BaseNode[]>) droolsStream.readObject();
+            this.rules = (Map<String, TerminalNode[]>) droolsStream.readObject();
+            this.queries = (Map<String, QueryTerminalNode[]>) droolsStream.readObject();
             this.namedWindows = (Map<String, WindowNode>) droolsStream.readObject();
-            this.idGenerator = (IdGenerator) droolsStream.readObject();
+            this.nodeIdsGenerator = (IdGenerator) droolsStream.readObject();
+            this.memoryIdsGenerator = (IdGenerator) droolsStream.readObject();
         } finally {
             if ( bytes != null ) {
                 droolsStream.close();
@@ -496,10 +459,9 @@ public class ReteooBuilder
         }
     }
 
-    public void setRuleBase( InternalKnowledgeBase kBase ) {
+    public void setRuleBase( RuleBase kBase ) {
         this.kBase = kBase;
-
-        this.ruleBuilder = kBase.getConfiguration().getComponentFactory().getRuleBuilderFactory().newRuleBuilder();
+        this.ruleBuilder = new ReteooRuleBuilder();
     }
 
 }

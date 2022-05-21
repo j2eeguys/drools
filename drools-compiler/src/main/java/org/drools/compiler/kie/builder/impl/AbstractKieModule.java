@@ -30,21 +30,20 @@ import java.util.Properties;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-import org.appformer.maven.support.DependencyFilter;
-import org.appformer.maven.support.PomModel;
 import org.drools.compiler.builder.InternalKnowledgeBuilder;
+import org.drools.compiler.builder.conf.DecisionTableConfigurationImpl;
 import org.drools.compiler.builder.impl.KnowledgeBuilderConfigurationImpl;
-import org.drools.compiler.kproject.ReleaseIdImpl;
 import org.drools.compiler.kproject.models.KieBaseModelImpl;
 import org.drools.core.RuleBaseConfiguration;
-import org.drools.core.builder.conf.impl.DecisionTableConfigurationImpl;
-import org.drools.core.builder.conf.impl.ResourceConfigurationImpl;
 import org.drools.core.definitions.InternalKnowledgePackage;
 import org.drools.core.definitions.impl.KnowledgePackageImpl;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
-import org.drools.core.util.StringUtils;
-import org.drools.reflective.ResourceProvider;
+import org.drools.core.impl.RuleBase;
+import org.drools.core.impl.RuleBaseFactory;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
+import org.drools.util.StringUtils;
+import org.drools.util.io.ResourceConfigurationImpl;
+import org.drools.wiring.api.ResourceProvider;
 import org.kie.api.KieBaseConfiguration;
 import org.kie.api.builder.ReleaseId;
 import org.kie.api.builder.Results;
@@ -64,14 +63,17 @@ import org.kie.internal.builder.KnowledgeBuilderConfiguration;
 import org.kie.internal.builder.ResourceChangeSet;
 import org.kie.internal.builder.RuleTemplateConfiguration;
 import org.kie.internal.io.ResourceTypeImpl;
+import org.kie.util.maven.support.DependencyFilter;
+import org.kie.util.maven.support.PomModel;
+import org.kie.util.maven.support.ReleaseIdImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.drools.compiler.kproject.ReleaseIdImpl.adaptAll;
+import static org.kie.internal.builder.KnowledgeBuilderFactory.newKnowledgeBuilderConfiguration;
 
-public abstract class AbstractKieModule
-        implements
-        InternalKieModule, Serializable {
+public abstract class AbstractKieModule implements InternalKieModule, Serializable {
+
+    private static final String SPRING_BOOT_PREFIX = "BOOT-INF/classes/";
 
     private static final Logger log = LoggerFactory.getLogger(AbstractKieModule.class);
 
@@ -88,7 +90,7 @@ public abstract class AbstractKieModule
     // Map< KBaseName, CompilationCache>
     protected Map<String, CompilationCache> compilationCache = new HashMap<>();
 
-    private transient Map<String, ResourceConfiguration> resourceConfigurationCache = new HashMap<>();
+    private final transient Map<String, ResourceConfiguration> resourceConfigurationCache = new HashMap<>();
 
     protected transient PomModel pomModel;
 
@@ -106,7 +108,7 @@ public abstract class AbstractKieModule
     }
 
     public Map<ReleaseId, InternalKieModule> getKieDependencies() {
-        return kieDependencies == null ? Collections.<ReleaseId, InternalKieModule> emptyMap() : kieDependencies;
+        return kieDependencies == null ? Collections.emptyMap() : kieDependencies;
     }
 
     public void addKieDependency(InternalKieModule dependency) {
@@ -122,13 +124,13 @@ public abstract class AbstractKieModule
         }
         Collection<ReleaseId> deps = null;
         if( pomModel != null ) {
-            deps = adaptAll( pomModel.getDependencies(filter), pomModel );
+            deps = pomModel.getDependencies(filter);
         }
-        return deps == null ? Collections.<ReleaseId> emptyList() : deps;
+        return deps == null ? Collections.emptyList() : deps;
     }
 
     public Collection<ReleaseId> getUnresolvedDependencies() {
-        return unresolvedDependencies == null ? Collections.<ReleaseId> emptyList() : unresolvedDependencies;
+        return unresolvedDependencies == null ? Collections.emptyList() : unresolvedDependencies;
     }
 
     public void setUnresolvedDependencies(Collection<ReleaseId> unresolvedDependencies) {
@@ -217,12 +219,12 @@ public abstract class AbstractKieModule
             ((RuleBaseConfiguration)conf).setClassLoader(cl);
         }
 
-        InternalKnowledgeBase kBase = KnowledgeBaseFactory.newKnowledgeBase(kBaseModel.getName(), conf );
+        RuleBase kBase = RuleBaseFactory.newRuleBase(kBaseModel.getName(), conf );
         kBase.addPackages( pkgs );
-        return kBase;
+        return KnowledgeBaseFactory.newKnowledgeBase(kBase);
     }
 
-    public static void checkStreamMode( KieBaseModelImpl kBaseModel, KieBaseConfiguration conf, Collection<? extends KiePackage> pkgs ) {
+    public static void checkStreamMode( KieBaseModel kBaseModel, KieBaseConfiguration conf, Collection<? extends KiePackage> pkgs ) {
         if ( kBaseModel.getEventProcessingMode() == EventProcessingOption.CLOUD &&
              (conf == null || conf.getOption(EventProcessingOption.class) == EventProcessingOption.CLOUD ) ) {
             for (KiePackage kpkg : pkgs) {
@@ -234,7 +236,7 @@ public abstract class AbstractKieModule
     }
 
     private KieBaseConfiguration getKnowledgeBaseConfiguration(KieBaseModelImpl kBaseModel, ClassLoader cl) {
-        KieBaseConfiguration kbConf = KnowledgeBaseFactory.newKnowledgeBaseConfiguration(null, cl);
+        KieBaseConfiguration kbConf = RuleBaseFactory.newKnowledgeBaseConfiguration(null, cl);
         kbConf.setOption(kBaseModel.getEqualsBehavior());
         kbConf.setOption(kBaseModel.getEventProcessingMode());
         kbConf.setOption(kBaseModel.getDeclarativeAgenda());
@@ -244,7 +246,7 @@ public abstract class AbstractKieModule
     }
 
     public KnowledgeBuilderConfiguration createBuilderConfiguration( KieBaseModel kBaseModel, ClassLoader classLoader) {
-        KnowledgeBuilderConfigurationImpl pconf = new KnowledgeBuilderConfigurationImpl(classLoader);
+        KnowledgeBuilderConfigurationImpl pconf = ((KnowledgeBuilderConfigurationImpl) newKnowledgeBuilderConfiguration(classLoader));
         pconf.setCompilationCache(getCompilationCache(kBaseModel.getName()));
         setModelPropsOnConf( ((KieBaseModelImpl) kBaseModel).getKModule(), pconf );
         return pconf;
@@ -280,8 +282,12 @@ public abstract class AbstractKieModule
 
     private void addDTableToCompiler( CompositeKnowledgeBuilder ckbuilder, KieBaseModel kieBaseModel, String fileName, Resource resource, ResourceChangeSet rcs, DecisionTableConfiguration dtableConf ) {
         for (RuleTemplateModel template : kieBaseModel.getRuleTemplates()) {
+            boolean isInSpringBoot = fileName.startsWith(SPRING_BOOT_PREFIX);
+            if (isInSpringBoot) {
+                fileName = fileName.substring(SPRING_BOOT_PREFIX.length());
+            }
             if (template.getDtable().equals( fileName )) {
-                Resource templateResource = getResource( template.getTemplate() );
+                Resource templateResource = getResource( (isInSpringBoot ? SPRING_BOOT_PREFIX : "") + template.getTemplate() );
                 if ( templateResource != null ) {
                     dtableConf.addRuleTemplateConfiguration( templateResource, template.getRow(), template.getCol() );
                 } else {
@@ -436,7 +442,7 @@ public abstract class AbstractKieModule
     }
 
     private void validatePomModel(PomModel pomModel) {
-        org.appformer.maven.support.AFReleaseId pomReleaseId = pomModel.getReleaseId();
+        ReleaseId pomReleaseId = pomModel.getReleaseId();
         if (StringUtils.isEmpty(pomReleaseId.getGroupId()) || StringUtils.isEmpty(pomReleaseId.getArtifactId()) || StringUtils.isEmpty(pomReleaseId.getVersion())) {
             throw new RuntimeException("Maven pom.properties exists but ReleaseId content is malformed");
         }

@@ -24,9 +24,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.drools.compiler.compiler.DescrBuildError;
-import org.drools.compiler.lang.descr.BaseDescr;
-import org.drools.compiler.lang.descr.FunctionDescr;
-import org.drools.compiler.lang.descr.PackageDescr;
+import org.drools.drl.ast.descr.BaseDescr;
+import org.drools.drl.ast.descr.FunctionDescr;
+import org.drools.drl.ast.descr.PackageDescr;
 import org.drools.compiler.rule.builder.RuleBuildContext;
 import org.drools.mvel.java.JavaAnalysisResult;
 import org.drools.compiler.rule.builder.dialect.java.parser.JavaBlockDescr;
@@ -37,8 +37,8 @@ import org.drools.core.factmodel.ClassDefinition;
 import org.drools.core.rule.ConsequenceMetaData;
 import org.drools.core.rule.Declaration;
 import org.drools.core.rule.TypeDeclaration;
-import org.drools.core.spi.KnowledgeHelper;
-import org.drools.core.util.ClassUtils;
+import org.drools.core.rule.consequence.KnowledgeHelper;
+import org.drools.util.ClassUtils;
 import org.drools.core.util.bitmask.AllSetBitMask;
 import org.drools.core.util.bitmask.BitMask;
 import org.drools.mvel.builder.MVELAnalysisResult;
@@ -53,12 +53,12 @@ import static org.drools.compiler.rule.builder.dialect.DialectUtil.findClassByNa
 import static org.drools.core.reteoo.PropertySpecificUtil.allSetButTraitBitMask;
 import static org.drools.core.reteoo.PropertySpecificUtil.getEmptyPropertyReactiveMask;
 import static org.drools.core.reteoo.PropertySpecificUtil.setPropertyOnMask;
-import static org.drools.core.util.ClassUtils.getter2property;
-import static org.drools.core.util.ClassUtils.setter2property;
-import static org.drools.core.util.StringUtils.extractFirstIdentifier;
-import static org.drools.core.util.StringUtils.findEndOfMethodArgsIndex;
-import static org.drools.core.util.StringUtils.splitArgumentsList;
-import static org.drools.core.util.StringUtils.splitStatements;
+import static org.drools.util.ClassUtils.getter2property;
+import static org.drools.util.ClassUtils.setter2property;
+import static org.drools.util.StringUtils.extractFirstIdentifier;
+import static org.drools.util.StringUtils.findEndOfMethodArgsIndex;
+import static org.drools.util.StringUtils.splitArgumentsList;
+import static org.drools.util.StringUtils.splitStatements;
 
 public final class AsmUtil {
     private static final Pattern LINE_BREAK_FINDER = Pattern.compile( "\\r\\n|\\r|\\n" );

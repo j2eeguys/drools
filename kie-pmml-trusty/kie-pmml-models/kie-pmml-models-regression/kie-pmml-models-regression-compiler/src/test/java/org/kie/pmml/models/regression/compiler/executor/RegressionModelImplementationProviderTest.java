@@ -21,17 +21,21 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import org.dmg.pmml.Field;
 import org.dmg.pmml.PMML;
 import org.dmg.pmml.regression.RegressionModel;
 import org.junit.Test;
 import org.kie.memorycompiler.KieMemoryCompiler;
 import org.kie.pmml.api.enums.PMML_MODEL;
 import org.kie.pmml.api.exceptions.KiePMMLException;
+import org.kie.pmml.commons.model.KiePMMLModelWithSources;
+import org.kie.pmml.compiler.api.dto.CommonCompilationDTO;
+import org.kie.pmml.compiler.api.testutils.TestUtils;
 import org.kie.pmml.compiler.commons.mocks.HasClassLoaderMock;
-import org.kie.pmml.compiler.testutils.TestUtils;
 import org.kie.pmml.models.regression.model.KiePMMLRegressionModel;
-import org.kie.pmml.models.regression.model.KiePMMLRegressionModelWithSources;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.dmg.pmml.regression.RegressionModel.NormalizationMethod.CAUCHIT;
 import static org.dmg.pmml.regression.RegressionModel.NormalizationMethod.CLOGLOG;
 import static org.dmg.pmml.regression.RegressionModel.NormalizationMethod.EXP;
@@ -40,11 +44,7 @@ import static org.dmg.pmml.regression.RegressionModel.NormalizationMethod.LOGLOG
 import static org.dmg.pmml.regression.RegressionModel.NormalizationMethod.NONE;
 import static org.dmg.pmml.regression.RegressionModel.NormalizationMethod.PROBIT;
 import static org.dmg.pmml.regression.RegressionModel.NormalizationMethod.SOFTMAX;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.kie.pmml.compiler.api.CommonTestingUtils.getFieldsFromDataDictionary;
 
 public class RegressionModelImplementationProviderTest {
 
@@ -55,68 +55,68 @@ public class RegressionModelImplementationProviderTest {
     private static final String SOURCE_3 = "test_regression_clax.pmml";
     private static final String PACKAGE_NAME = "packagename";
     private static final List<RegressionModel.NormalizationMethod> VALID_NORMALIZATION_METHODS = Arrays.asList(NONE,
-                                                                                                             SOFTMAX,
-                                                                                                             LOGIT,
-                                                                                                             EXP,
-                                                                                                             PROBIT,
-                                                                                                             CLOGLOG,
-                                                                                                             LOGLOG,
-                                                                                                             CAUCHIT);
+                                                                                                               SOFTMAX,
+                                                                                                               LOGIT,
+                                                                                                               EXP,
+                                                                                                               PROBIT,
+                                                                                                               CLOGLOG,
+                                                                                                               LOGLOG,
+                                                                                                               CAUCHIT);
 
     @Test
     public void getPMMLModelType() {
-        assertEquals(PMML_MODEL.REGRESSION_MODEL, PROVIDER.getPMMLModelType());
+        assertThat(PROVIDER.getPMMLModelType()).isEqualTo(PMML_MODEL.REGRESSION_MODEL);
     }
 
     @Test
     public void getKiePMMLModel() throws Exception {
         final PMML pmml = TestUtils.loadFromFile(SOURCE_1);
-        assertNotNull(pmml);
-        assertEquals(1, pmml.getModels().size());
-        assertTrue(pmml.getModels().get(0) instanceof RegressionModel);
-        final KiePMMLRegressionModel retrieved = PROVIDER.getKiePMMLModel(PACKAGE_NAME,
-                                                                          pmml.getDataDictionary(),
-                                                                          pmml.getTransformationDictionary(),
-                                                                          (RegressionModel) pmml.getModels().get(0),
-                                                                          new HasClassLoaderMock());
-        assertNotNull(retrieved);
-        assertTrue(retrieved instanceof Serializable);
+        assertThat(pmml).isNotNull();
+        assertThat(pmml.getModels()).hasSize(1);
+        assertThat(pmml.getModels().get(0)).isInstanceOf(RegressionModel.class);
+        RegressionModel regressionModel = (RegressionModel) pmml.getModels().get(0);
+        final CommonCompilationDTO<RegressionModel> compilationDTO =
+                CommonCompilationDTO.fromGeneratedPackageNameAndFields(PACKAGE_NAME,
+                                                                       pmml,
+                                                                       regressionModel,
+                                                                       new HasClassLoaderMock());
+        final KiePMMLRegressionModel retrieved = PROVIDER.getKiePMMLModel(compilationDTO);
+        assertThat(retrieved).isNotNull();
+        assertThat(retrieved).isInstanceOf(Serializable.class);
     }
 
     @Test
     public void getKiePMMLModelWithSources() throws Exception {
         final PMML pmml = TestUtils.loadFromFile(SOURCE_1);
-        assertNotNull(pmml);
-        assertEquals(1, pmml.getModels().size());
-        assertTrue(pmml.getModels().get(0) instanceof RegressionModel);
-        final String packageName = "packagename";
-        final KiePMMLRegressionModel retrieved = PROVIDER.getKiePMMLModelWithSources(
-                packageName,
-                pmml.getDataDictionary(),
-                pmml.getTransformationDictionary(),
-                (RegressionModel) pmml.getModels().get(0), new HasClassLoaderMock());
-        assertNotNull(retrieved);
-        assertTrue(retrieved instanceof KiePMMLRegressionModelWithSources);
-        KiePMMLRegressionModelWithSources retrievedWithSources = (KiePMMLRegressionModelWithSources) retrieved;
-        assertTrue(retrievedWithSources instanceof Serializable);
-        final Map<String, String> sourcesMap = retrievedWithSources.getSourcesMap();
-        assertNotNull(sourcesMap);
-        assertFalse(sourcesMap.isEmpty());
+        assertThat(pmml).isNotNull();
+        assertThat(pmml.getModels()).hasSize(1);
+        assertThat(pmml.getModels().get(0)).isInstanceOf(RegressionModel.class);
+        RegressionModel regressionModel = (RegressionModel) pmml.getModels().get(0);
+        final CommonCompilationDTO<RegressionModel> compilationDTO =
+                CommonCompilationDTO.fromGeneratedPackageNameAndFields(PACKAGE_NAME,
+                                                                       pmml,
+                                                                       regressionModel,
+                                                                       new HasClassLoaderMock());
+        final KiePMMLModelWithSources retrieved = PROVIDER.getKiePMMLModelWithSources(compilationDTO);
+        assertThat(retrieved).isNotNull();
+        final Map<String, String> sourcesMap = retrieved.getSourcesMap();
+        assertThat(sourcesMap).isNotNull();
+        assertThat(sourcesMap).isNotEmpty();
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         final Map<String, Class<?>> compiled = KieMemoryCompiler.compile(sourcesMap, classLoader);
         for (Class<?> clazz : compiled.values()) {
-            assertTrue(clazz instanceof Serializable);
+            assertThat(clazz).isInstanceOf(Serializable.class);
         }
     }
 
     @Test
-    public void validateNormalizationMethodValid()  {
+    public void validateNormalizationMethodValid() {
         VALID_NORMALIZATION_METHODS.forEach(PROVIDER::validateNormalizationMethod);
     }
 
     @Test
-    public void validateNormalizationMethodInvalid()  {
-        for(RegressionModel.NormalizationMethod normalizationMethod : RegressionModel.NormalizationMethod.values()) {
+    public void validateNormalizationMethodInvalid() {
+        for (RegressionModel.NormalizationMethod normalizationMethod : RegressionModel.NormalizationMethod.values()) {
             if (!VALID_NORMALIZATION_METHODS.contains(normalizationMethod)) {
                 try {
                     PROVIDER.validateNormalizationMethod(normalizationMethod);
@@ -141,20 +141,22 @@ public class RegressionModelImplementationProviderTest {
     @Test
     public void validateNoRegressionTables() throws Exception {
         final PMML pmml = TestUtils.loadFromFile(SOURCE_1);
-        assertNotNull(pmml);
-        assertEquals(1, pmml.getModels().size());
-        assertTrue(pmml.getModels().get(0) instanceof RegressionModel);
+        assertThat(pmml).isNotNull();
+        assertThat(pmml.getModels()).hasSize(1);
+        assertThat(pmml.getModels().get(0)).isInstanceOf(RegressionModel.class);
         RegressionModel regressionModel = (RegressionModel) pmml.getModels().get(0);
         regressionModel.getRegressionTables().clear();
+        final List<Field<?>> fields = getFieldsFromDataDictionary(pmml.getDataDictionary());
         try {
-            PROVIDER.validate(pmml.getDataDictionary(), regressionModel);
+            PROVIDER.validate(fields, regressionModel);
             fail("Expecting validation failure due to missing RegressionTables");
         } catch (KiePMMLException e) {
             // Expected
         }
-        regressionModel = new RegressionModel(regressionModel.getMiningFunction(), regressionModel.getMiningSchema(), null);
+        regressionModel = new RegressionModel(regressionModel.getMiningFunction(), regressionModel.getMiningSchema(),
+                                              null);
         try {
-            PROVIDER.validate(pmml.getDataDictionary(), regressionModel);
+            PROVIDER.validate(fields, regressionModel);
             fail("Expecting validation failure due to missing RegressionTables");
         } catch (KiePMMLException e) {
             // Expected
@@ -163,10 +165,9 @@ public class RegressionModelImplementationProviderTest {
 
     private void commonValidateSource(String sourceFile) throws Exception {
         final PMML pmml = TestUtils.loadFromFile(sourceFile);
-        assertNotNull(pmml);
-        assertEquals(1, pmml.getModels().size());
-        assertTrue(pmml.getModels().get(0) instanceof RegressionModel);
-        PROVIDER.validate(pmml.getDataDictionary(), (RegressionModel) pmml.getModels().get(0));
+        assertThat(pmml).isNotNull();
+        assertThat(pmml.getModels()).hasSize(1);
+        assertThat(pmml.getModels().get(0)).isInstanceOf(RegressionModel.class);
+        PROVIDER.validate(getFieldsFromDataDictionary(pmml.getDataDictionary()), (RegressionModel) pmml.getModels().get(0));
     }
-
 }

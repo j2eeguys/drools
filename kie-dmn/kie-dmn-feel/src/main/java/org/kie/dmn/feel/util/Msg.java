@@ -25,6 +25,7 @@ public final class Msg {
     public static final Message0 NULL_OR_UNKNOWN_OPERATOR = new Message0("Null or unknown operator");
     public static final Message1 UNKNOWN_VARIABLE_REFERENCE = new Message1("Unknown variable name '%s'");
     public static final Message0 NEGATING_A_NULL = new Message0("Negating a null");
+    public static final Message0 CANNOT_BE_SIGNED = new Message0("Cannot sign a value which is not a number");
     public static final Message1 ERROR_ACCESSING_QUALIFIED_NAME = new Message1("Error accessing qualified name: %s");
     public static final Message2 ERROR_EVALUATING_PATH_EXPRESSION = new Message2("Error evaluating path expression: %s. %s");
     public static final Message0 VALUE_NULL_EXPR_NOT_NULL_AND_NOT_UNARY_TEST_EVALUATING_THIS_NODE_AS_FALSE = new Message0("value == null, expr != null and not Unary test, Evaluating this node as FALSE.");
@@ -40,6 +41,8 @@ public final class Msg {
     public static final Message1 IS_NULL = new Message1("%s is null");
     public static final Message0 BASE_NODE_EVALUATE_CALLED = new Message0("BaseNode evaluate called");
     public static final Message1 ERROR_RESOLVING_EXTERNAL_FUNCTION_AS_DEFINED_BY = new Message1("Error resolving external function as defined by: %s");
+    public static final Message1 CLASS_NOT_IN_CL = new Message1("The requested Java class was not found by the classloader, check the FQCN is valid; %s");
+    public static final Message1 INVALID_METHOD = new Message1("The requested Java method was not located or not valid in the classloader; the candidate methods are: %s");
     public static final Message1 UNABLE_TO_FIND_EXTERNAL_FUNCTION_AS_DEFINED_BY = new Message1("Unable to find external function as defined by: %s");
     public static final Message1 PARAMETER_COUNT_MISMATCH_ON_FUNCTION_DEFINITION = new Message1("Parameter count mismatch on function definition: %s");
     public static final Message1 CAN_T_INVOKE_AN_UNARY_TEST_WITH_S_PARAMETERS_UNARY_TESTS_REQUIRE_1_SINGLE_PARAMETER = new Message1("Can't invoke an unary test with %s parameters. Unary tests require 1 single parameter.");
@@ -54,6 +57,8 @@ public final class Msg {
     public static final Message1 COMPARING_TO_UT = new Message1("Comparing to a unary test is not semantically defined: %s");
     public static final Message1 UT_OF_UT = new Message1("An unary test of a unary test is not semantically defined: %s");
     public static final Message1 MALFORMED_AT_LITERAL = new Message1("Malformed at-literal: %s");
+    public static final Message1 CANNOT_INVOKE = new Message1("Not an invocable: '%s'");
+    public static final Message1 DUPLICATE_KEY_CTX = new Message1("Duplicate key '%s' not allowed in context definition");
 
     public static String createMessage( Message0 message) {
         return Msg.buildMessage(message);

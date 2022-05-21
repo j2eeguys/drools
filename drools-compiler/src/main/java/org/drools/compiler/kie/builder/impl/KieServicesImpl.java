@@ -23,16 +23,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import org.drools.compiler.kie.builder.impl.event.KieServicesEventListerner;
-import org.drools.compiler.kproject.ReleaseIdImpl;
 import org.drools.compiler.kproject.models.KieModuleModelImpl;
 import org.drools.core.RuleBaseConfiguration;
 import org.drools.core.SessionConfiguration;
 import org.drools.core.SessionConfigurationImpl;
-import org.drools.core.audit.KnowledgeRuntimeLoggerProviderImpl;
-import org.drools.core.command.impl.CommandFactoryServiceImpl;
 import org.drools.core.concurrent.ExecutorProviderImpl;
 import org.drools.core.impl.EnvironmentFactory;
-import org.drools.core.io.impl.ResourceFactoryServiceImpl;
+import org.drools.kiesession.audit.KnowledgeRuntimeLoggerProviderImpl;
+import org.drools.util.io.ResourceFactoryServiceImpl;
 import org.kie.api.KieBaseConfiguration;
 import org.kie.api.builder.KieBuilder;
 import org.kie.api.builder.KieFileSystem;
@@ -43,7 +41,7 @@ import org.kie.api.builder.ReleaseId;
 import org.kie.api.builder.model.KieModuleModel;
 import org.kie.api.command.KieCommands;
 import org.kie.api.concurrent.KieExecutors;
-import org.kie.api.internal.utils.ServiceRegistry;
+import org.kie.api.internal.utils.KieService;
 import org.kie.api.io.KieResources;
 import org.kie.api.logger.KieLoggers;
 import org.kie.api.marshalling.KieMarshallers;
@@ -51,9 +49,10 @@ import org.kie.api.persistence.jpa.KieStoreServices;
 import org.kie.api.runtime.Environment;
 import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSessionConfiguration;
+import org.kie.util.maven.support.ReleaseIdImpl;
 
 import static org.drools.compiler.compiler.io.memory.MemoryFileSystem.readFromJar;
-import static org.drools.reflective.classloader.ProjectClassLoader.findParentClassLoader;
+import static org.drools.util.ClassUtils.findParentClassLoader;
 
 public class KieServicesImpl implements InternalKieServices {
     private volatile KieContainer classpathKContainer;
@@ -75,7 +74,7 @@ public class KieServicesImpl implements InternalKieServices {
      * Returns KieContainer for the classpath
      */
     public KieContainer getKieClasspathContainer() {
-        return getKieClasspathContainer( null, findParentClassLoader() );
+        return getKieClasspathContainer( null, findParentClassLoader(getClass()) );
     }
     
     public KieContainer getKieClasspathContainer(ClassLoader classLoader) {
@@ -83,7 +82,7 @@ public class KieServicesImpl implements InternalKieServices {
     }
     
     public KieContainer getKieClasspathContainer(String containerId) {
-        return getKieClasspathContainer( containerId, findParentClassLoader() );
+        return getKieClasspathContainer( containerId, findParentClassLoader(getClass()) );
     }
 
     public KieContainer getKieClasspathContainer(String containerId, ClassLoader classLoader) {
@@ -114,7 +113,7 @@ public class KieServicesImpl implements InternalKieServices {
     }
 
     public KieContainer newKieClasspathContainer() {
-        return newKieClasspathContainer( null, findParentClassLoader() );
+        return newKieClasspathContainer( null, findParentClassLoader(getClass()) );
     }
     
     public KieContainer newKieClasspathContainer(ClassLoader classLoader) {
@@ -122,7 +121,7 @@ public class KieServicesImpl implements InternalKieServices {
     }
     
     public KieContainer newKieClasspathContainer(String containerId) {
-        return newKieClasspathContainer( containerId, findParentClassLoader() );
+        return newKieClasspathContainer( containerId, findParentClassLoader(getClass()) );
     }
 
     public KieContainer newKieClasspathContainer(String containerId, ClassLoader classLoader) {
@@ -230,7 +229,7 @@ public class KieServicesImpl implements InternalKieServices {
     }
 
     public KieScanner newKieScanner(KieContainer kieContainer) {
-        KieScannerFactoryService scannerFactoryService = ServiceRegistry.getService(KieScannerFactoryService.class);
+        KieScannerFactoryService scannerFactoryService = KieService.load(KieScannerFactoryService.class);
         if (scannerFactoryService == null) {
             throw new RuntimeException( "Cannot instance a maven based KieScanner, is kie-ci on the classpath?" );
         }
@@ -249,13 +248,12 @@ public class KieServicesImpl implements InternalKieServices {
     }
 
     public KieCommands getCommands() {
-        // instantiating directly, but we might want to use the service registry instead
-        return new CommandFactoryServiceImpl();
+        return KieService.load( KieCommands.class );
     }
 
     public KieMarshallers getMarshallers() {
         // instantiating directly, but we might want to use the service registry instead
-        KieMarshallers kieMarshallers = ServiceRegistry.getService( KieMarshallers.class );
+        KieMarshallers kieMarshallers = KieService.load( KieMarshallers.class );
         if (kieMarshallers == null) {
             throw new RuntimeException("Marshaller not available, please add the module org.drools:drools-serialization-protobuf to your classpath.");
         }
@@ -273,7 +271,7 @@ public class KieServicesImpl implements InternalKieServices {
     }
     
     public KieStoreServices getStoreServices() {
-        return ServiceRegistry.getService( KieStoreServices.class );
+        return KieService.load( KieStoreServices.class );
     }
 
     public ReleaseId newReleaseId(String groupId, String artifactId, String version) {

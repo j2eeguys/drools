@@ -23,10 +23,10 @@ import java.io.ObjectOutput;
 import java.util.Date;
 import java.util.Map;
 
-import org.drools.core.common.InternalWorkingMemory;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.rule.ConditionalElement;
 import org.drools.core.rule.Declaration;
-import org.drools.core.spi.Tuple;
+import org.drools.core.reteoo.Tuple;
 import org.drools.core.time.TimerExpression;
 import org.drools.core.time.Trigger;
 import org.kie.api.runtime.Calendars;
@@ -103,7 +103,7 @@ public class IntervalTimer extends BaseTimer
                                  String[] calendarNames,
                                  Calendars calendars,
                                  Declaration[][] declrs,
-                                 InternalWorkingMemory wm) {
+                                 ReteEvaluator reteEvaluator) {
         Declaration[] startDeclarations = declrs[0];
 
         Date lastFireTime = null;
@@ -127,8 +127,8 @@ public class IntervalTimer extends BaseTimer
         }
 
         return new IntervalTrigger( timestamp,
-                                    evalDateExpression( this.startTime, leftTuple, startDeclarations, wm ),
-                                    evalDateExpression( this.endTime, leftTuple, startDeclarations, wm ),
+                                    evalDateExpression( this.startTime, leftTuple, startDeclarations, reteEvaluator ),
+                                    evalDateExpression( this.endTime, leftTuple, startDeclarations, reteEvaluator ),
                                     this.repeatLimit,
                                     newDelay,
                                     this.period,

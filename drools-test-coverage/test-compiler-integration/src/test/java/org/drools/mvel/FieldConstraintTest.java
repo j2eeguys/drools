@@ -20,26 +20,25 @@ import java.io.ObjectOutput;
 import java.util.ArrayList;
 import java.util.Collection;
 
-import org.drools.core.WorkingMemory;
 import org.drools.core.base.ClassFieldAccessorCache;
-import org.drools.core.base.ClassFieldAccessorStore;
-import org.drools.core.base.ClassFieldReader;
+import org.drools.mvel.accessors.ClassFieldAccessorStore;
+import org.drools.mvel.accessors.ClassFieldReader;
 import org.drools.core.base.ClassObjectType;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.InternalWorkingMemory;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
-import org.drools.core.impl.StatefulKnowledgeSessionImpl;
+import org.drools.core.common.ReteEvaluator;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
 import org.drools.core.reteoo.LeftTupleImpl;
 import org.drools.core.reteoo.RightTupleImpl;
 import org.drools.core.rule.Declaration;
 import org.drools.core.rule.Pattern;
 import org.drools.core.rule.PredicateConstraint;
 import org.drools.core.rule.PredicateConstraint.PredicateContextEntry;
-import org.drools.core.spi.AlphaNodeFieldConstraint;
-import org.drools.core.spi.InternalReadAccessor;
-import org.drools.core.spi.PredicateExpression;
-import org.drools.core.spi.Tuple;
+import org.drools.core.rule.constraint.AlphaNodeFieldConstraint;
+import org.drools.core.rule.accessor.ReadAccessor;
+import org.drools.core.rule.accessor.PredicateExpression;
+import org.drools.core.reteoo.Tuple;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
+import org.drools.kiesession.session.StatefulKnowledgeSessionImpl;
 import org.drools.mvel.model.Cheese;
 import org.junit.Before;
 import org.junit.Test;
@@ -88,7 +87,7 @@ public class FieldConstraintTest {
      */
     @Test
     public void testLiteralConstraint() {
-        InternalKnowledgeBase kBase = (InternalKnowledgeBase) KnowledgeBaseFactory.newKnowledgeBase();
+        InternalKnowledgeBase kBase = KnowledgeBaseFactory.newKnowledgeBase();;
         StatefulKnowledgeSessionImpl ksession = (StatefulKnowledgeSessionImpl)kBase.newKieSession();
 
         final ClassFieldReader extractor = store.getReader( Cheese.class,
@@ -126,7 +125,7 @@ public class FieldConstraintTest {
      */
     @Test
     public void testPrimitiveLiteralConstraint() {
-        InternalKnowledgeBase kBase = (InternalKnowledgeBase) KnowledgeBaseFactory.newKnowledgeBase();
+        InternalKnowledgeBase kBase = KnowledgeBaseFactory.newKnowledgeBase();;
         StatefulKnowledgeSessionImpl ksession = (StatefulKnowledgeSessionImpl)kBase.newKieSession();
 
         final ClassFieldReader extractor = store.getReader(Cheese.class,
@@ -165,10 +164,10 @@ public class FieldConstraintTest {
      */
     @Test
     public void testPredicateConstraint() {
-        InternalKnowledgeBase kBase = (InternalKnowledgeBase) KnowledgeBaseFactory.newKnowledgeBase();
+        InternalKnowledgeBase kBase = KnowledgeBaseFactory.newKnowledgeBase();;
         StatefulKnowledgeSessionImpl ksession = (StatefulKnowledgeSessionImpl)kBase.newKieSession();
 
-        final InternalReadAccessor priceExtractor = store.getReader( Cheese.class,
+        final ReadAccessor priceExtractor = store.getReader( Cheese.class,
                                                                      "price" );
 
         Pattern pattern = new Pattern( 0,
@@ -197,11 +196,11 @@ public class FieldConstraintTest {
                                     Tuple tuple,
                                     Declaration[] previousDeclarations,
                                     Declaration[] localDeclarations,
-                                    WorkingMemory workingMemory,
+                                    ReteEvaluator reteEvaluator,
                                     Object context) {
-                int price1 = previousDeclarations[0].getIntValue( (InternalWorkingMemory) workingMemory,
+                int price1 = previousDeclarations[0].getIntValue( reteEvaluator,
                                                                   tuple.getObject( previousDeclarations[0] ) );
-                int price2 = localDeclarations[0].getIntValue( (InternalWorkingMemory) workingMemory,
+                int price2 = localDeclarations[0].getIntValue( reteEvaluator,
                                                                handle.getObject() );
 
                 return (price2 == (price1 * 2));

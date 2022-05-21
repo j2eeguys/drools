@@ -16,27 +16,22 @@
 
 package org.drools.core.reteoo;
 
-import java.io.Externalizable;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.drools.core.WorkingMemoryEntryPoint;
-import org.drools.core.common.DroolsObjectInputStream;
 import org.drools.core.common.InternalFactHandle;
 import org.drools.core.common.InternalWorkingMemory;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.common.RuleBasePartitionId;
 import org.drools.core.common.UpdateContext;
-import org.drools.core.impl.InternalKnowledgeBase;
+import org.drools.core.impl.RuleBase;
 import org.drools.core.reteoo.builder.BuildContext;
 import org.drools.core.rule.EntryPointId;
-import org.drools.core.spi.ObjectType;
-import org.drools.core.spi.PropagationContext;
+import org.drools.core.base.ObjectType;
+import org.drools.core.common.PropagationContext;
 import org.drools.core.util.bitmask.BitMask;
 
 /**
@@ -55,10 +50,8 @@ import org.drools.core.util.bitmask.BitMask;
  *
  * @see ObjectTypeNode
  */
-public class Rete extends ObjectSource
-    implements
-    Externalizable,
-    ObjectSink {
+public class Rete extends ObjectSource implements ObjectSink {
+
     // ------------------------------------------------------------
     // Instance members
     // ------------------------------------------------------------
@@ -67,7 +60,7 @@ public class Rete extends ObjectSource
 
     private Map<EntryPointId, EntryPointNode> entryPoints;
 
-    private transient InternalKnowledgeBase kBase;
+    private transient RuleBase kBase;
 
     public Rete() {
         this( null );
@@ -77,7 +70,7 @@ public class Rete extends ObjectSource
     // Constructors
     // ------------------------------------------------------------
 
-    public Rete(InternalKnowledgeBase kBase) {
+    public Rete(RuleBase kBase) {
         super( 0, RuleBasePartitionId.MAIN_PARTITION, kBase != null && kBase.getConfiguration().isMultithreadEvaluation() );
         this.entryPoints = Collections.synchronizedMap( new HashMap<EntryPointId, EntryPointNode>() );
         this.kBase = kBase;
@@ -98,20 +91,17 @@ public class Rete extends ObjectSource
      *            The FactHandle of the fact to assert
      * @param context
      *            The <code>PropagationContext</code> of the <code>WorkingMemory</code> action
-     * @param workingMemory
+     * @param reteEvaluator
      *            The working memory session.
      */
     public void assertObject(final InternalFactHandle factHandle,
                              final PropagationContext context,
-                             final InternalWorkingMemory workingMemory) {
+                             final ReteEvaluator reteEvaluator) {
         EntryPointId entryPoint = context.getEntryPoint();
         EntryPointNode node = this.entryPoints.get( entryPoint );
-        ObjectTypeConf typeConf = ((WorkingMemoryEntryPoint) workingMemory.getWorkingMemoryEntryPoint( entryPoint.getEntryPointId() ))
+        ObjectTypeConf typeConf = reteEvaluator.getEntryPoint( entryPoint.getEntryPointId() )
                 .getObjectTypeConfigurationRegistry().getOrCreateObjectTypeConf( entryPoint, factHandle.getObject() );
-        node.assertObject( factHandle,
-                           context,
-                           typeConf,
-                           workingMemory );
+        node.assertObject( factHandle, context, typeConf, reteEvaluator );
     }
 
     /**
@@ -120,26 +110,23 @@ public class Rete extends ObjectSource
      *
      * @param handle
      *            The handle of the fact to retract.
-     * @param workingMemory
+     * @param reteEvaluator
      *            The working memory session.
      */
     public void retractObject(final InternalFactHandle handle,
                               final PropagationContext context,
-                              final InternalWorkingMemory workingMemory) {
+                              final ReteEvaluator reteEvaluator) {
         EntryPointId entryPoint = context.getEntryPoint();
         EntryPointNode node = this.entryPoints.get( entryPoint );
-        ObjectTypeConf typeConf = ((WorkingMemoryEntryPoint) workingMemory.getWorkingMemoryEntryPoint( entryPoint.getEntryPointId() ))
+        ObjectTypeConf typeConf = reteEvaluator.getEntryPoint( entryPoint.getEntryPointId() )
                 .getObjectTypeConfigurationRegistry().getObjectTypeConf( handle.getObject() );
-        node.retractObject( handle,
-                            context,
-                            typeConf,
-                            workingMemory );
+        node.retractObject( handle, context, typeConf, reteEvaluator );
     }
     
     public void modifyObject(final InternalFactHandle factHandle,
                              final ModifyPreviousTuples modifyPreviousTuples,
                              final PropagationContext context,
-                             final InternalWorkingMemory workingMemory) {
+                             final ReteEvaluator reteEvaluator) {
         throw new UnsupportedOperationException();
     }
 
@@ -195,7 +182,7 @@ public class Rete extends ObjectSource
     }
 
     @Override
-    public InternalKnowledgeBase getKnowledgeBase() {
+    public RuleBase getRuleBase() {
         return this.kBase;
     }
 
@@ -217,26 +204,8 @@ public class Rete extends ObjectSource
 
     public void updateSink(final ObjectSink sink,
                            final PropagationContext context,
-                           final InternalWorkingMemory workingMemory) {
+                           final InternalWorkingMemory wm) {
         // nothing to do, since Rete object itself holds no facts to propagate.
-    }
-
-    public void writeExternal(ObjectOutput out) throws IOException {
-        out.writeObject( entryPoints );
-        super.writeExternal( out );
-    }
-
-    @SuppressWarnings("unchecked")
-    public void readExternal(ObjectInput in) throws IOException,
-                                            ClassNotFoundException {
-        entryPoints = (Map<EntryPointId, EntryPointNode>) in.readObject();
-        kBase = ((DroolsObjectInputStream)in).getKnowledgeBase();
-        for (Map.Entry<EntryPointId, EntryPointNode> entry : entryPoints.entrySet()) {
-            EntryPointNode node = entry.getValue();
-            if (node.getEntryPoint() == null) node.setEntryPoint(entry.getKey());
-            kBase.registerAddedEntryNodeCache(node);
-        }
-        super.readExternal( in );
     }
 
     public Map<EntryPointId,EntryPointNode> getEntryPointNodes() {
@@ -246,12 +215,12 @@ public class Rete extends ObjectSource
     public void byPassModifyToBetaNode(InternalFactHandle factHandle,
                                        ModifyPreviousTuples modifyPreviousTuples,
                                        PropagationContext context,
-                                       InternalWorkingMemory workingMemory) {
+                                       ReteEvaluator reteEvaluator) {
         throw new UnsupportedOperationException( "This should never get called, as the PropertyReactive first happens at the AlphaNode" );
     }   
     
     @Override
-    public BitMask calculateDeclaredMask(Class modifiedClass, List<String> settableProperties) {
+    public BitMask calculateDeclaredMask(ObjectType modifiedType, List<String> settableProperties) {
         throw new UnsupportedOperationException();
     }    
 }

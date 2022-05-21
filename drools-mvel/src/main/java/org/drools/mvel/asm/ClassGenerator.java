@@ -28,20 +28,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.drools.core.addon.TypeResolver;
-import org.drools.core.factmodel.ClassBuilderFactory;
-import org.drools.core.util.ClassUtils;
-import org.drools.reflective.util.ByteArrayClassLoader;
+import org.drools.util.TypeResolver;
+import org.kie.memorycompiler.JavaCompiler;
 import org.kie.memorycompiler.WritableClassLoader;
 import org.mvel2.asm.ClassWriter;
 import org.mvel2.asm.MethodVisitor;
 import org.mvel2.asm.Type;
 
 import static java.lang.reflect.Modifier.isAbstract;
-
-import static org.drools.reflective.util.ClassUtils.convertFromPrimitiveType;
-import static org.drools.reflective.util.ClassUtils.convertPrimitiveNameToType;
-import static org.drools.reflective.util.ClassUtils.convertToPrimitiveType;
+import static org.drools.wiring.api.util.ClassUtils.convertFromPrimitiveType;
+import static org.drools.wiring.api.util.ClassUtils.convertPrimitiveNameToType;
+import static org.drools.wiring.api.util.ClassUtils.convertToPrimitiveType;
 import static org.mvel2.asm.Opcodes.AASTORE;
 import static org.mvel2.asm.Opcodes.ACC_PUBLIC;
 import static org.mvel2.asm.Opcodes.ACC_STATIC;
@@ -138,7 +135,7 @@ public class ClassGenerator {
             }
             cw.visitEnd();
             bytecode = cw.toByteArray();
-            if (ClassBuilderFactory.DUMP_GENERATED_CLASSES) {
+            if (JavaCompiler.DUMP_GENERATED_CLASSES) {
                 dumpGeneratedClass(bytecode);
             }
         }
@@ -148,21 +145,9 @@ public class ClassGenerator {
     private Class<?> generateClass() {
         if (clazz == null) {
             byte[] bytecode = generateBytecode();
-            if (ClassUtils.isAndroid()) {
-                ByteArrayClassLoader cl = (ByteArrayClassLoader)
-                        ClassUtils.instantiateObject("org.drools.android.MultiDexClassLoader", null, writableClassLoader.asClassLoader());
-                clazz = cl.defineClass(className, bytecode, null);
-            } else {
-                clazz = writableClassLoader.writeClass( className, bytecode );
-            }
+            clazz = writableClassLoader.writeClass( className, bytecode );
         }
         return clazz;
-    }
-
-    public void dumpGeneratedClass() {
-        if (!ClassBuilderFactory.DUMP_GENERATED_CLASSES) {
-            dumpGeneratedClass(generateBytecode());
-        }
     }
 
     private void dumpGeneratedClass(byte[] bytecode) {

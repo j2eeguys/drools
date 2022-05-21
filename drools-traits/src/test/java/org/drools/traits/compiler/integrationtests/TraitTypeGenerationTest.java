@@ -20,14 +20,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.drools.traits.compiler.CommonTraitTest;
-import org.drools.traits.compiler.Person;
-import org.drools.core.beliefsystem.abductive.Abducible;
+import org.drools.tms.beliefsystem.abductive.Abducible;
 import org.drools.core.factmodel.traits.Thing;
 import org.drools.core.factmodel.traits.Traitable;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
-import org.drools.core.io.impl.ByteArrayResource;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.util.io.ByteArrayResource;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
+import org.drools.traits.compiler.CommonTraitTest;
+import org.drools.traits.compiler.Person;
 import org.drools.traits.core.factmodel.Entity;
 import org.junit.Test;
 import org.kie.api.KieBase;
@@ -43,9 +43,9 @@ import org.kie.internal.builder.KnowledgeBuilder;
 import org.kie.internal.builder.KnowledgeBuilderFactory;
 import org.kie.internal.utils.KieHelper;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 
 public class TraitTypeGenerationTest extends CommonTraitTest {
 
@@ -196,7 +196,7 @@ public class TraitTypeGenerationTest extends CommonTraitTest {
         ks.newKieContainer( kbuilder.getKieModule().getReleaseId() ).getKieBase();
 
         KieSession ksession = ks.newKieContainer( kbuilder.getKieModule().getReleaseId() ).newKieSession();
-        assertNotNull( ksession );
+        assertThat(ksession).isNotNull();
 
         List students = new ArrayList();
         ksession.setGlobal( "students", students );

@@ -19,14 +19,14 @@ package org.drools.core.reteoo;
 import org.drools.core.RuleBaseConfiguration;
 import org.drools.core.common.BetaConstraints;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.InternalWorkingMemory;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.common.TupleSets;
 import org.drools.core.common.TupleSetsImpl;
 import org.drools.core.reteoo.builder.BuildContext;
 import org.drools.core.rule.From;
-import org.drools.core.spi.AlphaNodeFieldConstraint;
-import org.drools.core.spi.DataProvider;
-import org.drools.core.spi.PropagationContext;
+import org.drools.core.rule.constraint.AlphaNodeFieldConstraint;
+import org.drools.core.rule.accessor.DataProvider;
+import org.drools.core.common.PropagationContext;
 import org.drools.core.util.index.TupleList;
 
 public class ReactiveFromNode extends FromNode<ReactiveFromNode.ReactiveFromMemory> {
@@ -43,7 +43,7 @@ public class ReactiveFromNode extends FromNode<ReactiveFromNode.ReactiveFromMemo
         super(id, dataProvider, tupleSource, constraints, binder, tupleMemoryEnabled, context, from);
     }
 
-    public ReactiveFromMemory createMemory(final RuleBaseConfiguration config, InternalWorkingMemory wm) {
+    public ReactiveFromMemory createMemory(final RuleBaseConfiguration config, ReteEvaluator reteEvaluator) {
         BetaMemory beta = new BetaMemory( new TupleList(),
                                           null,
                                           this.betaConstraints.createContext(),

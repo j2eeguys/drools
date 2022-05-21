@@ -15,26 +15,21 @@
 
 package org.drools.mvel.compiler.rule.builder.dialect.mvel;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.drools.compiler.builder.impl.KnowledgeBuilderImpl;
 import org.drools.compiler.compiler.DialectCompiletimeRegistry;
-import org.drools.compiler.lang.descr.AttributeDescr;
-import org.drools.compiler.lang.descr.RuleDescr;
 import org.drools.compiler.rule.builder.RuleBuildContext;
 import org.drools.compiler.rule.builder.SalienceBuilder;
 import org.drools.core.WorkingMemory;
 import org.drools.core.base.ClassObjectType;
-import org.drools.core.base.DefaultKnowledgeHelper;
 import org.drools.core.common.AgendaItem;
 import org.drools.core.common.AgendaItemImpl;
 import org.drools.core.common.InternalFactHandle;
 import org.drools.core.definitions.InternalKnowledgePackage;
-import org.drools.core.definitions.impl.KnowledgePackageImpl;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
-import org.drools.core.impl.StatefulKnowledgeSessionImpl;
+import org.drools.core.reteoo.CoreComponentFactory;
 import org.drools.core.reteoo.LeftTupleImpl;
 import org.drools.core.reteoo.MockLeftTupleSink;
 import org.drools.core.reteoo.MockTupleSource;
@@ -42,9 +37,14 @@ import org.drools.core.reteoo.RuleTerminalNode;
 import org.drools.core.reteoo.builder.BuildContext;
 import org.drools.core.rule.Declaration;
 import org.drools.core.rule.Pattern;
-import org.drools.core.spi.ObjectType;
-import org.drools.core.spi.PatternExtractor;
-import org.drools.core.spi.Salience;
+import org.drools.core.base.ObjectType;
+import org.drools.core.rule.accessor.PatternExtractor;
+import org.drools.core.rule.accessor.Salience;
+import org.drools.drl.ast.descr.AttributeDescr;
+import org.drools.drl.ast.descr.RuleDescr;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
+import org.drools.kiesession.session.StatefulKnowledgeSessionImpl;
 import org.drools.mvel.MVELDialectRuntimeData;
 import org.drools.mvel.builder.MVELDialect;
 import org.drools.mvel.builder.MVELSalienceBuilder;
@@ -63,7 +63,7 @@ public class MVELSalienceBuilderTest {
 
     @Before
     public void setUp() throws Exception {
-        InternalKnowledgePackage pkg = new KnowledgePackageImpl( "pkg1" );
+        InternalKnowledgePackage pkg = CoreComponentFactory.get().createKnowledgePackage( "pkg1" );
         final RuleDescr ruleDescr = new RuleDescr( "rule 1" );
         ruleDescr.addAttribute( new AttributeDescr( "salience",
                                                     "(p.age + 20)/2" ) );
@@ -98,7 +98,7 @@ public class MVELSalienceBuilderTest {
         context.setDeclarationResolver( declarationResolver );
 
         kBase = KnowledgeBaseFactory.newKnowledgeBase();
-        buildContext = new BuildContext(kBase);
+        buildContext = new BuildContext(kBase, Collections.emptyList());
 
         SalienceBuilder salienceBuilder = new MVELSalienceBuilder();
         salienceBuilder.build( context );
@@ -132,9 +132,7 @@ public class MVELSalienceBuilderTest {
 
 
         assertEquals( 25,
-                      context.getRule().getSalience().getValue( new DefaultKnowledgeHelper( item, ksession ),
-                                                                context.getRule(),
-                                                                ksession ) );
+                      context.getRule().getSalience().getValue( item, context.getRule(), ksession ) );
 
     }
 
@@ -201,7 +199,7 @@ public class MVELSalienceBuilderTest {
             this.context = context;
             final InternalFactHandle f0 = (InternalFactHandle) wm.insert( person );
 
-            BuildContext buildContext = new BuildContext(kBase);
+            BuildContext buildContext = new BuildContext(kBase, Collections.emptyList());
             MockLeftTupleSink sink = new MockLeftTupleSink(buildContext);
             MockTupleSource source = new MockTupleSource(1, buildContext);
             source.setObjectCount(1);
@@ -225,9 +223,7 @@ public class MVELSalienceBuilderTest {
                 Thread.sleep( 1000 );
                 for ( int i = 0; i < iterations && !halt; i++ ) {
                     assertEquals( result,
-                                  salience.getValue( new DefaultKnowledgeHelper( item, wm ),
-                                                     rule,
-                                                     wm ) );
+                                  salience.getValue( item, rule, wm ) );
                     Thread.currentThread().yield();
                 }
             } catch ( Throwable e ) {

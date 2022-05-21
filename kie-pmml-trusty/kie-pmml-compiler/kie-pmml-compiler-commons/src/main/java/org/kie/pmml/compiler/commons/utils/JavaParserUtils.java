@@ -22,10 +22,12 @@ import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.Statement;
+import com.github.javaparser.printer.DefaultPrettyPrinter;
 import org.kie.pmml.api.exceptions.ExternalException;
 import org.kie.pmml.api.exceptions.KiePMMLException;
 import org.kie.pmml.api.exceptions.KiePMMLInternalException;
@@ -49,7 +51,8 @@ public class JavaParserUtils {
             final InputStream resource = Thread.currentThread().getContextClassLoader().getResourceAsStream(fileName);
             return StaticJavaParser.parse(resource);
         } catch (ParseProblemException e) {
-            throw new KiePMMLInternalException(String.format("Failed to parse %s due to %s", fileName, e.getMessage()), e);
+            throw new KiePMMLInternalException(String.format("Failed to parse %s due to %s", fileName,
+                                                             e.getMessage()), e);
         } catch (Exception e) {
             throw new ExternalException(String.format("Failed to read %s due to %s", fileName, e.getMessage()), e);
         }
@@ -59,7 +62,8 @@ public class JavaParserUtils {
         try {
             return StaticJavaParser.parse(source);
         } catch (ParseProblemException e) {
-            throw new KiePMMLInternalException(String.format("Failed to parse\r\n%s\r\ndue to %s", source, e.getMessage()), e);
+            throw new KiePMMLInternalException(String.format("Failed to parse\r\n%s\r\ndue to %s", source,
+                                                             e.getMessage()), e);
         } catch (Exception e) {
             throw new ExternalException(String.format("Failed to parse\r\n%s\r\ndue to %s", source, e.getMessage()), e);
         }
@@ -93,11 +97,10 @@ public class JavaParserUtils {
      * It throws <code>KiePMMLException</code> if the package name is missing
      * @param cu
      * @return
-     *
      */
     public static String getFullClassName(final CompilationUnit cu) {
         String packageName = cu.getPackageDeclaration()
-                .orElseThrow(() ->new KiePMMLException("Missing package declaration for " + cu.toString()))
+                .orElseThrow(() -> new KiePMMLException("Missing package declaration for " + cu.toString()))
                 .getName().asString();
         String className = cu.getType(0).getName().asString();
         return packageName + "." + className;
@@ -113,6 +116,15 @@ public class JavaParserUtils {
         return StaticJavaParser.parseBlock(block);
     }
 
+    public static BlockStmt parseConstructorBlock(final String block) {
+        // trick due to https://github.com/javaparser/javaparser/issues/2376
+        ConstructorDeclaration cd = (ConstructorDeclaration)
+                StaticJavaParser.parseBodyDeclaration("C()" + block);
+        BlockStmt bs = cd.getBody();
+        bs.remove();
+        return bs;
+    }
+
     public static Statement parseStatement(final String statement) {
         return StaticJavaParser.parseStatement(statement);
     }
@@ -122,6 +134,12 @@ public class JavaParserUtils {
     }
 
     public static boolean equalsNode(Node node1, Node node2) {
-        return node1.toString().equals(node2.toString());
+        String s1 = printNode(node1);
+        String s2 = printNode(node2);
+        return s1.equals(s2);
+    }
+
+    public static String printNode(Node node) {
+        return new DefaultPrettyPrinter().print(node);
     }
 }

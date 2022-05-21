@@ -19,16 +19,16 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
-import org.drools.core.WorkingMemory;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.InternalWorkingMemory;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.definitions.InternalKnowledgePackage;
 import org.drools.core.definitions.rule.impl.RuleImpl;
 import org.drools.core.rule.Declaration;
-import org.drools.core.spi.FieldValue;
-import org.drools.core.spi.ReturnValueExpression;
-import org.drools.core.spi.Tuple;
+import org.drools.core.rule.accessor.FieldValue;
+import org.drools.core.rule.accessor.ReturnValueExpression;
+import org.drools.core.reteoo.Tuple;
 import org.drools.mvel.MVELDialectRuntimeData;
+import org.drools.mvel.field.FieldFactory;
 import org.mvel2.integration.VariableResolverFactory;
 
 import static org.drools.mvel.expr.MvelEvaluator.createMvelEvaluator;
@@ -81,27 +81,22 @@ public class MVELReturnValueExpression
                                final Tuple tuple,
                                final Declaration[] previousDeclarations,
                                final Declaration[] requiredDeclarations,
-                               final WorkingMemory workingMemory,
+                               final ReteEvaluator reteEvaluator,
                                final Object ctx) throws Exception {
         VariableResolverFactory factory = ( VariableResolverFactory )ctx;
         
-        unit.updateFactory( handle,
-                            tuple,
-                            null,
-                            (InternalWorkingMemory) workingMemory,
-                            workingMemory.getGlobalResolver(),
-                            factory );
+        unit.updateFactory( handle, tuple, null, reteEvaluator, reteEvaluator.getGlobalResolver(), factory );
 
         
         // do we have any functions for this namespace?
-        InternalKnowledgePackage pkg = workingMemory.getKnowledgeBase().getPackage( "MAIN" );
+        InternalKnowledgePackage pkg = reteEvaluator.getKnowledgeBase().getPackage( "MAIN" );
         if ( pkg != null ) {
             MVELDialectRuntimeData data = ( MVELDialectRuntimeData ) pkg.getDialectRuntimeRegistry().getDialectData( this.id );
             factory.setNextFactory( data.getFunctionFactory() );
         }
 
         Object value = evaluator.evaluate( handle, factory );
-        return workingMemory.getKnowledgeBase().getConfiguration().getComponentFactory().getFieldFactory().getFieldValue( value );
+        return FieldFactory.getInstance().getFieldValue( value );
     }
 
 

@@ -115,10 +115,10 @@ type
 @after {
     helper.popScope();
 }
-    : sk=Identifier {$sk.getText().equals("list");} LT type GT                                                        #listType
-    | sk=Identifier {$sk.getText().equals("context");} LT Identifier COLON type ( COMMA Identifier COLON type )* GT   #contextType
+    : {_input.LT(1).getText().equals("list")}? sk=Identifier LT type GT                                                        #listType
+    | {_input.LT(1).getText().equals("context")}? sk=Identifier LT Identifier COLON type ( COMMA Identifier COLON type )* GT   #contextType
     | FUNCTION                                                                                                        #qnType
-    | FUNCTION LT type ( COMMA type )* GT RARROW type                                                                 #functionType
+    | FUNCTION LT (type ( COMMA type )*)? GT RARROW type                                                              #functionType
     | qualifiedName                                                                                                   #qnType
     ;
 
@@ -265,9 +265,12 @@ powerExpression
     ;
 
 filterPathExpression
+@init {
+    int count = 0;
+}
     :   unaryExpression
-    |   filterPathExpression LBRACK {helper.enableDynamicResolution();} filter=expression {helper.disableDynamicResolution();} RBRACK
-    |   filterPathExpression DOT {helper.enableDynamicResolution();} qualifiedName {helper.disableDynamicResolution();}
+    |   n0=filterPathExpression LBRACK {helper.enableDynamicResolution();} filter=expression {helper.disableDynamicResolution();} RBRACK
+    |   n1=filterPathExpression DOT {count = helper.fphStart($n1.ctx, this); helper.enableDynamicResolution();} qualifiedName {helper.disableDynamicResolution(); helper.fphEnd(count);}
     ;
 
 unaryExpression
@@ -389,12 +392,14 @@ interval
 
 // #20
 qualifiedName
+locals [ java.util.List<String> qns ]
 @init {
     String name = null;
     int count = 0;
     java.util.List<String> qn = new java.util.ArrayList<String>();
 }
 @after {
+    $qns = qn;
     for( int i = 0; i < count; i++ )
         helper.dismissScope();
 }

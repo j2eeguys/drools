@@ -27,13 +27,12 @@ import java.util.BitSet;
 import java.util.Map;
 import java.util.Set;
 
-import org.drools.core.factmodel.BuildUtils;
+import org.drools.compiler.builder.impl.classbuilder.BuildUtils;
 import org.drools.core.factmodel.ClassDefinition;
 import org.drools.core.factmodel.FieldDefinition;
 import org.drools.core.factmodel.traits.Thing;
 import org.drools.core.factmodel.traits.TraitType;
 import org.drools.core.factmodel.traits.TraitableBean;
-import org.drools.core.util.ExternalizableLinkedHashMap;
 import org.drools.mvel.asm.AsmUtil;
 import org.drools.traits.core.factmodel.TraitBuilderUtil.MixinInfo;
 import org.kie.api.definition.type.FactField;

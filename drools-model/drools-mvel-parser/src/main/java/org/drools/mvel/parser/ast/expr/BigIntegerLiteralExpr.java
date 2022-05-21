@@ -28,14 +28,18 @@ import java.math.BigInteger;
 import com.github.javaparser.TokenRange;
 import com.github.javaparser.ast.AllFieldsConstructor;
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.expr.LiteralStringValueExpr;
+import com.github.javaparser.ast.expr.ObjectCreationExpr;
+import com.github.javaparser.ast.expr.StringLiteralExpr;
+import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.visitor.CloneVisitor;
-import org.drools.mvel.parser.ast.visitor.DrlGenericVisitor;
-import org.drools.mvel.parser.ast.visitor.DrlVoidVisitor;
 import com.github.javaparser.ast.visitor.GenericVisitor;
 import com.github.javaparser.ast.visitor.VoidVisitor;
 import com.github.javaparser.metamodel.JavaParserMetaModel;
 import com.github.javaparser.metamodel.LongLiteralExprMetaModel;
+import org.drools.mvel.parser.ast.visitor.DrlGenericVisitor;
+import org.drools.mvel.parser.ast.visitor.DrlVoidVisitor;
 
 public final class BigIntegerLiteralExpr extends LiteralStringValueExpr {
 
@@ -62,18 +66,19 @@ public final class BigIntegerLiteralExpr extends LiteralStringValueExpr {
 
     @Override
     public <R, A> R accept(GenericVisitor<R, A> v, A arg) {
-        return ((DrlGenericVisitor<R, A>)v).visit(this, arg);
+        return ((DrlGenericVisitor<R, A>) v).visit(this, arg);
     }
 
     @Override
     public <A> void accept(VoidVisitor<A> v, A arg) {
-        ((DrlVoidVisitor<A>)v).visit(this, arg);
+        ((DrlVoidVisitor<A>) v).visit(this, arg);
     }
 
     @Override
     public boolean remove(Node node) {
-        if (node == null)
+        if (node == null) {
             return false;
+        }
         return super.remove(node);
     }
 
@@ -81,12 +86,17 @@ public final class BigIntegerLiteralExpr extends LiteralStringValueExpr {
      * @return the literal value as an long while respecting different number representations
      */
     public BigInteger asBigInteger() {
+        return new BigInteger(getValue());
+    }
+
+    @Override
+    public String getValue() {
         String result = value.replaceAll("_", "");
         char lastChar = result.charAt(result.length() - 1);
         if (lastChar == 'I') {
             result = result.substring(0, result.length() - 1);
         }
-        return new BigInteger(result);
+        return result;
     }
 
     public BigIntegerLiteralExpr setLong(long value) {
@@ -102,5 +112,9 @@ public final class BigIntegerLiteralExpr extends LiteralStringValueExpr {
     @Override
     public LongLiteralExprMetaModel getMetaModel() {
         return JavaParserMetaModel.longLiteralExprMetaModel;
+    }
+
+    public ObjectCreationExpr convertToObjectCreationExpr() {
+        return new ObjectCreationExpr(null, new ClassOrInterfaceType(null, BigInteger.class.getCanonicalName()), NodeList.nodeList(new StringLiteralExpr(getValue())));
     }
 }

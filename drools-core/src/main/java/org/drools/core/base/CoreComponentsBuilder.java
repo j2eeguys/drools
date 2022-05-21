@@ -16,26 +16,26 @@ package org.drools.core.base;
 
 import java.io.IOException;
 
+import org.drools.core.common.MissingDependencyException;
 import org.drools.core.rule.DialectRuntimeData;
-import org.drools.core.spi.InternalReadAccessor;
+import org.drools.core.rule.accessor.ReadAccessor;
+import org.drools.core.util.Drools;
 import org.drools.core.util.MVELExecutor;
-import org.kie.api.internal.utils.ServiceRegistry;
+import org.kie.api.internal.utils.KieService;
 
-public interface CoreComponentsBuilder {
-
-    boolean IS_NATIVE_IMAGE = System.getProperty("org.graalvm.nativeimage.imagecode") != null;
+public interface CoreComponentsBuilder extends KieService {
 
     String NO_MVEL = "You're trying to compile a Drools asset without mvel. Please add the module org.drools:drools-mvel to your classpath.";
 
     static <T> T throwExceptionForMissingMvel() {
-        if (IS_NATIVE_IMAGE) {
+        if (Drools.isNativeImage()) {
             return null;
         }
-        throw new RuntimeException(NO_MVEL);
+        throw new MissingDependencyException(NO_MVEL);
     }
 
     class Holder {
-        private static final CoreComponentsBuilder cBuilder = ServiceRegistry.getService( CoreComponentsBuilder.class );
+        private static final CoreComponentsBuilder cBuilder = KieService.load( CoreComponentsBuilder.class );
     }
 
     static CoreComponentsBuilder get() {
@@ -46,11 +46,7 @@ public interface CoreComponentsBuilder {
         return Holder.cBuilder != null;
     }
 
-    static boolean isNativeImage() {
-        return IS_NATIVE_IMAGE;
-    }
-
-    InternalReadAccessor getReadAcessor( String className, String expr, boolean typesafe, Class<?> returnType );
+    ReadAccessor getReadAcessor( String className, String expr, boolean typesafe, Class<?> returnType );
 
     Object evaluateMvelExpression( DialectRuntimeData data, ClassLoader classLoader, String expr );
 

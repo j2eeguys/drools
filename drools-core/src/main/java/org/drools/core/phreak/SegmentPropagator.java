@@ -17,7 +17,7 @@ package org.drools.core.phreak;
 
 import java.util.Iterator;
 
-import org.drools.core.common.InternalWorkingMemory;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.common.TupleSets;
 import org.drools.core.reteoo.LeftTuple;
 import org.drools.core.reteoo.LeftTupleSink;
@@ -27,10 +27,11 @@ import org.drools.core.reteoo.SegmentMemory;
 
 import static org.drools.core.phreak.AddRemoveRule.forceFlushLeftTuple;
 import static org.drools.core.phreak.AddRemoveRule.forceFlushWhenRiaNode;
+import static org.drools.core.reteoo.NodeTypeEnums.hasNodeMemory;
 
 public class SegmentPropagator {
 
-    public static void propagate(SegmentMemory sourceSegment, TupleSets<LeftTuple> leftTuples, InternalWorkingMemory wm) {
+    public static void propagate(SegmentMemory sourceSegment, TupleSets<LeftTuple> leftTuples, ReteEvaluator reteEvaluator) {
         if (leftTuples.isEmpty()) {
             return;
         }
@@ -38,10 +39,10 @@ public class SegmentPropagator {
         LeftTupleSource source = ( LeftTupleSource )  sourceSegment.getTipNode();
         
         if ( sourceSegment.isEmpty() ) {
-            SegmentUtilities.createChildSegments( wm, sourceSegment, source.getSinkPropagator() );
+            SegmentUtilities.createChildSegments( reteEvaluator, sourceSegment, source.getSinkPropagator() );
         }
                 
-        processPeers(sourceSegment, leftTuples, wm);
+        processPeers(sourceSegment, leftTuples);
 
         Iterator<SegmentMemory> peersIterator = sourceSegment.getPeersWithDataDrivenPathMemoriesIterator();
         while (peersIterator.hasNext()) {
@@ -53,17 +54,17 @@ public class SegmentPropagator {
                     // skip flushing segments that have only inserts staged and the path is not linked
                     continue;
                 }
-                forceFlushLeftTuple(dataDrivenPmem, smem, wm, smem.getStagedLeftTuples());
-                forceFlushWhenRiaNode(wm, dataDrivenPmem);
+                forceFlushLeftTuple(dataDrivenPmem, smem, reteEvaluator, smem.getStagedLeftTuples());
+                forceFlushWhenRiaNode(reteEvaluator, dataDrivenPmem);
             }
         }
     }
 
-    private static void processPeers(SegmentMemory sourceSegment, TupleSets<LeftTuple> leftTuples, InternalWorkingMemory wm) {
+    private static void processPeers(SegmentMemory sourceSegment, TupleSets<LeftTuple> leftTuples) {
         SegmentMemory firstSmem = sourceSegment.getFirst();
 
-        processPeerDeletes( leftTuples, leftTuples.getDeleteFirst(), firstSmem, wm );
-        processPeerDeletes( leftTuples, leftTuples.getNormalizedDeleteFirst(), firstSmem, wm );
+        processPeerDeletes( leftTuples.getDeleteFirst(), firstSmem );
+        processPeerDeletes( leftTuples.getNormalizedDeleteFirst(), firstSmem );
         processPeerUpdates( leftTuples, firstSmem );
         processPeerInserts( leftTuples, firstSmem );
 
@@ -116,22 +117,29 @@ public class SegmentPropagator {
         }
     }
 
-    public static void updateChildLeftTupleDuringInsert(LeftTuple childLeftTuple,
-                                                        TupleSets<LeftTuple> stagedLeftTuples,
-                                                        TupleSets<LeftTuple> trgLeftTuples) {
+    private static void updateChildLeftTupleDuringInsert(LeftTuple childLeftTuple, TupleSets<LeftTuple> stagedLeftTuples, TupleSets<LeftTuple> trgLeftTuples) {
         switch ( childLeftTuple.getStagedType() ) {
-            // handle clash when they re already staged entries
+            // handle clash with already staged entries
             case LeftTuple.INSERT:
-                // was staged as insert before, remove it from staging and now process
+                // Was insert before, should continue as insert
                 stagedLeftTuples.removeInsert( childLeftTuple );
+                trgLeftTuples.addInsert( childLeftTuple );
                 break;
             case LeftTuple.UPDATE:
-                throw new IllegalStateException("It should not be possible that an existing udpate is staged, when an insert is later requested.");
+                stagedLeftTuples.removeUpdate( childLeftTuple );
+                trgLeftTuples.addUpdate( childLeftTuple );
+                break;
+            default:
+                // no clash, so just add
+                if ( hasNodeMemory( childLeftTuple.getTupleSink() ) ) {
+                    trgLeftTuples.addInsert(childLeftTuple);
+                } else {
+                    trgLeftTuples.addUpdate(childLeftTuple);
+                }
         }
-        trgLeftTuples.addInsert( childLeftTuple );
     }
 
-    private static void processPeerDeletes( TupleSets<LeftTuple> leftTuples, LeftTuple leftTuple, SegmentMemory firstSmem, InternalWorkingMemory wm ) {
+    private static void processPeerDeletes( LeftTuple leftTuple, SegmentMemory firstSmem ) {
         for (; leftTuple != null; leftTuple = leftTuple.getStagedNext()) {
             SegmentMemory smem = firstSmem.getNext();
             if ( smem != null ) {

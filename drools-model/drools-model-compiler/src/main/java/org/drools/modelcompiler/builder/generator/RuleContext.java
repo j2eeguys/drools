@@ -17,6 +17,37 @@
 
 package org.drools.modelcompiler.builder.generator;
 
+import com.github.javaparser.ast.body.Parameter;
+import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.expr.NameExpr;
+import com.github.javaparser.ast.stmt.BlockStmt;
+import com.github.javaparser.ast.type.Type;
+import com.github.javaparser.ast.type.UnknownType;
+import org.drools.compiler.builder.impl.TypeDeclarationContext;
+import org.drools.compiler.rule.builder.EvaluatorDefinition;
+import org.drools.core.ruleunit.RuleUnitDescriptionLoader;
+import org.drools.core.util.Bag;
+import org.drools.drl.ast.descr.AndDescr;
+import org.drools.drl.ast.descr.AttributeDescr;
+import org.drools.drl.ast.descr.BaseDescr;
+import org.drools.drl.ast.descr.ConditionalElementDescr;
+import org.drools.drl.ast.descr.ForallDescr;
+import org.drools.drl.ast.descr.PatternDescr;
+import org.drools.drl.ast.descr.RuleDescr;
+import org.drools.drl.parser.BaseKnowledgeBuilderResultImpl;
+import org.drools.modelcompiler.builder.PackageModel;
+import org.drools.modelcompiler.builder.errors.UnknownDeclarationException;
+import org.drools.modelcompiler.builder.errors.UnknownRuleUnitException;
+import org.drools.util.TypeResolver;
+import org.kie.api.definition.type.ClassReactive;
+import org.kie.api.definition.type.PropertyReactive;
+import org.kie.internal.builder.KnowledgeBuilderResult;
+import org.kie.internal.builder.ResultSeverity;
+import org.kie.internal.builder.conf.PropertySpecificOption;
+import org.kie.internal.ruleunit.RuleUnitDescription;
+import org.kie.internal.ruleunit.RuleUnitVariable;
+
 import java.lang.reflect.Method;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -29,52 +60,22 @@ import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
-
-import com.github.javaparser.ast.body.Parameter;
-import com.github.javaparser.ast.expr.Expression;
-import com.github.javaparser.ast.expr.MethodCallExpr;
-import com.github.javaparser.ast.expr.NameExpr;
-import com.github.javaparser.ast.stmt.BlockStmt;
-import com.github.javaparser.ast.type.Type;
-import com.github.javaparser.ast.type.UnknownType;
-import org.drools.compiler.builder.impl.KnowledgeBuilderImpl;
-import org.drools.compiler.compiler.BaseKnowledgeBuilderResultImpl;
-import org.drools.compiler.lang.descr.AndDescr;
-import org.drools.compiler.lang.descr.AnnotationDescr;
-import org.drools.compiler.lang.descr.AttributeDescr;
-import org.drools.compiler.lang.descr.BaseDescr;
-import org.drools.compiler.lang.descr.ConditionalElementDescr;
-import org.drools.compiler.lang.descr.ForallDescr;
-import org.drools.compiler.lang.descr.PatternDescr;
-import org.drools.compiler.lang.descr.RuleDescr;
-import org.drools.core.addon.TypeResolver;
-import org.drools.core.base.evaluators.EvaluatorDefinition;
-import org.drools.core.ruleunit.RuleUnitDescriptionLoader;
-import org.drools.core.util.Bag;
-import org.drools.modelcompiler.builder.PackageModel;
-import org.drools.modelcompiler.builder.errors.UnknownDeclarationException;
-import org.drools.modelcompiler.builder.errors.UnknownRuleUnitException;
-import org.kie.api.definition.type.ClassReactive;
-import org.kie.api.definition.type.PropertyReactive;
-import org.kie.internal.builder.KnowledgeBuilderResult;
-import org.kie.internal.builder.ResultSeverity;
-import org.kie.internal.builder.conf.PropertySpecificOption;
-import org.kie.internal.ruleunit.RuleUnitDescription;
-import org.kie.internal.ruleunit.RuleUnitVariable;
 
 import static java.util.Optional.empty;
 import static java.util.Optional.of;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 import static org.drools.modelcompiler.builder.generator.QueryGenerator.toQueryArg;
-import static org.kie.internal.ruleunit.RuleUnitUtil.isLegacyRuleUnit;
 
 public class RuleContext {
 
-    private final KnowledgeBuilderImpl kbuilder;
+    private static final String SCOPE_SUFFIX = "_sCoPe";
+
+    private final TypeDeclarationContext kbuilder;
     private final PackageModel packageModel;
     private final TypeResolver typeResolver;
     private final RuleDescr ruleDescr;
@@ -129,78 +130,51 @@ public class RuleContext {
 
     private AndDescr parentDescr;
 
-    public RuleContext(KnowledgeBuilderImpl kbuilder, PackageModel packageModel, TypeResolver typeResolver, RuleDescr ruleDescr) {
+    public RuleContext(TypeDeclarationContext kbuilder, PackageModel packageModel, TypeResolver typeResolver, RuleDescr ruleDescr) {
         this(kbuilder, packageModel, typeResolver, ruleDescr, -1);
     }
 
-    public RuleContext(KnowledgeBuilderImpl kbuilder, PackageModel packageModel, TypeResolver typeResolver, RuleDescr ruleDescr, int ruleIndex) {
+    public RuleContext(TypeDeclarationContext kbuilder, PackageModel packageModel, TypeResolver typeResolver, RuleDescr ruleDescr, int ruleIndex) {
         this.kbuilder = kbuilder;
         this.packageModel = packageModel;
         this.idGenerator = packageModel.getExprIdGenerator();
         exprPointer.push( this.expressions::add );
         this.typeResolver = typeResolver;
         this.ruleDescr = ruleDescr;
-        processUnitData();
+        this.ruleUnitDescr = findUnitDescr();
         this.ruleIndex = ruleIndex;
     }
 
-    private void findUnitDescr() {
-        if (ruleDescr == null) {
-            return;
+    private RuleUnitDescription findUnitDescr() {
+        if (ruleDescr == null || ruleDescr.getUnit() == null) {
+            return null;
         }
 
-        boolean useNamingConvention = false;
-        String unitName;
-        AnnotationDescr unitAnn = ruleDescr.getAnnotation( "Unit" );
-        if (unitAnn != null) {
-            unitName = ( String ) unitAnn.getValue();
-            unitName = unitName.substring( 0, unitName.length() - ".class".length() );
-        } else if (ruleDescr.getUnit() != null) {
-            unitName = ruleDescr.getUnit().getTarget();
-        } else {
-            if (ruleDescr.getResource() == null) {
-                return;
-            }
-            String drlFile = ruleDescr.getResource().getSourcePath();
-            if (drlFile != null) {
-                String drlFileName = drlFile.substring(drlFile.lastIndexOf('/')+1);
-                unitName = packageModel.getName() + '.' + drlFileName.substring(0, drlFileName.length() - ".drl".length());
-                useNamingConvention = true;
-            } else {
-                return;
-            }
-        }
-
+        String unitName = ruleDescr.getUnit().getTarget();
         RuleUnitDescriptionLoader ruleUnitDescriptionLoader = kbuilder.getPackageRegistry(packageModel.getName() ).getPackage().getRuleUnitDescriptionLoader();
         Optional<RuleUnitDescription> ruDescr = ruleUnitDescriptionLoader.getDescription(unitName );
-        if (ruDescr.isPresent()) {
-            ruleUnitDescr = ruDescr.get();
-        } else if (!useNamingConvention) {
-            throw new UnknownRuleUnitException( unitName );
-        }
+        return ruDescr.map(this::processRuleUnit).orElseThrow( () -> new UnknownRuleUnitException( unitName ) );
     }
 
-    private void processUnitData() {
-        findUnitDescr();
-        if (ruleUnitDescr != null && !isLegacyRuleUnit()) {
-            for (RuleUnitVariable unitVar : ruleUnitDescr.getUnitVarDeclarations()) {
-                String unitVarName = unitVar.getName();
-                Class<?> resolvedType = unitVar.isDataSource() ? unitVar.getDataSourceParameterType() : unitVar.getType();
-                addRuleUnitVar( unitVarName, resolvedType );
+    private RuleUnitDescription processRuleUnit(RuleUnitDescription ruleUnitDescr) {
+        for (RuleUnitVariable unitVar : ruleUnitDescr.getUnitVarDeclarations()) {
+            String unitVarName = unitVar.getName();
+            Class<?> resolvedType = unitVar.isDataSource() ? unitVar.getDataSourceParameterType() : unitVar.getType();
+            addRuleUnitVar( unitVarName, resolvedType );
 
-                getPackageModel().addGlobal( unitVarName, unitVar.getType() );
-                if ( unitVar.isDataSource() ) {
-                    getPackageModel().addEntryPoint( unitVarName );
-                }
+            packageModel.addGlobal( unitVarName, unitVar.getType() );
+            if ( unitVar.isDataSource() ) {
+                packageModel.addEntryPoint( unitVarName );
             }
         }
+        return ruleUnitDescr;
     }
 
     public RuleUnitDescription getRuleUnitDescr() {
         return ruleUnitDescr;
     }
 
-    public KnowledgeBuilderImpl getKbuilder() {
+    public TypeDeclarationContext getKbuilder() {
         return kbuilder;
     }
 
@@ -219,6 +193,15 @@ public class RuleContext {
         }
         synchronized (kbuilder) {
             kbuilder.addBuilderResult(error);
+        }
+    }
+
+    public void addCompilationWarning( KnowledgeBuilderResult warn ) {
+        if ( warn instanceof BaseKnowledgeBuilderResultImpl ) {
+            (( BaseKnowledgeBuilderResultImpl ) warn).setResource( ruleDescr.getResource() );
+        }
+        synchronized (kbuilder) {
+            kbuilder.addBuilderResult(warn);
         }
     }
 
@@ -265,6 +248,7 @@ public class RuleContext {
         String declId = getDeclarationKey( id );
         scopedDeclarations.remove( declId );
         this.allDeclarations.remove( declId );
+        definedVars.remove(id);
     }
 
     public boolean hasDeclaration(String id) {
@@ -287,8 +271,19 @@ public class RuleContext {
         return dec == null ? empty() : ofNullable( dec.getBindingExpr() );
     }
 
-    public void addGlobalDeclarations(Map<String, Class<?>> globals) {
-        for(Map.Entry<String, Class<?>> ks : globals.entrySet()) {
+    public void addGlobalDeclarations() {
+        Map<String, Class<?>> globals = packageModel.getGlobals();
+
+        // also takes globals defined in different packages imported with a wildcard
+        packageModel.getImports().stream()
+                .filter( imp -> imp.endsWith(".*") )
+                .map( imp -> imp.substring(0, imp.length()-2) )
+                .map( imp -> kbuilder.getPackageRegistry(imp) )
+                .filter( Objects::nonNull )
+                .map( pkgRegistry -> pkgRegistry.getPackage().getGlobals() )
+                .forEach( globals::putAll );
+        
+        for (Map.Entry<String, Class<?>> ks : globals.entrySet()) {
             definedVars.put(ks.getKey(), ks.getKey());
             addDeclaration(new DeclarationSpec(ks.getKey(), ks.getValue(), true));
         }
@@ -356,7 +351,17 @@ public class RuleContext {
         }
         this.scopedDeclarations.put(d.getBindingId(), d);
         this.allDeclarations.put(d.getBindingId(), d);
-        definedVars.put(bindingId, bindingId);
+        String var = stripIfScoped(bindingId);
+        definedVars.put(var, bindingId);
+    }
+
+    private String stripIfScoped(String bindingId) {
+        if (bindingId.endsWith(SCOPE_SUFFIX)) {
+            String stripSuffix = bindingId.substring(0, bindingId.lastIndexOf(SCOPE_SUFFIX));
+            return stripSuffix.substring(0, stripSuffix.lastIndexOf("_")); // strip counter
+        } else {
+            return bindingId;
+        }
     }
 
     public void addOOPathDeclaration(DeclarationSpec d) {
@@ -606,7 +611,7 @@ public class RuleContext {
         if ( idGenerator.isGenerated( x ) || ruleUnitVars.containsKey( x ) ) {
             return DrlxParseUtil.toVar( x );
         }
-        String var = x.endsWith( "sCoPe" ) ? x : definedVars.get(x);
+        String var = x.endsWith( SCOPE_SUFFIX ) ? x : definedVars.get(x);
         return DrlxParseUtil.toVar(var != null ? var : x + currentScope.id);
     }
 
@@ -634,7 +639,7 @@ public class RuleContext {
         }
 
         private Scope( ConditionalElementDescr scopeElement ) {
-            this( "_" + scopeCounter++ + "_sCoPe", scopeElement );
+            this( "_" + scopeCounter++ + SCOPE_SUFFIX, scopeElement );
         }
 
         private Scope( String id, ConditionalElementDescr scopeElement ) {

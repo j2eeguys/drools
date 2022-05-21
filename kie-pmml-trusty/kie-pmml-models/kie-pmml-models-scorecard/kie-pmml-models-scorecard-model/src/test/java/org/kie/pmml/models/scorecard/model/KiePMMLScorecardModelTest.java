@@ -26,10 +26,9 @@ import org.junit.Test;
 import org.kie.pmml.api.enums.REASONCODE_ALGORITHM;
 import org.kie.pmml.commons.model.predicates.KiePMMLFalsePredicate;
 import org.kie.pmml.commons.model.predicates.KiePMMLTruePredicate;
+import org.kie.pmml.commons.testingutility.PMMLContextTest;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class KiePMMLScorecardModelTest {
 
@@ -47,6 +46,7 @@ public class KiePMMLScorecardModelTest {
     @Test
     public void evaluate() {
         Double initialScore = 25.23;
+        PMMLContextTest pmmlContextTest = new PMMLContextTest();
         KiePMMLScorecardModel kiePMMLScorecardModel = new KiePMMLScorecardModel(MODEL_NAME,
                                                                                 Collections.emptyList(),
                                                                                 getKiePMMLCharacteristics(),
@@ -54,19 +54,19 @@ public class KiePMMLScorecardModelTest {
                                                                                 true,
                                                                                 REASONCODE_ALGORITHM.POINTS_BELOW,
                                                                                 0);
-        Object retrieved = kiePMMLScorecardModel.evaluate(null,  Collections.emptyMap());
-        assertNotNull(retrieved);
+        Object retrieved = kiePMMLScorecardModel.evaluate(null, Collections.emptyMap(), pmmlContextTest);
+        assertThat(retrieved).isNotNull();
 
         Double EVALUATION_20 = baselineScore - value2;
         Double EVALUATION_11 = baselineScore - value1;
         Double expected = initialScore + value2 + value1 + 1;
-        assertEquals(expected, retrieved);
-        final Map<String, Object> outputFieldsMap = kiePMMLScorecardModel.getOutputFieldsMap();
-        assertEquals(2, outputFieldsMap.size());
-        assertTrue(outputFieldsMap.containsKey("REASON_CODE_20"));
-        assertEquals(EVALUATION_20, outputFieldsMap.get("REASON_CODE_20"));
-        assertTrue(outputFieldsMap.containsKey("REASON_CODE_11"));
-        assertEquals(EVALUATION_11, outputFieldsMap.get("REASON_CODE_11"));
+        assertThat(retrieved).isEqualTo(expected);
+        final Map<String, Object> outputFieldsMap = pmmlContextTest.getOutputFieldsMap();
+        assertThat(outputFieldsMap).hasSize(2);
+        assertThat(outputFieldsMap).containsKey("REASON_CODE_20");
+        assertThat(outputFieldsMap.get("REASON_CODE_20")).isEqualTo(EVALUATION_20);
+        assertThat(outputFieldsMap).containsKey("REASON_CODE_11");
+        assertThat(outputFieldsMap.get("REASON_CODE_11")).isEqualTo(EVALUATION_11);
     }
 
     private KiePMMLCharacteristics getKiePMMLCharacteristics() {

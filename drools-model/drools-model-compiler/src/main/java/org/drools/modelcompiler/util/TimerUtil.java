@@ -19,15 +19,14 @@ import java.lang.reflect.Method;
 import java.text.ParseException;
 import java.util.Map;
 
-import org.drools.core.common.InternalWorkingMemory;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.rule.Declaration;
-import org.drools.core.spi.Tuple;
+import org.drools.core.reteoo.Tuple;
 import org.drools.core.time.TimeUtils;
 import org.drools.core.time.TimerExpression;
 import org.drools.core.time.impl.CronExpression;
-import org.drools.core.util.DateUtils;
-
-import static org.drools.core.util.ClassUtils.getGetter;
+import org.drools.util.ClassUtils;
+import org.drools.util.DateUtils;
 
 public class TimerUtil {
 
@@ -124,8 +123,8 @@ public class TimerUtil {
         }
 
         @Override
-        public Object getValue( Tuple leftTuple, Declaration[] declrs, InternalWorkingMemory wm ) {
-            return declrs[0].getValue( wm, leftTuple );
+        public Object getValue( Tuple leftTuple, Declaration[] declrs, ReteEvaluator reteEvaluator ) {
+            return declrs[0].getValue( reteEvaluator, leftTuple );
         }
     }
 
@@ -135,7 +134,7 @@ public class TimerUtil {
 
         private FieldTimerExpression( Declaration declaration, String field ) {
             this.declaration = declaration;
-            method = getGetter( declaration.getDeclarationClass(), field );
+            method = ClassUtils.getGetterMethod( declaration.getDeclarationClass(), field );
         }
         @Override
 
@@ -144,9 +143,9 @@ public class TimerUtil {
         }
 
         @Override
-        public Object getValue( Tuple leftTuple, Declaration[] declrs, InternalWorkingMemory wm ) {
+        public Object getValue( Tuple leftTuple, Declaration[] declrs, ReteEvaluator reteEvaluator ) {
             try {
-                return method.invoke( declrs[0].getValue( wm, leftTuple ) );
+                return method.invoke( declrs[0].getValue( reteEvaluator, leftTuple ) );
             } catch (IllegalAccessException | InvocationTargetException e) {
                 throw new RuntimeException( e );
             }
@@ -166,7 +165,7 @@ public class TimerUtil {
         }
 
         @Override
-        public Object getValue( Tuple leftTuple, Declaration[] declrs, InternalWorkingMemory wm ) {
+        public Object getValue( Tuple leftTuple, Declaration[] declrs, ReteEvaluator reteEvaluator ) {
             return value;
         }
     }

@@ -38,8 +38,6 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.appformer.maven.support.DependencyFilter;
-import org.appformer.maven.support.PomModel;
 import org.drools.compiler.builder.DroolsAssemblerContext;
 import org.drools.compiler.builder.impl.KnowledgeBuilderConfigurationImpl;
 import org.drools.compiler.builder.impl.KnowledgeBuilderImpl;
@@ -62,19 +60,19 @@ import org.drools.compiler.kproject.models.KieBaseModelImpl;
 import org.drools.compiler.kproject.models.KieModuleModelImpl;
 import org.drools.core.RuleBaseConfiguration;
 import org.drools.core.definitions.InternalKnowledgePackage;
-import org.drools.core.definitions.impl.KnowledgePackageImpl;
 import org.drools.core.factmodel.GeneratedFact;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.io.internal.InternalResource;
+import org.drools.util.io.InternalResource;
+import org.drools.core.reteoo.CoreComponentFactory;
 import org.drools.core.util.Drools;
-import org.drools.core.util.IoUtils;
-import org.drools.core.util.StringUtils;
+import org.drools.util.IoUtils;
+import org.drools.util.StringUtils;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
 import org.drools.model.Model;
 import org.drools.model.NamedModelItem;
 import org.drools.modelcompiler.builder.CanonicalKieBaseUpdater;
 import org.drools.modelcompiler.builder.KieBaseBuilder;
-import org.drools.reflective.ResourceProvider;
-import org.drools.reflective.classloader.ProjectClassLoader;
+import org.drools.wiring.api.ResourceProvider;
+import org.drools.wiring.api.classloader.ProjectClassLoader;
 import org.kie.api.KieBaseConfiguration;
 import org.kie.api.KieServices;
 import org.kie.api.builder.Message;
@@ -84,7 +82,7 @@ import org.kie.api.builder.model.KieBaseModel;
 import org.kie.api.builder.model.KieModuleModel;
 import org.kie.api.definition.KiePackage;
 import org.kie.api.definition.process.Process;
-import org.kie.api.internal.utils.ServiceRegistry;
+import org.kie.api.internal.utils.KieService;
 import org.kie.api.io.Resource;
 import org.kie.api.io.ResourceConfiguration;
 import org.kie.api.io.ResourceType;
@@ -96,6 +94,9 @@ import org.kie.internal.builder.KnowledgeBuilderFactory;
 import org.kie.internal.builder.ResourceChange;
 import org.kie.internal.builder.ResourceChangeSet;
 import org.kie.internal.builder.conf.AlphaNetworkCompilerOption;
+import org.drools.util.PortablePath;
+import org.kie.util.maven.support.DependencyFilter;
+import org.kie.util.maven.support.PomModel;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
@@ -111,6 +112,8 @@ public class CanonicalKieModule implements InternalKieModule {
     public static final String PROJECT_MODEL_CLASS = "org.drools.project.model.ProjectModel";
     public static final String MODEL_FILE_DIRECTORY = "META-INF/kie/";
     public static final String MODEL_FILE_NAME = "drools-model";
+    public static final String SERVICES_DIRECTORY = "META-INF/services/";
+    public static final String RULE_UNIT_SERVICES_FILE = SERVICES_DIRECTORY + "org.drools.ruleunits.api.RuleUnit";
     public static final String ANC_FILE_NAME = "alpha-network-compiler";
     public static final String GENERATED_CLASS_NAMES = "generated-class-names";
     public static final String MODEL_VERSION = "Drools-Model-Version:";
@@ -262,7 +265,7 @@ public class CanonicalKieModule implements InternalKieModule {
         }
 
         KieContainerImpl.CompositeRunnable compositeUpdater = new KieContainerImpl.CompositeRunnable();
-        KieBaseUpdaters updaters = ServiceRegistry.getService(KieBaseUpdaters.class);
+        KieBaseUpdaters updaters = KieService.load(KieBaseUpdaters.class);
         updaters.getChildren()
                 .stream()
                 .map(kbu -> kbu.create(new KieBaseUpdatersContext(new KieBaseUpdaterOptions(options),
@@ -311,12 +314,12 @@ public class CanonicalKieModule implements InternalKieModule {
                 InternalKieModule includeModule = kieProject.getKieModuleForKBase(include);
                 if (includeModule == null) {
                     String text = "Unable to build KieBase, could not find include: " + include;
-                    buildContext.getMessages().addMessage(Message.Level.ERROR, KieModuleModelImpl.KMODULE_SRC_PATH, text).setKieBaseName(kBaseModel.getName());
+                    buildContext.getMessages().addMessage(Message.Level.ERROR, KieModuleModelImpl.KMODULE_SRC_PATH.asString(), text).setKieBaseName(kBaseModel.getName());
                     continue;
                 }
                 if (!(includeModule instanceof CanonicalKieModule)) {
                     String text = "It is not possible to mix drl based and executable model based projects. Found a drl project: " + include;
-                    buildContext.getMessages().addMessage(Message.Level.ERROR, KieModuleModelImpl.KMODULE_SRC_PATH, text).setKieBaseName(kBaseModel.getName());
+                    buildContext.getMessages().addMessage(Message.Level.ERROR, KieModuleModelImpl.KMODULE_SRC_PATH.asString(), text).setKieBaseName(kBaseModel.getName());
                     continue;
                 }
                 KieBaseModelImpl includeKBaseModel = (KieBaseModelImpl) kieProject.getKieBaseModel(include);
@@ -345,7 +348,7 @@ public class CanonicalKieModule implements InternalKieModule {
         for (Process process : processes) {
             InternalKnowledgePackage canonicalKiePkg = (InternalKnowledgePackage) canonicalKiePkgs.getKiePackage(process.getPackageName());
             if (canonicalKiePkg == null) {
-                canonicalKiePkg = new KnowledgePackageImpl(process.getPackageName());
+                canonicalKiePkg = CoreComponentFactory.get().createKnowledgePackage(process.getPackageName());
                 canonicalKiePkgs.addKiePackage(canonicalKiePkg);
             }
             canonicalKiePkg.addProcess(process);
@@ -628,6 +631,7 @@ public class CanonicalKieModule implements InternalKieModule {
 
     private Collection<ResourceChangeSet> calculateResourceChangeSet(Model oldModel, Model newModel) {
         ResourceChangeSet changeSet = new ResourceChangeSet(oldModel.getName(), ChangeType.UPDATED);
+        changeSet.setPackageName(oldModel.getName());
         Map<String, ResourceChangeSet> changes = new HashMap<>();
         changes.put(oldModel.getName(), changeSet);
 
@@ -831,6 +835,11 @@ public class CanonicalKieModule implements InternalKieModule {
     @Override
     public byte[] getBytes(String pResourceName) {
         return internalKieModule.getBytes(pResourceName);
+    }
+
+    @Override
+    public byte[] getBytes(PortablePath resourcePath) {
+        return internalKieModule.getBytes(resourcePath);
     }
 
     @Override

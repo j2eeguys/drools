@@ -23,10 +23,12 @@ import java.util.List;
 import org.kie.pmml.api.enums.DATA_TYPE;
 import org.kie.pmml.api.enums.OP_TYPE;
 import org.kie.pmml.commons.model.KiePMMLExtension;
-import org.kie.pmml.commons.model.KiePMMLOutputField;
+import org.kie.pmml.commons.model.ProcessingDTO;
 import org.kie.pmml.commons.model.abstracts.AbstractKiePMMLComponent;
 import org.kie.pmml.commons.model.expressions.KiePMMLExpression;
 import org.kie.pmml.commons.model.tuples.KiePMMLNameValue;
+
+import static org.kie.pmml.commons.utils.KiePMMLModelUtils.commonEvaluate;
 
 /**
  * @see <a href=http://dmg.org/pmml/v4-4-1/Functions.html#xsdElement_DefineFunction>DefineFunction</a>
@@ -37,15 +39,17 @@ public class KiePMMLDefineFunction extends AbstractKiePMMLComponent implements S
     private final OP_TYPE opType;
     private final List<KiePMMLParameterField> parameterFields;
     private final KiePMMLExpression kiePMMLExpression;
-    private DATA_TYPE dataType;
+    private DATA_TYPE dataType = null;
 
     public KiePMMLDefineFunction(String name,
                                  List<KiePMMLExtension> extensions,
-                                 String opType,
+                                 DATA_TYPE dataType,
+                                 OP_TYPE opType,
                                  List<KiePMMLParameterField> parameterFields,
                                  KiePMMLExpression kiePMMLExpression) {
         super(name, extensions);
-        this.opType = OP_TYPE.byName(opType);
+        this.dataType = dataType;
+        this.opType = opType;
         this.parameterFields = parameterFields;
         this.kiePMMLExpression = kiePMMLExpression;
     }
@@ -62,9 +66,11 @@ public class KiePMMLDefineFunction extends AbstractKiePMMLComponent implements S
         return dataType;
     }
 
-    public Object evaluate(final List<KiePMMLDefineFunction> defineFunctions,
-                           final List<KiePMMLDerivedField> derivedFields,
-                           final List<KiePMMLOutputField> outputFields,
+    public KiePMMLExpression getKiePMMLExpression() {
+        return kiePMMLExpression;
+    }
+
+    public Object evaluate(final ProcessingDTO processingDTO,
                            final List<Object> paramValues) {
         final List<KiePMMLNameValue> kiePMMLNameValues = new ArrayList<>();
         if (parameterFields != null) {
@@ -75,6 +81,9 @@ public class KiePMMLDefineFunction extends AbstractKiePMMLComponent implements S
                 kiePMMLNameValues.add(new KiePMMLNameValue(parameterFields.get(i).getName(), paramValues.get(i)));
             }
         }
-        return kiePMMLExpression.evaluate(defineFunctions, derivedFields, outputFields, kiePMMLNameValues);
+        for (KiePMMLNameValue kiePMMLNameValue : kiePMMLNameValues) {
+            processingDTO.addKiePMMLNameValue(kiePMMLNameValue);
+        }
+        return commonEvaluate(kiePMMLExpression.evaluate(processingDTO), dataType);
     }
 }

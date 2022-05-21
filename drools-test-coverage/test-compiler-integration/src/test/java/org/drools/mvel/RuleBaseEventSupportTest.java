@@ -20,20 +20,20 @@ import java.io.ObjectOutput;
 import java.util.ArrayList;
 import java.util.Collection;
 
-import org.drools.core.WorkingMemory;
 import org.drools.core.base.ClassFieldAccessorCache;
-import org.drools.core.base.ClassFieldAccessorStore;
+import org.drools.mvel.accessors.ClassFieldAccessorStore;
 import org.drools.core.base.ClassObjectType;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.definitions.InternalKnowledgePackage;
-import org.drools.core.definitions.impl.KnowledgePackageImpl;
 import org.drools.core.definitions.rule.impl.RuleImpl;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
+import org.drools.core.reteoo.CoreComponentFactory;
 import org.drools.core.rule.Pattern;
-import org.drools.core.spi.AlphaNodeFieldConstraint;
-import org.drools.core.spi.Consequence;
-import org.drools.core.spi.KnowledgeHelper;
+import org.drools.core.rule.constraint.AlphaNodeFieldConstraint;
+import org.drools.core.rule.consequence.Consequence;
+import org.drools.core.rule.consequence.KnowledgeHelper;
 import org.drools.core.test.model.Cheese;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -87,7 +87,7 @@ public class RuleBaseEventSupportTest {
      */
     @Before
     public void setUp() throws Exception {
-        kBase = (InternalKnowledgeBase) KnowledgeBaseFactory.newKnowledgeBase();
+        kBase = KnowledgeBaseFactory.newKnowledgeBase();;
         listener1 = new TestRuleBaseListener( "(listener-1) " );
         listener2 = new TestRuleBaseListener( "(listener-2) " );
         kBase.addEventListener( listener1 );
@@ -111,7 +111,7 @@ public class RuleBaseEventSupportTest {
             private static final long serialVersionUID = 510l;
 
             public void evaluate(final KnowledgeHelper knowledgeHelper,
-                                 final WorkingMemory workingMemory) throws Exception {
+                                 final ReteEvaluator reteEvaluator) throws Exception {
             }
 
             public void readExternal(ObjectInput in) throws IOException,
@@ -142,7 +142,7 @@ public class RuleBaseEventSupportTest {
             private static final long serialVersionUID = 510l;
 
             public void evaluate(final KnowledgeHelper knowledgeHelper,
-                                 final WorkingMemory workingMemory) throws Exception {
+                                 final ReteEvaluator reteEvaluator) throws Exception {
             }
 
             public void readExternal(ObjectInput in) throws IOException,
@@ -159,7 +159,7 @@ public class RuleBaseEventSupportTest {
             }
         } );
 
-        pkg = new KnowledgePackageImpl( "org.drools.test1" );
+        pkg = CoreComponentFactory.get().createKnowledgePackage( "org.drools.test1" );
         pkg.addRule( rule1 );
         pkg.addRule( rule2 );
 

@@ -29,7 +29,7 @@ import org.kie.pmml.api.utils.ConverterTypeUtil;
 /**
  * @see <a href=http://dmg.org/pmml/v4-4/DataDictionary.html#xsdType_DATATYPE>DATATYPE</a>
  */
-public enum DATA_TYPE {
+public enum DATA_TYPE implements Named {
 
     STRING("string", String.class),
     INTEGER("integer", int.class),
@@ -81,6 +81,9 @@ public enum DATA_TYPE {
      * @return
      */
     public Object getActualValue(Object rawValue) {
+        if (rawValue == null) {
+            return null;
+        }
         if (mappedClass.isAssignableFrom(rawValue.getClass())) {
             // No cast/transformation needed
             return rawValue;

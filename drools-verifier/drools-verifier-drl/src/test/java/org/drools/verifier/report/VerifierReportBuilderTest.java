@@ -16,20 +16,20 @@
 
 package org.drools.verifier.report;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
-import org.drools.core.io.impl.ClassPathResource;
+import org.drools.util.io.ClassPathResource;
 import org.drools.verifier.Verifier;
 import org.drools.verifier.builder.VerifierBuilder;
 import org.drools.verifier.builder.VerifierBuilderFactory;
 import org.junit.Test;
 import org.kie.api.io.ResourceType;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class VerifierReportBuilderTest {
 
@@ -53,7 +53,7 @@ public class VerifierReportBuilderTest {
 
         // Check the files on disk
         File file = new File( "testReport.zip" );
-        assertNotNull( file );
+        assertThat(file).isNotNull();
         assertTrue( file.exists() );
 
         // TODO: Check the file content

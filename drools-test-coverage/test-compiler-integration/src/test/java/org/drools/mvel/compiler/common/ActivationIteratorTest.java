@@ -19,11 +19,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import org.drools.core.common.ActivationIterator;
+import org.drools.serialization.protobuf.iterators.ActivationIterator;
 import org.drools.core.common.AgendaItem;
 import org.drools.core.common.InternalAgenda;
 import org.drools.core.common.InternalWorkingMemory;
-import org.drools.core.impl.KnowledgeBaseFactory;
+import org.drools.core.impl.RuleBaseFactory;
 import org.drools.core.util.Iterator;
 import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
 import org.drools.testcoverage.common.util.KieBaseUtil;
@@ -54,8 +54,7 @@ public class ActivationIteratorTest {
 
     @Parameterized.Parameters(name = "KieBase type={0}")
     public static Collection<Object[]> getParameters() {
-     // TODO: EM failed with testFilteredEagerEvaluation, testLianPlusEvalnWithSharingWithMixedDormantAndActive, testSingleJoinNodePlusEvalnWithSharingWithMixedDormantAndActive. File JIRAs
-        return TestParametersUtil.getKieBaseCloudConfigurations(false);
+        return TestParametersUtil.getKieBaseCloudConfigurations(true);
     }
 
     @Test
@@ -693,7 +692,7 @@ public class ActivationIteratorTest {
                 "then \n" +
                 "end  \n";
 
-        KieSessionConfiguration conf = KnowledgeBaseFactory.newKnowledgeSessionConfiguration();
+        KieSessionConfiguration conf = RuleBaseFactory.newKnowledgeSessionConfiguration();
         conf.setOption( ForceEagerActivationOption.YES );
 
         KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("test", kieBaseTestConfiguration, str);
@@ -728,7 +727,7 @@ public class ActivationIteratorTest {
                 "then \n" +
                 "end  \n";
 
-        KieSessionConfiguration conf = KnowledgeBaseFactory.newKnowledgeSessionConfiguration();
+        KieSessionConfiguration conf = RuleBaseFactory.newKnowledgeSessionConfiguration();
         conf.setOption( new ForceEagerActivationOption.FILTERED( new ForceEagerActivationFilter() {
             @Override
             public boolean accept(Rule rule) {

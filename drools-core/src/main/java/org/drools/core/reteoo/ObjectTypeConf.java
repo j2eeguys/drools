@@ -34,16 +34,12 @@ public interface ObjectTypeConf {
 
     boolean isEvent();
 
-    boolean isTrait();
-
     boolean isDynamic();
    
     TypeDeclaration getTypeDeclaration();
     
     /** Whether or not, TMS is active for this object type. */
     boolean isTMSEnabled();
-
-    boolean isTraitTMSEnabled();
 
     /**
      * Enable TMS for this object type. 

@@ -14,13 +14,13 @@
 
 package org.drools.core.time;
 
-import org.drools.core.common.InternalWorkingMemory;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.rule.Declaration;
-import org.drools.core.spi.Tuple;
+import org.drools.core.reteoo.Tuple;
 
 public interface TimerExpression {
 
     Declaration[] getDeclarations();
 
-    Object getValue(Tuple leftTuple, Declaration[] declrs, InternalWorkingMemory wm);
+    Object getValue(Tuple leftTuple, Declaration[] declrs, ReteEvaluator reteEvaluator);
 }

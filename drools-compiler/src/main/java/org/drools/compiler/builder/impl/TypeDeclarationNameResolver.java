@@ -20,33 +20,34 @@ import java.util.List;
 
 import org.drools.compiler.compiler.PackageRegistry;
 import org.drools.compiler.compiler.TypeDeclarationError;
-import org.drools.compiler.lang.descr.AbstractClassTypeDeclarationDescr;
-import org.drools.compiler.lang.descr.EnumDeclarationDescr;
-import org.drools.compiler.lang.descr.PackageDescr;
-import org.drools.compiler.lang.descr.QualifiedName;
-import org.drools.compiler.lang.descr.TypeDeclarationDescr;
-import org.drools.compiler.lang.descr.TypeFieldDescr;
+import org.drools.util.TypeResolver;
+import org.kie.internal.definition.GenericTypeDefinition;
 import org.drools.core.rule.TypeDeclaration;
-import org.drools.core.util.ClassUtils;
-import org.drools.core.addon.TypeResolver;
+import org.drools.util.ClassUtils;
+import org.drools.drl.ast.descr.AbstractClassTypeDeclarationDescr;
+import org.drools.drl.ast.descr.EnumDeclarationDescr;
+import org.drools.drl.ast.descr.PackageDescr;
+import org.drools.drl.ast.descr.QualifiedName;
+import org.drools.drl.ast.descr.TypeDeclarationDescr;
+import org.drools.drl.ast.descr.TypeFieldDescr;
 
 public class TypeDeclarationNameResolver {
 
-    private KnowledgeBuilderImpl kbuilder;
+    private final TypeDeclarationContext context;
 
-    public TypeDeclarationNameResolver(KnowledgeBuilderImpl kbuilder) {
-        this.kbuilder = kbuilder;
+    public TypeDeclarationNameResolver(TypeDeclarationContext context) {
+        this.context = context;
     }
 
     public void resolveTypes(Collection<? extends PackageDescr> packageDescrs,
                              List<TypeDefinition> unresolvedTypes) {
         for (PackageDescr packageDescr : packageDescrs) {
-            TypeResolver typeResolver = kbuilder.getPackageRegistry(packageDescr.getName()).getTypeResolver();
+            TypeResolver typeResolver = context.getPackageRegistry(packageDescr.getName()).getTypeResolver();
             ensureQualifiedDeclarationName(unresolvedTypes, packageDescr, typeResolver);
         }
 
         for (PackageDescr packageDescr : packageDescrs) {
-            TypeResolver typeResolver = kbuilder.getPackageRegistry(packageDescr.getName()).getTypeResolver();
+            TypeResolver typeResolver = context.getPackageRegistry(packageDescr.getName()).getTypeResolver();
             qualifyNames(unresolvedTypes, packageDescr, typeResolver);
         }
     }
@@ -92,7 +93,7 @@ public class TypeDeclarationNameResolver {
     }
 
     private void discoverHierarchyForRedeclarations(TypeDeclarationDescr typeDescr, PackageDescr packageDescr, TypeResolver typeResolver) {
-        PackageRegistry pkReg = kbuilder.getPackageRegistry(packageDescr.getName());
+        PackageRegistry pkReg = context.getPackageRegistry(packageDescr.getName());
         Class typeClass = TypeDeclarationUtils.getExistingDeclarationClass(typeDescr, pkReg);
         if (typeClass != null) {
             if (typeDescr.isTrait()) {
@@ -157,7 +158,7 @@ public class TypeDeclarationNameResolver {
             if (resolved != null) {
                 qname.setName(resolved);
             } else {
-                kbuilder.addBuilderResult(new TypeDeclarationError(typeDescr,
+                context.addBuilderResult(new TypeDeclarationError(typeDescr,
                                                                    "Cannot resolve supertype '" + declaredSuperType +
                                                                            " for declared type " + typeDescr.getTypeName()));
             }
@@ -170,11 +171,13 @@ public class TypeDeclarationNameResolver {
                                          List<TypeDefinition> unresolvedTypes) {
 
         for (TypeFieldDescr field : typeDescr.getFields().values()) {
-            boolean resolved = field.getPattern().resolveObjectType( type -> resolveName(type, typeDescr, packageDescr, typeResolver, unresolvedTypes, true) );
-            if (!resolved) {
-                kbuilder.addBuilderResult(new TypeDeclarationError(typeDescr,
+            GenericTypeDefinition typeDef = GenericTypeDefinition.parseType(field.getPattern().getObjectType(), type -> resolveName(type, typeDescr, packageDescr, typeResolver, unresolvedTypes, true) );
+            if (typeDef == null) {
+                context.addBuilderResult(new TypeDeclarationError(typeDescr,
                                                                    "Cannot resolve type '" + field.getPattern().getObjectType() + " for field " + field.getFieldName() +
                                                                            " in declared type " + typeDescr.getTypeName()));
+            } else {
+                field.getPattern().setGenericType(typeDef);
             }
         }
     }
@@ -188,14 +191,14 @@ public class TypeDeclarationNameResolver {
         boolean qualified = TypeDeclarationUtils.isQualified(type);
 
         if (!qualified) {
-            type = TypeDeclarationUtils.lookupSimpleNameByImports(type, typeDescr, packageDescr, kbuilder.getRootClassLoader());
+            type = TypeDeclarationUtils.lookupSimpleNameByImports(type, typeDescr, packageDescr, context.getRootClassLoader());
         }
 
         // if not qualified yet, it has to be resolved
         // DROOLS-677 : if qualified, it may be a partial name (e.g. an inner class)
         type = TypeDeclarationUtils.resolveType(type,
                                                 packageDescr,
-                                                kbuilder.getPackageRegistry(packageDescr.getNamespace()));
+                                                context.getPackageRegistry(packageDescr.getNamespace()));
         qualified = TypeDeclarationUtils.isQualified(type);
 
         if (!qualified) {
@@ -207,7 +210,7 @@ public class TypeDeclarationNameResolver {
                 //e.printStackTrace();
             }
         } else {
-            type = TypeDeclarationUtils.typeName2ClassName(type, kbuilder.getRootClassLoader());
+            type = TypeDeclarationUtils.typeName2ClassName(type, context.getRootClassLoader());
             qualified = TypeDeclarationUtils.isQualified(type);
         }
 

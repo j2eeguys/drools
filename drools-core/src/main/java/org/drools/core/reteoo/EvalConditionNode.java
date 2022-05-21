@@ -25,14 +25,14 @@ import java.util.Map;
 
 import org.drools.core.RuleBaseConfiguration;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.InternalWorkingMemory;
 import org.drools.core.common.Memory;
 import org.drools.core.common.MemoryFactory;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.common.UpdateContext;
 import org.drools.core.reteoo.builder.BuildContext;
 import org.drools.core.rule.EvalCondition;
-import org.drools.core.spi.PropagationContext;
-import org.drools.core.spi.RuleComponent;
+import org.drools.core.common.PropagationContext;
+import org.drools.core.rule.RuleComponent;
 import org.drools.core.util.AbstractBaseLinkedListNode;
 import org.kie.api.definition.rule.Rule;
 
@@ -73,21 +73,6 @@ public class EvalConditionNode extends LeftTupleSource
         initMasks(context, tupleSource);
 
         hashcode = calculateHashCode();
-    }
-
-    public void readExternal(ObjectInput in) throws IOException,
-                                            ClassNotFoundException {
-        super.readExternal( in );
-        condition = (EvalCondition) in.readObject();
-        tupleMemoryEnabled = in.readBoolean();
-        componentsMap = (Map<Rule, RuleComponent>) in.readObject();
-    }
-
-    public void writeExternal(ObjectOutput out) throws IOException {
-        super.writeExternal( out );
-        out.writeObject( condition );
-        out.writeBoolean( tupleMemoryEnabled );
-        out.writeObject( componentsMap );
     }
 
     public void doAttach( BuildContext context ) {
@@ -139,7 +124,7 @@ public class EvalConditionNode extends LeftTupleSource
         return this.leftInput.getId() == other.leftInput.getId() && this.condition.equals( other.condition );
     }
 
-    public EvalMemory createMemory(final RuleBaseConfiguration config, InternalWorkingMemory wm) {
+    public EvalMemory createMemory(final RuleBaseConfiguration config, ReteEvaluator reteEvaluator) {
         return new EvalMemory( this.condition.createContext() );
     }
 

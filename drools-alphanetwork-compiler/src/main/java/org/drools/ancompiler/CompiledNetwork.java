@@ -21,8 +21,8 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
 import org.drools.core.common.BaseNode;
-import org.drools.core.common.InternalWorkingMemory;
 import org.drools.core.common.NetworkNode;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.common.RuleBasePartitionId;
 import org.drools.core.reteoo.AlphaNode;
 import org.drools.core.reteoo.BetaNode;
@@ -100,12 +100,17 @@ public abstract class CompiledNetwork implements ObjectSinkPropagator {
     public final void setObjectTypeNode(final ObjectTypeNode objectTypeNode) {
         this.objectTypeNode = objectTypeNode;
 
-        NodeReferenceSetter setter = new NodeReferenceSetter();
-        ObjectTypeNodeParser parser = new ObjectTypeNodeParser(objectTypeNode);
-        parser.accept(setter);
+        // Use this to set all the fields from the RETE
+       if(!isInlined()) {
+           NodeReferenceSetter setter = new NodeReferenceSetter();
+           ObjectTypeNodeParser parser = new ObjectTypeNodeParser(objectTypeNode);
+           parser.accept(setter);
+       }
     }
 
-    public void setNetwork(ObjectTypeNode objectTypeNode) {
+    // Sets the starting node for the evaluation of the compiled Alpha Network
+    // both in the CompiledNetwork and the ObjectTypeNode itself
+    public void setStartingObjectTypeNode(ObjectTypeNode objectTypeNode) {
         setObjectTypeNode(objectTypeNode);
         setOriginalSinkPropagator(objectTypeNode.getObjectSinkPropagator());
         objectTypeNode.setObjectSinkPropagator(this);
@@ -129,6 +134,15 @@ public abstract class CompiledNetwork implements ObjectSinkPropagator {
      * @param networkNode node to set to set
      */
     protected abstract void setNetworkNodeReference(NetworkNode networkNode);
+
+    /**
+     * Use to initialize the inlined expression so that the ANC can instantiate without depending on the Rete.
+     * Should be used instead of #setNetworkNodeReference
+     * See #isInlined
+     */
+    public void initConstraintsResults() { }
+
+    protected abstract boolean isInlined();
 
     public NetworkHandlerAdaptor createNodeReferenceSetter() {
         return new NodeReferenceSetter();
@@ -202,12 +216,14 @@ public abstract class CompiledNetwork implements ObjectSinkPropagator {
     }
 
     @Override
-    public void doLinkRiaNode(InternalWorkingMemory wm) {
-        originalSinkPropagator.doLinkRiaNode(wm);
+    public void doLinkRiaNode(ReteEvaluator reteEvaluator) {
+        originalSinkPropagator.doLinkRiaNode(reteEvaluator);
     }
 
     @Override
-    public void doUnlinkRiaNode(InternalWorkingMemory wm) {
-        originalSinkPropagator.doUnlinkRiaNode(wm);
+    public void doUnlinkRiaNode(ReteEvaluator reteEvaluator) {
+        originalSinkPropagator.doUnlinkRiaNode(reteEvaluator);
     }
+
+    public abstract void init(Object... args);
 }

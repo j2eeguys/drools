@@ -33,9 +33,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.drools.core.WorkingMemory;
 import org.drools.core.base.EnabledBoolean;
 import org.drools.core.base.SalienceInteger;
+import org.drools.core.common.InternalAgendaGroup;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.reteoo.RuleTerminalNode;
 import org.drools.core.rule.ConsequenceMetaData;
 import org.drools.core.rule.Declaration;
@@ -44,23 +45,20 @@ import org.drools.core.rule.GroupElement;
 import org.drools.core.rule.GroupElementFactory;
 import org.drools.core.rule.InvalidPatternException;
 import org.drools.core.rule.LogicTransformer;
-import org.drools.core.rule.QueryImpl;
 import org.drools.core.rule.RuleConditionElement;
-import org.drools.core.spi.AgendaGroup;
-import org.drools.core.spi.Consequence;
-import org.drools.core.spi.Enabled;
-import org.drools.core.spi.KnowledgeHelper;
-import org.drools.core.spi.Salience;
-import org.drools.core.spi.Tuple;
-import org.drools.core.spi.Wireable;
+import org.drools.core.rule.consequence.Activation;
+import org.drools.core.rule.accessor.CompiledInvoker;
+import org.drools.core.rule.consequence.Consequence;
+import org.drools.core.rule.accessor.Enabled;
+import org.drools.core.rule.accessor.Salience;
+import org.drools.core.reteoo.Tuple;
+import org.drools.core.rule.accessor.Wireable;
 import org.drools.core.time.impl.Timer;
-import org.drools.core.util.StringUtils;
+import org.drools.util.StringUtils;
 import org.kie.api.definition.rule.Query;
 import org.kie.api.io.Resource;
 import org.kie.internal.definition.rule.InternalRule;
 import org.kie.internal.security.KiePolicyHelper;
-
-import static org.kie.internal.ruleunit.RuleUnitUtil.isLegacyRuleUnit;
 
 public class RuleImpl implements Externalizable,
                                  Wireable,
@@ -102,7 +100,7 @@ public class RuleImpl implements Externalizable,
 
     private String                   dialect;
 
-    private String                   agendaGroup = AgendaGroup.MAIN;
+    private String                   agendaGroup = InternalAgendaGroup.MAIN;
 
     private Map<String, Object>      metaAttributes = new HashMap<>();
 
@@ -172,7 +170,7 @@ public class RuleImpl implements Externalizable,
         out.writeObject( metaAttributes );
         out.writeObject( requiredDeclarations );
 
-        if ( Consequence.isCompiledInvoker( this.consequence ) ) {
+        if ( CompiledInvoker.isCompiledInvoker( this.consequence ) ) {
             out.writeObject( null );
             out.writeObject( null );
         } else {
@@ -394,7 +392,7 @@ public class RuleImpl implements Externalizable,
 
     @Override
     public boolean isMainAgendaGroup() {
-        return AgendaGroup.MAIN.equals( agendaGroup );
+        return InternalAgendaGroup.MAIN.equals( agendaGroup );
     }
 
     private void set( int flag, boolean b ) {
@@ -421,18 +419,18 @@ public class RuleImpl implements Externalizable,
      */
     public boolean isEffective(Tuple tuple,
                                RuleTerminalNode rtn,
-                               WorkingMemory workingMemory) {
+                               ReteEvaluator reteEvaluator) {
         if ( !this.enabled.getValue( tuple,
                                      rtn.getEnabledDeclarations(),
                                      this,
-                                     workingMemory ) ) {
+                                     reteEvaluator ) ) {
             return false;
         }
         if ( this.dateEffective == null && this.dateExpires == null ) {
             return true;
         } else {
             Calendar now = Calendar.getInstance();
-            now.setTimeInMillis( workingMemory.getSessionClock().getCurrentTime() );
+            now.setTimeInMillis( reteEvaluator.getSessionClock().getCurrentTime() );
 
             if ( this.dateEffective != null && this.dateExpires != null ) {
                 return (now.after( this.dateEffective ) && now.before( this.dateExpires ));
@@ -483,7 +481,6 @@ public class RuleImpl implements Externalizable,
      * @return The declaration or <code>null</code> if no declaration matches
      *         the <code>identifier</code>.
      */
-    @SuppressWarnings("unchecked")
     public Declaration getDeclaration(final String identifier) {
         if ( this.dirty || (this.declarations == null) ) {
             this.declarations = this.getExtendedLhs( this, null ).getOuterDeclarations();
@@ -529,7 +526,6 @@ public class RuleImpl implements Externalizable,
      * @return The Set of <code>Declarations</code> in order which specify the
      *         <i>root fact objects</i>.
      */
-    @SuppressWarnings("unchecked")
     public Map<String, Declaration> getDeclarations() {
         if ( this.dirty || (this.declarations == null) ) {
             this.declarations = this.getExtendedLhs( this, null ).getOuterDeclarations();
@@ -781,11 +777,8 @@ public class RuleImpl implements Externalizable,
 
     public boolean isEnabled(Tuple tuple,
                              RuleTerminalNode rtn,
-                             WorkingMemory workingMemory) {
-        return this.enabled.getValue( tuple,
-                                      rtn.getEnabledDeclarations(),
-                                      this,
-                                      workingMemory );
+                             ReteEvaluator reteEvaluator) {
+        return this.enabled.getValue( tuple, rtn.getEnabledDeclarations(), this, reteEvaluator );
     }
 
     public void addMetaAttribute(String key,
@@ -868,13 +861,6 @@ public class RuleImpl implements Externalizable,
 
     public void setRuleUnitClassName( String ruleUnitClassName ) {
         this.ruleUnitClassName = ruleUnitClassName;
-        if (isLegacyRuleUnit()) {
-            setAgendaGroup( ruleUnitClassName );
-        }
-    }
-
-    public boolean hasRuleUnit() {
-        return ruleUnitClassName != null;
     }
 
     public Declaration[] findEnabledDeclarations(Map<String, Declaration> decls) {
@@ -893,10 +879,10 @@ public class RuleImpl implements Externalizable,
         }
 
         @Override
-        public int getValue(final KnowledgeHelper khelper,
+        public int getValue(final Activation activation,
                             final org.kie.api.definition.rule.Rule rule,
-                            final WorkingMemory workingMemory) {
-            return AccessController.doPrivileged((PrivilegedAction<Integer>) () -> delegate.getValue(khelper, rule, workingMemory), KiePolicyHelper.getAccessContext());
+                            final ReteEvaluator reteEvaluator) {
+            return AccessController.doPrivileged((PrivilegedAction<Integer>) () -> delegate.getValue(activation, rule, reteEvaluator), KiePolicyHelper.getAccessContext());
         }
 
         @Override
@@ -923,8 +909,8 @@ public class RuleImpl implements Externalizable,
         public boolean getValue(final Tuple tuple,
                                 final Declaration[] declarations,
                                 final RuleImpl rule,
-                                final WorkingMemory workingMemory) {
-            return AccessController.doPrivileged((PrivilegedAction<Boolean>) () -> delegate.getValue(tuple, declarations, rule, workingMemory), KiePolicyHelper.getAccessContext());
+                                final ReteEvaluator reteEvaluator) {
+            return AccessController.doPrivileged((PrivilegedAction<Boolean>) () -> delegate.getValue(tuple, declarations, rule, reteEvaluator), KiePolicyHelper.getAccessContext());
         }
 
     }

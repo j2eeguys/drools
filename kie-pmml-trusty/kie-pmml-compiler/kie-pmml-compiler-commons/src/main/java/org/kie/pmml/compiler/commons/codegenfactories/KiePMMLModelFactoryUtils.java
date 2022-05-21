@@ -15,8 +15,9 @@
  */
 package org.kie.pmml.compiler.commons.codegenfactories;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.github.javaparser.ast.Modifier;
@@ -24,48 +25,78 @@ import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.Expression;
-import com.github.javaparser.ast.expr.IntegerLiteralExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.NullLiteralExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
+import com.github.javaparser.ast.expr.ThisExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
-import com.github.javaparser.utils.Pair;
+import com.github.javaparser.ast.stmt.ReturnStmt;
+import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import org.dmg.pmml.LocalTransformations;
+import org.dmg.pmml.Model;
 import org.dmg.pmml.TransformationDictionary;
 import org.kie.pmml.api.enums.DATA_TYPE;
 import org.kie.pmml.api.enums.FIELD_USAGE_TYPE;
+import org.kie.pmml.api.enums.INVALID_VALUE_TREATMENT_METHOD;
+import org.kie.pmml.api.enums.MINING_FUNCTION;
+import org.kie.pmml.api.enums.MISSING_VALUE_TREATMENT_METHOD;
 import org.kie.pmml.api.enums.OP_TYPE;
+import org.kie.pmml.api.enums.PMML_MODEL;
 import org.kie.pmml.api.enums.RESULT_FEATURE;
 import org.kie.pmml.api.exceptions.KiePMMLException;
 import org.kie.pmml.api.exceptions.KiePMMLInternalException;
 import org.kie.pmml.api.models.Interval;
 import org.kie.pmml.api.models.MiningField;
 import org.kie.pmml.api.models.OutputField;
+import org.kie.pmml.api.models.TargetField;
+import org.kie.pmml.commons.model.KiePMMLMiningField;
 import org.kie.pmml.commons.model.KiePMMLOutputField;
 import org.kie.pmml.commons.transformations.KiePMMLLocalTransformations;
 import org.kie.pmml.commons.transformations.KiePMMLTransformationDictionary;
+import org.kie.pmml.compiler.api.dto.CompilationDTO;
 import org.kie.pmml.compiler.commons.utils.CommonCodegenUtils;
 
+import static org.kie.pmml.commons.Constants.GET_MODEL;
+import static org.kie.pmml.commons.Constants.MISSING_BODY_TEMPLATE;
 import static org.kie.pmml.commons.Constants.MISSING_CONSTRUCTOR_IN_BODY;
 import static org.kie.pmml.commons.Constants.MISSING_DEFAULT_CONSTRUCTOR;
-import static org.kie.pmml.compiler.commons.utils.CommonCodegenUtils.addListPopulation;
-import static org.kie.pmml.compiler.commons.utils.CommonCodegenUtils.addMapPopulationExpressions;
-import static org.kie.pmml.compiler.commons.utils.CommonCodegenUtils.getReturnStmt;
-import static org.kie.pmml.compiler.commons.utils.CommonCodegenUtils.literalExprFrom;
-import static org.kie.pmml.compiler.commons.utils.CommonCodegenUtils.setAssignExpressionValue;
+import static org.kie.pmml.commons.Constants.MISSING_VARIABLE_INITIALIZER_TEMPLATE;
+import static org.kie.pmml.commons.Constants.MISSING_VARIABLE_IN_BODY;
+import static org.kie.pmml.commons.Constants.TO_RETURN;
+import static org.kie.pmml.commons.utils.KiePMMLModelUtils.getSanitizedVariableName;
 import static org.kie.pmml.compiler.commons.codegenfactories.KiePMMLLocalTransformationsFactory.LOCAL_TRANSFORMATIONS;
+import static org.kie.pmml.compiler.commons.codegenfactories.KiePMMLMiningFieldFactory.getMiningFieldVariableDeclaration;
+import static org.kie.pmml.compiler.commons.codegenfactories.KiePMMLOutputFieldFactory.getOutputFieldVariableDeclaration;
 import static org.kie.pmml.compiler.commons.codegenfactories.KiePMMLTransformationDictionaryFactory.TRANSFORMATION_DICTIONARY;
+import static org.kie.pmml.compiler.commons.utils.CommonCodegenUtils.addListPopulationByMethodCallExpr;
+import static org.kie.pmml.compiler.commons.utils.CommonCodegenUtils.addListPopulationByObjectCreationExpr;
+import static org.kie.pmml.compiler.commons.utils.CommonCodegenUtils.createArraysAsListFromList;
+import static org.kie.pmml.compiler.commons.utils.CommonCodegenUtils.getChainedMethodCallExprFrom;
+import static org.kie.pmml.compiler.commons.utils.CommonCodegenUtils.getReturnStmt;
+import static org.kie.pmml.compiler.commons.utils.CommonCodegenUtils.getTypedClassOrInterfaceTypeByTypeNames;
+import static org.kie.pmml.compiler.commons.utils.CommonCodegenUtils.getVariableDeclarator;
+import static org.kie.pmml.compiler.commons.utils.CommonCodegenUtils.populateListInListGetter;
+import static org.kie.pmml.compiler.commons.utils.CommonCodegenUtils.setAssignExpressionValue;
 
 /**
  * Class to provide shared, helper methods to be invoked by model-specific
  * <b>factories</b> (e.g. KiePMMLTreeModelFactory, KiePMMLScorecardModelFactory, KiePMMLRegressionModelFactory)
  */
 public class KiePMMLModelFactoryUtils {
+
+    public static final String GET_CREATED_MININGFIELDS = "getCreatedMiningFields";
+    public static final String GET_CREATED_OUTPUTFIELDS = "getCreatedOutputFields";
+    public static final String GET_CREATED_KIEPMMLMININGFIELDS = "getCreatedKiePMMLMiningFields";
+    public static final String GET_CREATED_KIEPMMLOUTPUTFIELDS = "getCreatedKiePMMLOutputFields";
+    public static final String GET_CREATED_KIEPMMLTARGETS = "getCreatedKiePMMLTargets";
+    public static final String GET_CREATED_LOCAL_TRANSFORMATIONS = "getCreatedLocalTransformations";
+    public static final String GET_CREATED_TRANSFORMATION_DICTIONARY = "getCreatedTransformationDictionary";
 
     private KiePMMLModelFactoryUtils() {
         // Avoid instantiation
@@ -84,7 +115,7 @@ public class KiePMMLModelFactoryUtils {
         final BlockStmt body = constructorDeclaration.getBody();
         final ExplicitConstructorInvocationStmt superStatement =
                 CommonCodegenUtils.getExplicitConstructorInvocationStmt(body)
-                .orElseThrow(() -> new KiePMMLException(String.format(MISSING_CONSTRUCTOR_IN_BODY, body)));
+                        .orElseThrow(() -> new KiePMMLException(String.format(MISSING_CONSTRUCTOR_IN_BODY, body)));
         CommonCodegenUtils.setExplicitConstructorInvocationStmtArgument(superStatement, "name", String.format("\"%s\"",
                                                                                                               name));
     }
@@ -94,58 +125,136 @@ public class KiePMMLModelFactoryUtils {
      * @param generatedClassName
      * @param constructorDeclaration
      * @param name
+     * @param miningFields
+     * @param outputFields
+     * @param targetFields
      */
     public static void setKiePMMLModelConstructor(final String generatedClassName,
                                                   final ConstructorDeclaration constructorDeclaration,
                                                   final String name,
                                                   final List<MiningField> miningFields,
                                                   final List<OutputField> outputFields,
-                                                  final Map<String, Pair<DATA_TYPE, String>> missingValueReplacements) {
+                                                  final List<TargetField> targetFields) {
         setConstructorSuperNameInvocation(generatedClassName, constructorDeclaration, name);
         final BlockStmt body = constructorDeclaration.getBody();
         final List<ObjectCreationExpr> miningFieldsObjectCreations = getMiningFieldsObjectCreations(miningFields);
-        addListPopulation(miningFieldsObjectCreations, body, "miningFields");
+        addListPopulationByObjectCreationExpr(miningFieldsObjectCreations, body, "miningFields");
         final List<ObjectCreationExpr> outputFieldsObjectCreations = getOutputFieldsObjectCreations(outputFields);
-        addListPopulation(outputFieldsObjectCreations, body, "outputFields");
-
-        Map<String, Expression> missingValueReplacementsExpr = missingValueReplacements.entrySet().stream().collect(Collectors.toMap(
-                Map.Entry::getKey,
-                entry -> literalExprFrom(entry.getValue().a, entry.getValue().b)
-        ));
-        addMapPopulationExpressions(missingValueReplacementsExpr, body, "missingValueReplacementMap");
+        addListPopulationByObjectCreationExpr(outputFieldsObjectCreations, body, "outputFields");
+        final List<MethodCallExpr> kiePMMLTargetFieldsObjectCreations =
+                getKiePMMLTargetFieldsObjectCreations(targetFields);
+        addListPopulationByMethodCallExpr(kiePMMLTargetFieldsObjectCreations, body, "kiePMMLTargets");
     }
 
     /**
-     * Populate the <b>kiePMMLOutputFields</b> <code>List&lt;KiePMMLOutputField&gt;</code>
-     * @param body
+     * Add the <code>getCreatedKiePMMLMiningFields</code> method to the given <code>ClassOrInterfaceDeclaration</code>
+     * @param modelTemplate
+     * @param miningFields
+     * @param fields
+     */
+    public static void addGetCreatedKiePMMLMiningFieldsMethod(final ClassOrInterfaceDeclaration modelTemplate,
+                                                              final List<org.dmg.pmml.MiningField> miningFields,
+                                                              final List<org.dmg.pmml.Field<?>> fields) {
+        final MethodDeclaration methodDeclaration = modelTemplate.addMethod(GET_CREATED_KIEPMMLMININGFIELDS,
+                                                                            Modifier.Keyword.PRIVATE);
+        final ClassOrInterfaceType returnedType =
+                getTypedClassOrInterfaceTypeByTypeNames(List.class.getSimpleName(),
+                                                        Collections.singletonList(KiePMMLMiningField.class.getSimpleName()));
+        methodDeclaration.setType(returnedType);
+        commonPopulateGetCreatedKiePMMLMiningFieldsMethod(methodDeclaration, miningFields, fields);
+    }
+
+    /**
+     * Populate the <code>getCreatedKiePMMLMiningFields</code> method
+     * @param modelTemplate
+     * @param miningFields
+     */
+    public static void populateGetCreatedMiningFieldsMethod(final ClassOrInterfaceDeclaration modelTemplate,
+                                                            final List<MiningField> miningFields) {
+        final MethodDeclaration methodDeclaration = modelTemplate.getMethodsByName(GET_CREATED_MININGFIELDS).get(0);
+        final List<ObjectCreationExpr> miningFieldsObjectCreations = getMiningFieldsObjectCreations(miningFields);
+        populateListInListGetter(miningFieldsObjectCreations, methodDeclaration, TO_RETURN);
+    }
+
+    /**
+     * Populate the <code>getCreatedKiePMMLMiningFields</code> method
+     * @param modelTemplate
      * @param outputFields
      */
-    public static void addKiePMMLOutputFieldsPopulation(final BlockStmt body, final List<KiePMMLOutputField> outputFields) {
-        for (KiePMMLOutputField outputField : outputFields) {
-            NodeList<Expression> expressions = NodeList.nodeList(new StringLiteralExpr(outputField.getName()),
-                                                                 new NameExpr("Collections.emptyList()"));
-            MethodCallExpr builder = new MethodCallExpr(new NameExpr("KiePMMLOutputField"), "builder", expressions);
-            if (outputField.getRank() != null) {
-                expressions = NodeList.nodeList(new IntegerLiteralExpr(outputField.getRank()));
-                builder = new MethodCallExpr(builder, "withRank", expressions);
-            }
-            if (outputField.getValue() != null) {
-                expressions = NodeList.nodeList(new StringLiteralExpr(outputField.getValue().toString()));
-                builder = new MethodCallExpr(builder, "withValue", expressions);
-            }
-            String targetField = outputField.getTargetField().orElse(null);
-            if (targetField != null) {
-                expressions = NodeList.nodeList(new StringLiteralExpr(targetField));
-                builder = new MethodCallExpr(builder, "withTargetField", expressions);
-            }
-            if (outputField.getResultFeature() != null) {
-                expressions =
-                        NodeList.nodeList(new NameExpr(RESULT_FEATURE.class.getName() + "." + outputField.getResultFeature().toString()));
-                builder = new MethodCallExpr(builder, "withResultFeature", expressions);
-            }
-            Expression newOutputField = new MethodCallExpr(builder, "build");
-            expressions = NodeList.nodeList(newOutputField);
-            body.addStatement(new MethodCallExpr(new NameExpr("kiePMMLOutputFields"), "add", expressions));
+    public static void populateGetCreatedOutputFieldsMethod(final ClassOrInterfaceDeclaration modelTemplate,
+                                                            final List<OutputField> outputFields) {
+        final MethodDeclaration methodDeclaration = modelTemplate.getMethodsByName(GET_CREATED_OUTPUTFIELDS).get(0);
+        final List<ObjectCreationExpr> outputFieldsObjectCreations = getOutputFieldsObjectCreations(outputFields);
+        populateListInListGetter(outputFieldsObjectCreations, methodDeclaration, TO_RETURN);
+    }
+
+    /**
+     * Populate the <code>getCreatedKiePMMLMiningFields</code> method
+     * @param modelTemplate
+     * @param miningFields
+     * @param fields
+     */
+    public static void populateGetCreatedKiePMMLMiningFieldsMethod(final ClassOrInterfaceDeclaration modelTemplate,
+                                                                   final List<org.dmg.pmml.MiningField> miningFields,
+                                                                   final List<org.dmg.pmml.Field<?>> fields) {
+        final MethodDeclaration methodDeclaration =
+                modelTemplate.getMethodsByName(GET_CREATED_KIEPMMLMININGFIELDS).get(0);
+        commonPopulateGetCreatedKiePMMLMiningFieldsMethod(methodDeclaration, miningFields, fields);
+    }
+
+    public static void addGetCreatedKiePMMLOutputFieldsMethod(final ClassOrInterfaceDeclaration modelTemplate,
+                                                              final List<org.dmg.pmml.OutputField> outputFields) {
+        final MethodDeclaration methodDeclaration = modelTemplate.addMethod(GET_CREATED_KIEPMMLOUTPUTFIELDS,
+                                                                            Modifier.Keyword.PRIVATE);
+        final ClassOrInterfaceType returnedType =
+                getTypedClassOrInterfaceTypeByTypeNames(List.class.getSimpleName(),
+                                                        Collections.singletonList(KiePMMLOutputField.class.getSimpleName()));
+        methodDeclaration.setType(returnedType);
+        commonPopulateGetCreatedKiePMMLOutputFieldsMethod(methodDeclaration, outputFields);
+    }
+
+    public static void populateGetCreatedKiePMMLOutputFieldsMethod(final ClassOrInterfaceDeclaration modelTemplate,
+                                                                   final List<org.dmg.pmml.OutputField> outputFields) {
+        final MethodDeclaration methodDeclaration =
+                modelTemplate.getMethodsByName(GET_CREATED_KIEPMMLOUTPUTFIELDS).get(0);
+        commonPopulateGetCreatedKiePMMLOutputFieldsMethod(methodDeclaration, outputFields);
+    }
+
+    public static void populateGetCreatedKiePMMLTargetsMethod(final ClassOrInterfaceDeclaration modelTemplate,
+                                                              final List<TargetField> targetFields) {
+        final MethodDeclaration methodDeclaration = modelTemplate.getMethodsByName(GET_CREATED_KIEPMMLTARGETS).get(0);
+        final List<MethodCallExpr> kiePMMLTargetFieldsObjectCreations =
+                getKiePMMLTargetFieldsObjectCreations(targetFields);
+        populateListInListGetter(kiePMMLTargetFieldsObjectCreations, methodDeclaration, TO_RETURN);
+    }
+
+    public static void populateGetCreatedTransformationDictionaryMethod(final ClassOrInterfaceDeclaration toPopulate,
+                                                                        final TransformationDictionary transformationDictionary) {
+        if (transformationDictionary != null) {
+            BlockStmt createTransformationDictionaryBody =
+                    KiePMMLTransformationDictionaryFactory.getKiePMMLTransformationDictionaryVariableDeclaration(transformationDictionary);
+            createTransformationDictionaryBody.addStatement(getReturnStmt(TRANSFORMATION_DICTIONARY));
+            final MethodDeclaration methodDeclaration =
+                    toPopulate.getMethodsByName(GET_CREATED_TRANSFORMATION_DICTIONARY).get(0);
+            methodDeclaration.setBody(createTransformationDictionaryBody);
+        }
+    }
+
+    /**
+     * Add <b>common</b> and <b>local</b> transformations management inside the given
+     * <code>ClassOrInterfaceDeclaration</code>
+     * @param toPopulate
+     * @param localTransformations
+     */
+    public static void populateGetCreatedLocalTransformationsMethod(final ClassOrInterfaceDeclaration toPopulate,
+                                                                    final LocalTransformations localTransformations) {
+        if (localTransformations != null) {
+            BlockStmt createLocalTransformationsBody =
+                    KiePMMLLocalTransformationsFactory.getKiePMMLLocalTransformationsVariableDeclaration(localTransformations);
+            createLocalTransformationsBody.addStatement(getReturnStmt(LOCAL_TRANSFORMATIONS));
+            final MethodDeclaration methodDeclaration =
+                    toPopulate.getMethodsByName(GET_CREATED_LOCAL_TRANSFORMATIONS).get(0);
+            methodDeclaration.setBody(createLocalTransformationsBody);
         }
     }
 
@@ -161,25 +270,149 @@ public class KiePMMLModelFactoryUtils {
                                                                        final LocalTransformations localTransformations) {
         String createTransformationDictionary = null;
         if (transformationDictionary != null) {
-            BlockStmt createTransformationDictionaryBody = KiePMMLTransformationDictionaryFactory.getKiePMMLTransformationDictionaryVariableDeclaration(transformationDictionary);
+            BlockStmt createTransformationDictionaryBody =
+                    KiePMMLTransformationDictionaryFactory.getKiePMMLTransformationDictionaryVariableDeclaration(transformationDictionary);
             createTransformationDictionaryBody.addStatement(getReturnStmt(TRANSFORMATION_DICTIONARY));
             createTransformationDictionary = "createTransformationDictionary";
-            MethodDeclaration createTransformationDictionaryMethod = toPopulate.addMethod(createTransformationDictionary, Modifier.Keyword.PRIVATE);
+            MethodDeclaration createTransformationDictionaryMethod =
+                    toPopulate.addMethod(createTransformationDictionary, Modifier.Keyword.PRIVATE);
             createTransformationDictionaryMethod.setType(KiePMMLTransformationDictionary.class.getName());
             createTransformationDictionaryMethod.setBody(createTransformationDictionaryBody);
         }
         String createLocalTransformations = null;
         if (localTransformations != null) {
-            BlockStmt createLocalTransformationsBody = KiePMMLLocalTransformationsFactory.getKiePMMLLocalTransformationsVariableDeclaration(localTransformations);
+            BlockStmt createLocalTransformationsBody =
+                    KiePMMLLocalTransformationsFactory.getKiePMMLLocalTransformationsVariableDeclaration(localTransformations);
             createLocalTransformationsBody.addStatement(getReturnStmt(LOCAL_TRANSFORMATIONS));
             createLocalTransformations = "createLocalTransformations";
-            MethodDeclaration createLocalTransformationsMethod = toPopulate.addMethod(createLocalTransformations, Modifier.Keyword.PRIVATE);
+            MethodDeclaration createLocalTransformationsMethod = toPopulate.addMethod(createLocalTransformations,
+                                                                                      Modifier.Keyword.PRIVATE);
             createLocalTransformationsMethod.setType(KiePMMLLocalTransformations.class.getName());
             createLocalTransformationsMethod.setBody(createLocalTransformationsBody);
         }
         final ConstructorDeclaration constructorDeclaration =
                 toPopulate.getDefaultConstructor().orElseThrow(() -> new KiePMMLInternalException(String.format(MISSING_DEFAULT_CONSTRUCTOR, toPopulate.getName())));
-        populateTransformationsInConstructor(constructorDeclaration, createTransformationDictionary, createLocalTransformations);
+        populateTransformationsInConstructor(constructorDeclaration, createTransformationDictionary,
+                                             createLocalTransformations);
+    }
+
+    /**
+     * Initialize the given <code>ClassOrInterfaceDeclaration</code> with all the <b>common</b> code needed to
+     * generate a <code>KiePMMLModel</code>
+     * @param compilationDTO
+     * @param modelTemplate
+     */
+    public static void init(final CompilationDTO<? extends Model> compilationDTO,
+                            final ClassOrInterfaceDeclaration modelTemplate) {
+        final ConstructorDeclaration constructorDeclaration =
+                modelTemplate.getDefaultConstructor().orElseThrow(() -> new KiePMMLInternalException(String.format(MISSING_DEFAULT_CONSTRUCTOR, modelTemplate.getName())));
+        final String name = compilationDTO.getModelName();
+        final String generatedClassName = compilationDTO.getSimpleClassName();
+        final List<MiningField> miningFields = compilationDTO.getKieMiningFields();
+        final List<OutputField> outputFields = compilationDTO.getKieOutputFields();
+        final List<TargetField> targetFields = compilationDTO.getKieTargetFields();
+
+        final Expression miningFunctionExpression;
+        if (compilationDTO.getMINING_FUNCTION() != null) {
+            MINING_FUNCTION miningFunction = compilationDTO.getMINING_FUNCTION();
+            miningFunctionExpression = new NameExpr(miningFunction.getClass().getName() + "." + miningFunction.name());
+        } else {
+            miningFunctionExpression = new NullLiteralExpr();
+        }
+        final PMML_MODEL pmmlModelEnum = compilationDTO.getPMML_MODEL();
+        final NameExpr pmmlMODELExpression =
+                new NameExpr(pmmlModelEnum.getClass().getName() + "." + pmmlModelEnum.name());
+        String targetFieldName = compilationDTO.getTargetFieldName();
+        final Expression targetFieldExpression;
+        if (targetFieldName != null) {
+            targetFieldExpression = new StringLiteralExpr(targetFieldName);
+        } else {
+            targetFieldExpression = new NullLiteralExpr();
+        }
+        setKiePMMLModelConstructor(generatedClassName,
+                                   constructorDeclaration,
+                                   name,
+                                   miningFields,
+                                   outputFields,
+                                   targetFields);
+        addTransformationsInClassOrInterfaceDeclaration(modelTemplate, compilationDTO.getTransformationDictionary(),
+                                                        compilationDTO.getLocalTransformations());
+        final BlockStmt body = constructorDeclaration.getBody();
+        CommonCodegenUtils.setAssignExpressionValue(body, "pmmlMODEL", pmmlMODELExpression);
+        CommonCodegenUtils.setAssignExpressionValue(body, "miningFunction", miningFunctionExpression);
+        CommonCodegenUtils.setAssignExpressionValue(body, "targetField", targetFieldExpression);
+
+        addGetCreatedKiePMMLMiningFieldsMethod(modelTemplate, compilationDTO.getMiningSchema().getMiningFields(),
+                                               compilationDTO.getFields());
+        MethodCallExpr getCreatedKiePMMLMiningFieldsExpr = new MethodCallExpr();
+        getCreatedKiePMMLMiningFieldsExpr.setScope(new ThisExpr());
+        getCreatedKiePMMLMiningFieldsExpr.setName(GET_CREATED_KIEPMMLMININGFIELDS);
+        CommonCodegenUtils.setAssignExpressionValue(body, "kiePMMLMiningFields", getCreatedKiePMMLMiningFieldsExpr);
+
+        if (compilationDTO.getOutput() != null) {
+            addGetCreatedKiePMMLOutputFieldsMethod(modelTemplate, compilationDTO.getOutput().getOutputFields());
+            MethodCallExpr getCreatedKiePMMLOutputFieldsExpr = new MethodCallExpr();
+            getCreatedKiePMMLOutputFieldsExpr.setScope(new ThisExpr());
+            getCreatedKiePMMLOutputFieldsExpr.setName(GET_CREATED_KIEPMMLOUTPUTFIELDS);
+            CommonCodegenUtils.setAssignExpressionValue(body, "kiePMMLOutputFields", getCreatedKiePMMLOutputFieldsExpr);
+        }
+    }
+
+    /**
+     * Populate the given <code>ClassOrInterfaceDeclaration</code>' <b>staticGetter</b> with the <b>common</b>
+     * parameters needed to
+     * instantiate a <code>KiePMMLModel</code>
+     * @param compilationDTO
+     * @param modelTemplate
+     * @return
+     */
+    public static void initStaticGetter(final CompilationDTO<? extends Model> compilationDTO,
+                                        final ClassOrInterfaceDeclaration modelTemplate) {
+        final MethodDeclaration staticGetterMethod =
+                modelTemplate.getMethodsByName(GET_MODEL).get(0);
+        final BlockStmt staticGetterBody =
+                staticGetterMethod.getBody().orElseThrow(() -> new KiePMMLException(String.format(MISSING_BODY_TEMPLATE, staticGetterMethod)));
+        final VariableDeclarator variableDeclarator =
+                getVariableDeclarator(staticGetterBody, TO_RETURN).orElseThrow(() -> new KiePMMLException(String.format(MISSING_VARIABLE_IN_BODY, TO_RETURN, staticGetterBody)));
+
+        final MethodCallExpr initializer = variableDeclarator.getInitializer()
+                .orElseThrow(() -> new KiePMMLException(String.format(MISSING_VARIABLE_INITIALIZER_TEMPLATE,
+                                                                      TO_RETURN, staticGetterBody)))
+                .asMethodCallExpr();
+        final MethodCallExpr builder = getChainedMethodCallExprFrom("builder", initializer);
+        final String name = compilationDTO.getModelName();
+        final Expression miningFunctionExpression;
+        if (compilationDTO.getMINING_FUNCTION() != null) {
+            MINING_FUNCTION miningFunction = compilationDTO.getMINING_FUNCTION();
+            miningFunctionExpression = new NameExpr(miningFunction.getClass().getName() + "." + miningFunction.name());
+        } else {
+            miningFunctionExpression = new NullLiteralExpr();
+        }
+        builder.setArgument(0, new StringLiteralExpr(name));
+        builder.setArgument(1, miningFunctionExpression);
+
+        String targetFieldName = compilationDTO.getTargetFieldName();
+        final Expression targetFieldExpression;
+        if (targetFieldName != null) {
+            targetFieldExpression = new StringLiteralExpr(targetFieldName);
+        } else {
+            targetFieldExpression = new NullLiteralExpr();
+        }
+        getChainedMethodCallExprFrom("withTargetField", initializer).setArgument(0, targetFieldExpression);
+
+        //
+        populateGetCreatedMiningFieldsMethod(modelTemplate, compilationDTO.getKieMiningFields());
+        populateGetCreatedOutputFieldsMethod(modelTemplate, compilationDTO.getKieOutputFields());
+        populateGetCreatedKiePMMLMiningFieldsMethod(modelTemplate, compilationDTO.getMiningSchema().getMiningFields()
+                , compilationDTO.getFields());
+        if (compilationDTO.getOutput() != null) {
+            populateGetCreatedKiePMMLOutputFieldsMethod(modelTemplate, compilationDTO.getOutput().getOutputFields());
+        }
+        if (compilationDTO.getKieTargetFields() != null) {
+            populateGetCreatedKiePMMLTargetsMethod(modelTemplate, compilationDTO.getKieTargetFields());
+        }
+        populateGetCreatedTransformationDictionaryMethod(modelTemplate, compilationDTO.getTransformationDictionary());
+        populateGetCreatedLocalTransformationsMethod(modelTemplate, compilationDTO.getLocalTransformations());
     }
 
     /**
@@ -207,16 +440,36 @@ public class KiePMMLModelFactoryUtils {
                     Expression dataType = dtT != null ?
                             new NameExpr(dtT.getClass().getName() + "." + dtT.name())
                             : new NullLiteralExpr();
+                    MISSING_VALUE_TREATMENT_METHOD mVTM = miningField.getMissingValueTreatmentMethod();
+                    Expression missingValueTreatmentMethod = mVTM != null ?
+                            new NameExpr(mVTM.getClass().getName() + "." + mVTM.name())
+                            : new NullLiteralExpr();
+                    INVALID_VALUE_TREATMENT_METHOD iVTM = miningField.getInvalidValueTreatmentMethod();
+                    Expression invalidValueTreatmentMethod = iVTM != null ?
+                            new NameExpr(iVTM.getClass().getName() + "." + iVTM.name())
+                            : new NullLiteralExpr();
                     Expression missingValueReplacement = miningField.getMissingValueReplacement() != null ?
                             new StringLiteralExpr(miningField.getMissingValueReplacement())
                             : new NullLiteralExpr();
+                    Expression invalidValueReplacement = miningField.getInvalidValueReplacement() != null ?
+                            new StringLiteralExpr(miningField.getInvalidValueReplacement())
+                            : new NullLiteralExpr();
                     Expression allowedValues = miningField.getAllowedValues() != null ?
-                            CommonCodegenUtils.createArraysAsListFromList(miningField.getAllowedValues()).getExpression()
+                            createArraysAsListFromList(miningField.getAllowedValues()).getExpression()
                             : new NullLiteralExpr();
                     Expression intervals = miningField.getIntervals() != null ?
                             createIntervalsExpression(miningField.getIntervals())
                             : new NullLiteralExpr();
-                    toReturn.setArguments(NodeList.nodeList(name, usageType, opType, dataType, missingValueReplacement, allowedValues, intervals));
+                    toReturn.setArguments(NodeList.nodeList(name,
+                                                            usageType,
+                                                            opType,
+                                                            dataType,
+                                                            missingValueTreatmentMethod,
+                                                            invalidValueTreatmentMethod,
+                                                            missingValueReplacement,
+                                                            invalidValueReplacement,
+                                                            allowedValues,
+                                                            intervals));
                     return toReturn;
                 })
                 .collect(Collectors.toList());
@@ -250,8 +503,6 @@ public class KiePMMLModelFactoryUtils {
         return toReturn;
     }
 
-
-
     /**
      * Create a <code>List&lt;ObjectCreationExpr&gt;</code> for the given <code>List&lt;OutputField&gt;</code>
      * @param outputFields
@@ -281,14 +532,25 @@ public class KiePMMLModelFactoryUtils {
                             new NameExpr(rsltF.getClass().getName() + "." + rsltF.name())
                             : new NullLiteralExpr();
                     Expression allowedValues = outputField.getAllowedValues() != null ?
-                            CommonCodegenUtils.createArraysAsListFromList(outputField.getAllowedValues()).getExpression()
+                            createArraysAsListFromList(outputField.getAllowedValues()).getExpression()
                             : new NullLiteralExpr();
-                    toReturn.setArguments(NodeList.nodeList(name, opType, dataType, targetField, resultFeature, allowedValues));
+                    toReturn.setArguments(NodeList.nodeList(name, opType, dataType, targetField, resultFeature,
+                                                            allowedValues));
                     return toReturn;
                 })
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Create a <code>List&lt;ObjectCreationExpr&gt;</code> for the given <code>List&lt;KiePMMLTarget&gt;</code>
+     * @param targetFields
+     * @return
+     */
+    static List<MethodCallExpr> getKiePMMLTargetFieldsObjectCreations(final List<TargetField> targetFields) {
+        return targetFields.stream()
+                .map(KiePMMLTargetFactory::getKiePMMLTargetVariableInitializer)
+                .collect(Collectors.toList());
+    }
 
     /**
      * Populating the <b>transformationDictionary</b> and <b>localTransformations</b> variables inside the constructor
@@ -297,13 +559,64 @@ public class KiePMMLModelFactoryUtils {
      * @param createLocalTransformations
      */
     static void populateTransformationsInConstructor(final ConstructorDeclaration constructorDeclaration,
-                                                     final String createTransformationDictionary, final String createLocalTransformations) {
+                                                     final String createTransformationDictionary,
+                                                     final String createLocalTransformations) {
         Expression createTransformationDictionaryInitializer = createTransformationDictionary != null ?
-                new MethodCallExpr(new NameExpr("this"), createTransformationDictionary, NodeList.nodeList()) : new NullLiteralExpr();
-        setAssignExpressionValue(constructorDeclaration.getBody(), TRANSFORMATION_DICTIONARY, createTransformationDictionaryInitializer);
-        Expression createLocalTransformationsInitializer =  createLocalTransformations != null ?
-                new MethodCallExpr(new NameExpr("this"), createLocalTransformations, NodeList.nodeList()) : new NullLiteralExpr();
-        setAssignExpressionValue(constructorDeclaration.getBody(), LOCAL_TRANSFORMATIONS, createLocalTransformationsInitializer);
+                new MethodCallExpr(new NameExpr("this"), createTransformationDictionary, NodeList.nodeList()) :
+                new NullLiteralExpr();
+        setAssignExpressionValue(constructorDeclaration.getBody(), TRANSFORMATION_DICTIONARY,
+                                 createTransformationDictionaryInitializer);
+        Expression createLocalTransformationsInitializer = createLocalTransformations != null ?
+                new MethodCallExpr(new NameExpr("this"), createLocalTransformations, NodeList.nodeList()) :
+                new NullLiteralExpr();
+        setAssignExpressionValue(constructorDeclaration.getBody(), LOCAL_TRANSFORMATIONS,
+                                 createLocalTransformationsInitializer);
     }
 
+    /**
+     * Populate the <code>getCreatedKiePMMLMiningFields</code> method
+     * @param methodDeclaration
+     * @param miningFields
+     * @param fields
+     */
+    static void commonPopulateGetCreatedKiePMMLMiningFieldsMethod(final MethodDeclaration methodDeclaration,
+                                                                  final List<org.dmg.pmml.MiningField> miningFields,
+                                                                  final List<org.dmg.pmml.Field<?>> fields) {
+        BlockStmt body = new BlockStmt();
+        NodeList<Expression> arguments = new NodeList<>();
+        for (org.dmg.pmml.MiningField miningField : miningFields) {
+            String miningFieldVariableName = getSanitizedVariableName(miningField.getName().getValue()).toLowerCase();
+            BlockStmt toAdd = getMiningFieldVariableDeclaration(miningFieldVariableName, miningField, fields);
+            toAdd.getStatements().forEach(body::addStatement);
+            arguments.add(new NameExpr(miningFieldVariableName));
+        }
+        MethodCallExpr methodCallExpr = new MethodCallExpr();
+        methodCallExpr.setScope(new NameExpr(Arrays.class.getSimpleName()));
+        methodCallExpr.setName("asList");
+        methodCallExpr.setArguments(arguments);
+        ReturnStmt returnStmt = new ReturnStmt();
+        returnStmt.setExpression(methodCallExpr);
+        body.addStatement(returnStmt);
+        methodDeclaration.setBody(body);
+    }
+
+    static void commonPopulateGetCreatedKiePMMLOutputFieldsMethod(final MethodDeclaration methodDeclaration,
+                                                                  final List<org.dmg.pmml.OutputField> outputFields) {
+        BlockStmt body = new BlockStmt();
+        NodeList<Expression> arguments = new NodeList<>();
+        for (org.dmg.pmml.OutputField outputField : outputFields) {
+            String outputFieldVariableName = getSanitizedVariableName(outputField.getName().getValue()).toLowerCase();
+            BlockStmt toAdd = getOutputFieldVariableDeclaration(outputFieldVariableName, outputField);
+            toAdd.getStatements().forEach(body::addStatement);
+            arguments.add(new NameExpr(outputFieldVariableName));
+        }
+        MethodCallExpr methodCallExpr = new MethodCallExpr();
+        methodCallExpr.setScope(new NameExpr(Arrays.class.getSimpleName()));
+        methodCallExpr.setName("asList");
+        methodCallExpr.setArguments(arguments);
+        ReturnStmt returnStmt = new ReturnStmt();
+        returnStmt.setExpression(methodCallExpr);
+        body.addStatement(returnStmt);
+        methodDeclaration.setBody(body);
+    }
 }

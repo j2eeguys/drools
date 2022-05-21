@@ -16,26 +16,27 @@
 
 package org.drools.compiler.rule.builder;
 
+import java.beans.IntrospectionException;
+import java.beans.Introspector;
+import java.beans.PropertyDescriptor;
 import java.util.Optional;
 
 import org.drools.compiler.builder.DroolsAssemblerContext;
+import org.drools.compiler.builder.impl.TypeDeclarationContext;
 import org.drools.compiler.compiler.Dialect;
 import org.drools.compiler.compiler.DialectCompiletimeRegistry;
 import org.drools.compiler.compiler.RuleBuildError;
-import org.drools.compiler.lang.descr.QueryDescr;
-import org.drools.compiler.lang.descr.RuleDescr;
-import org.drools.core.beliefsystem.abductive.Abductive;
+import org.drools.core.common.TruthMaintenanceSystemFactory;
 import org.drools.core.definitions.InternalKnowledgePackage;
 import org.drools.core.definitions.rule.impl.RuleImpl;
-import org.drools.core.rule.AbductiveQuery;
 import org.drools.core.rule.EntryPointId;
 import org.drools.core.rule.Pattern;
-import org.drools.core.rule.QueryImpl;
-import org.drools.core.spi.DeclarationScopeResolver;
-import org.drools.core.util.ClassUtils;
+import org.drools.core.rule.accessor.DeclarationScopeResolver;
+import org.drools.drl.ast.descr.QueryDescr;
+import org.drools.drl.ast.descr.RuleDescr;
+import org.drools.util.TypeResolver;
 import org.kie.internal.ruleunit.RuleUnitComponentFactory;
 import org.kie.internal.ruleunit.RuleUnitDescription;
-import org.drools.core.addon.TypeResolver;
 
 /**
  * A context for the current build
@@ -54,8 +55,6 @@ public class RuleBuildContext extends PackageBuildContext {
     // a simple counter for patterns
     private int patternId = -1;
 
-    private final DroolsCompilerComponentFactory compilerFactory;
-
     private boolean needStreamMode = false;
 
     private Pattern prefixPattern;
@@ -69,28 +68,19 @@ public class RuleBuildContext extends PackageBuildContext {
     /**
      * Default constructor
      */
-    public RuleBuildContext(final DroolsAssemblerContext kBuilder,
+    public RuleBuildContext(final TypeDeclarationContext kBuilder,
                             final RuleDescr ruleDescr,
                             final DialectCompiletimeRegistry dialectCompiletimeRegistry,
                             final InternalKnowledgePackage pkg,
                             final Dialect defaultDialect) {
         this.ruleDescr = ruleDescr;
 
-        if (ruleDescr instanceof QueryDescr) {
-            Abductive abductive = ruleDescr.getTypedAnnotation(Abductive.class);
-            if (abductive == null) {
-                this.rule = new QueryImpl(ruleDescr.getName());
-            } else {
-                this.rule = new AbductiveQuery(ruleDescr.getName());
-            }
-        } else {
-            this.rule = ruleDescr.toRule();
-        }
+        this.rule = ruleDescr instanceof QueryDescr ? TruthMaintenanceSystemFactory.createQuery(ruleDescr.getName(), ruleDescr::hasAnnotation) : descrToRule(ruleDescr);
         this.rule.setPackage(pkg.getName());
         this.rule.setDialect(ruleDescr.getDialect());
         this.rule.setLoadOrder(ruleDescr.getLoadOrder());
 
-        init(kBuilder, pkg, ruleDescr, dialectCompiletimeRegistry, defaultDialect, this.rule);
+        initContext(kBuilder, pkg, ruleDescr, dialectCompiletimeRegistry, defaultDialect, this.rule);
 
         if (this.rule.getDialect() == null) {
             this.rule.setDialect(getDialect().getId());
@@ -105,7 +95,6 @@ public class RuleBuildContext extends PackageBuildContext {
             dialect.init(ruleDescr);
         }
 
-        this.compilerFactory = kBuilder.getBuilderConfiguration().getComponentFactory();
         this.declarationResolver = new DeclarationScopeResolver(kBuilder.getGlobals(), getPkg());
     }
 
@@ -139,10 +128,6 @@ public class RuleBuildContext extends PackageBuildContext {
 
     public int getNextPatternId() {
         return ++this.patternId;
-    }
-
-    public DroolsCompilerComponentFactory getCompilerFactory() {
-        return compilerFactory;
     }
 
     public boolean needsStreamMode() {
@@ -193,17 +178,36 @@ public class RuleBuildContext extends PackageBuildContext {
         if (RuleUnitComponentFactory.get() != null && ruleUnitClassName != null) {
             TypeResolver typeResolver = getPkg().getTypeResolver();
             boolean unitFound = false;
-            Class<?> ruleUnitClass = ClassUtils.safeLoadClass(typeResolver.getClassLoader(), ruleUnitClassName);
+            Class<?> ruleUnitClass = null;
+            try {
+                ruleUnitClass = typeResolver.resolveType(ruleUnitClassName);
+            } catch (ClassNotFoundException e) {
+                if (!nameInferredFromResource) {
+                    addError(new RuleBuildError(rule, getParentDescr(), null,
+                            "Cannot find rule unit class " + ruleUnitClassName));
+                    return;
+                }
+            }
             if (ruleUnitClass != null) {
                 unitFound = RuleUnitComponentFactory.get().isRuleUnitClass( ruleUnitClass );
                 if (unitFound && nameInferredFromResource) {
                     rule.setRuleUnitClassName(ruleUnitClassName);
                 }
+
+                try {
+                    for (PropertyDescriptor prop : Introspector.getBeanInfo(ruleUnitClass).getPropertyDescriptors()) {
+                        if (!"class".equals(prop.getName())) {
+                            getPkg().addGlobal(prop.getName(), prop.getPropertyType());
+                        }
+                    }
+                } catch (IntrospectionException e) {
+                    throw new RuntimeException();
+                }
             }
 
             if (!unitFound && !nameInferredFromResource) {
                 addError(new RuleBuildError(rule, getParentDescr(), null,
-                                            ruleUnitClassName + " is not a valid RuleUnit class name"));
+                                            ruleUnitClassName + " must implement RuleUnitData"));
             }
         }
     }
@@ -213,7 +217,7 @@ public class RuleBuildContext extends PackageBuildContext {
     }
 
     public Optional<EntryPointId> getEntryPointId( RuleUnitDescription ruDescr, String name ) {
-        return ruDescr.hasVar( name ) ? Optional.of( new EntryPointId( ruDescr.getEntryPointName(name) ) ) : Optional.empty();
+        return ruDescr.hasVar( name ) ? Optional.of( new EntryPointId( name ) ) : Optional.empty();
     }
 
     private String extractClassNameFromSourcePath() {
@@ -238,7 +242,7 @@ public class RuleBuildContext extends PackageBuildContext {
             }
         }
 
-        return rule.getPackage() + "." + classNameBuilder.reverse().toString();
+        return rule.getPackage() + "." + classNameBuilder.reverse();
     }
 
     public void increaseXpathChuckNr() {
@@ -263,5 +267,11 @@ public class RuleBuildContext extends PackageBuildContext {
 
     public int getXpathOffsetadjustment() {
         return xpathOffsetadjustment;
+    }
+
+    public static RuleImpl descrToRule(RuleDescr ruleDescr) {
+        RuleImpl rule = new RuleImpl( ruleDescr.getName() );
+        rule.setResource( rule.getResource() );
+        return rule;
     }
 }

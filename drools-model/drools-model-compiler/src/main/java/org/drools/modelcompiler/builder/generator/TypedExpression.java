@@ -26,6 +26,7 @@ import java.util.Optional;
 import com.github.javaparser.ast.expr.Expression;
 import org.drools.mvel.parser.printer.PrintUtil;
 
+import static org.drools.modelcompiler.builder.generator.DrlxParseUtil.THIS_PLACEHOLDER;
 import static org.drools.modelcompiler.builder.generator.DrlxParseUtil.toClassOrInterfaceType;
 import static org.drools.modelcompiler.util.ClassUtil.toNonPrimitiveType;
 import static org.drools.modelcompiler.util.ClassUtil.toRawClass;
@@ -35,6 +36,7 @@ public class TypedExpression {
     private Class<?> originalPatternType;
     private final Expression expression;
     private Type type;
+    private Type typeBeforeCoercion;
     private final String fieldName;
 
     protected Boolean staticExpr;
@@ -46,12 +48,21 @@ public class TypedExpression {
     }
 
     public TypedExpression( Expression expression, Type type ) {
-        this(expression, type, null);
+        this(expression, type, null, null);
+    }
+
+    public TypedExpression( Expression expression, Type type, Type typeBeforeCoercion) {
+        this(expression, type, typeBeforeCoercion, null);
     }
 
     public TypedExpression( Expression expression, Type type, String fieldName ) {
+        this(expression, type, null, fieldName);
+    }
+
+    public TypedExpression( Expression expression, Type type, Type typeBeforeCoercion, String fieldName ) {
         this.expression = expression;
         this.type = type;
+        this.typeBeforeCoercion = typeBeforeCoercion;
         this.fieldName = fieldName;
     }
 
@@ -78,6 +89,10 @@ public class TypedExpression {
 
     public Class<?> getRawClass() {
         return toRawClass( type );
+    }
+
+    public Class<?> getTypeBeforeCoercion() {
+        return toRawClass( typeBeforeCoercion );
     }
 
     public Optional<Class<?>> getBoxedType() {
@@ -164,10 +179,14 @@ public class TypedExpression {
         this.originalPatternType = originalPatternType;
     }
 
+    public boolean containThis() {
+        return getExpression().toString().contains(THIS_PLACEHOLDER);
+    }
+
     @Override
     public String toString() {
         return "TypedExpression{" +
-                "expression=" + expression +
+                "expression=" + PrintUtil.printNode(expression) +
                 ", jpType=" + (expression == null ? "" : expression.getClass().getSimpleName()) +
                 ", type=" + type +
                 ", fieldName='" + fieldName + '\'' +
@@ -183,7 +202,7 @@ public class TypedExpression {
             return false;
         }
         TypedExpression that = (TypedExpression) o;
-        return Objects.equals(PrintUtil.printConstraint(expression), PrintUtil.printConstraint(that.expression)) &&
+        return Objects.equals(PrintUtil.printNode(expression), PrintUtil.printNode(that.expression)) &&
                 Objects.equals(type, that.type) &&
                 Objects.equals(fieldName, that.fieldName);
     }

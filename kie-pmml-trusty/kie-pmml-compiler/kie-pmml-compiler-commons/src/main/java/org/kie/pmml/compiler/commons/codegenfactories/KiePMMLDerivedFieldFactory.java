@@ -19,6 +19,7 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
@@ -30,11 +31,14 @@ import org.kie.pmml.compiler.commons.utils.JavaParserUtils;
 import static org.kie.pmml.commons.Constants.MISSING_BODY_TEMPLATE;
 import static org.kie.pmml.commons.Constants.MISSING_VARIABLE_INITIALIZER_TEMPLATE;
 import static org.kie.pmml.commons.Constants.MISSING_VARIABLE_IN_BODY;
+import static org.kie.pmml.commons.Constants.VARIABLE_NAME_TEMPLATE;
+import static org.kie.pmml.compiler.commons.codegenfactories.KiePMMLExpressionFactory.getKiePMMLExpressionBlockStmt;
 import static org.kie.pmml.compiler.commons.utils.CommonCodegenUtils.getChainedMethodCallExprFrom;
+import static org.kie.pmml.compiler.commons.utils.CommonCodegenUtils.getExpressionForDataType;
 import static org.kie.pmml.compiler.commons.utils.CommonCodegenUtils.getExpressionForObject;
+import static org.kie.pmml.compiler.commons.utils.CommonCodegenUtils.getExpressionForOpType;
 import static org.kie.pmml.compiler.commons.utils.CommonCodegenUtils.getVariableDeclarator;
 import static org.kie.pmml.compiler.commons.utils.JavaParserUtils.MAIN_CLASS_NOT_FOUND;
-import static org.kie.pmml.compiler.commons.codegenfactories.KiePMMLExpressionFactory.getKiePMMLExpression;
 
 /**
  * Class meant to provide <i>helper</i> method to retrieve <code>KiePMMLDerivedField</code> code-generators
@@ -68,16 +72,18 @@ public class KiePMMLDerivedFieldFactory {
                 getVariableDeclarator(derivedFieldBody, DERIVED_FIELD).orElseThrow(() -> new KiePMMLException(String.format(MISSING_VARIABLE_IN_BODY, DERIVED_FIELD, derivedFieldBody)));
         variableDeclarator.setName(variableName);
         final BlockStmt toReturn = new BlockStmt();
-        String nestedVariableName = String.format("%s_%s", variableName, 0);
-        BlockStmt toAdd = getKiePMMLExpression(nestedVariableName, derivedField.getExpression());
+        String nestedVariableName = String.format(VARIABLE_NAME_TEMPLATE, variableName, 0);
+        BlockStmt toAdd = getKiePMMLExpressionBlockStmt(nestedVariableName, derivedField.getExpression());
         toAdd.getStatements().forEach(toReturn::addStatement);
         final MethodCallExpr initializer = variableDeclarator.getInitializer()
                 .orElseThrow(() -> new KiePMMLException(String.format(MISSING_VARIABLE_INITIALIZER_TEMPLATE, DERIVED_FIELD, derivedFieldBody)))
                 .asMethodCallExpr();
         final MethodCallExpr builder = getChainedMethodCallExprFrom("builder", initializer);
+        final Expression dataTypeExpression = getExpressionForDataType(derivedField.getDataType());
+        final Expression opTypeExpression = getExpressionForOpType(derivedField.getOpType());
         builder.setArgument(0, new StringLiteralExpr(derivedField.getName().getValue()));
-        builder.setArgument(2, new StringLiteralExpr(derivedField.getDataType().value()));
-        builder.setArgument(3, new StringLiteralExpr(derivedField.getOpType().value()));
+        builder.setArgument(2, dataTypeExpression);
+        builder.setArgument(3, opTypeExpression);
         builder.setArgument(4, new NameExpr(nestedVariableName));
         getChainedMethodCallExprFrom("withDisplayName", initializer).setArgument(0, getExpressionForObject(derivedField.getDisplayName()));
         derivedFieldBody.getStatements().forEach(toReturn::addStatement);

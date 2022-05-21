@@ -15,15 +15,17 @@
 
 package org.drools.compiler.rule.builder.util;
 
-import org.drools.compiler.lang.descr.AnnotationDescr;
-import org.drools.core.addon.TypeResolver;
-
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 
+import org.drools.util.TypeResolver;
+import org.drools.core.rule.Annotated;
+import org.drools.drl.ast.descr.AnnotatedBaseDescr;
+import org.drools.drl.ast.descr.AnnotationDescr;
+
 import static java.lang.reflect.Proxy.newProxyInstance;
-import static org.drools.core.util.StringUtils.ucFirst;
+import static org.drools.util.StringUtils.ucFirst;
 
 public class AnnotationFactory {
 
@@ -139,5 +141,24 @@ public class AnnotationFactory {
             }
             throw new RuntimeException("Cannot convert " + value + " to an instance of type " + resultClass.getName());
         }
+    }
+
+    public static <A extends Annotation> A getTypedAnnotation( AnnotatedBaseDescr annotatedBaseDescr, Class<A> annotationClass ) {
+        AnnotationDescr annotationDescr = annotatedBaseDescr.getAnnotation(annotationClass);
+        return annotationDescr == null ? null : (A) AnnotationFactory.buildAnnotation( annotationDescr, annotationClass );
+    }
+
+    public static Annotated toAnnotated(AnnotatedBaseDescr annotatedBaseDescr) {
+        return new Annotated() {
+            @Override
+            public boolean hasAnnotation(Class<? extends Annotation> annotationClass) {
+                return annotatedBaseDescr.hasAnnotation(annotationClass);
+            }
+
+            @Override
+            public <A extends Annotation> A getTypedAnnotation(Class<A> annotationClass) {
+                return AnnotationFactory.getTypedAnnotation( annotatedBaseDescr, annotationClass );
+            }
+        };
     }
 }

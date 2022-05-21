@@ -41,17 +41,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.assertj.core.api.Assertions;
 import org.drools.compiler.builder.impl.KnowledgeBuilderConfigurationImpl;
 import org.drools.compiler.builder.impl.KnowledgeBuilderImpl;
-import org.drools.compiler.compiler.DrlParser;
-import org.drools.compiler.compiler.DroolsParserException;
-import org.drools.compiler.lang.descr.PackageDescr;
-import org.drools.compiler.lang.descr.PatternDescr;
-import org.drools.compiler.lang.descr.RuleDescr;
 import org.drools.core.ClassObjectFilter;
 import org.drools.core.InitialFact;
-import org.drools.core.WorkingMemory;
 import org.drools.core.base.ClassObjectType;
 import org.drools.core.common.DefaultFactHandle;
 import org.drools.core.common.InternalAgenda;
@@ -59,23 +52,29 @@ import org.drools.core.common.InternalFactHandle;
 import org.drools.core.common.InternalWorkingMemory;
 import org.drools.core.common.Memory;
 import org.drools.core.common.NodeMemories;
-import org.drools.core.definitions.impl.KnowledgePackageImpl;
+import org.drools.core.common.ReteEvaluator;
+import org.drools.core.definitions.InternalKnowledgePackage;
 import org.drools.core.definitions.rule.impl.RuleImpl;
 import org.drools.core.facttemplates.FactTemplate;
 import org.drools.core.facttemplates.FactTemplateImpl;
 import org.drools.core.facttemplates.FieldTemplate;
 import org.drools.core.facttemplates.FieldTemplateImpl;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
-import org.drools.core.impl.KnowledgeBaseImpl;
+import org.drools.core.impl.RuleBase;
+import org.drools.core.reteoo.CoreComponentFactory;
 import org.drools.core.reteoo.LeftInputAdapterNode;
 import org.drools.core.reteoo.LeftTuple;
 import org.drools.core.reteoo.ObjectTypeNode;
 import org.drools.core.reteoo.Rete;
-import org.drools.core.reteoo.ReteComparator;
 import org.drools.core.reteoo.SegmentMemory;
-import org.drools.core.spi.KnowledgeHelper;
-import org.drools.core.spi.Salience;
+import org.drools.core.rule.consequence.Activation;
+import org.drools.core.rule.accessor.Salience;
+import org.drools.drl.ast.descr.PackageDescr;
+import org.drools.drl.ast.descr.PatternDescr;
+import org.drools.drl.ast.descr.RuleDescr;
+import org.drools.drl.parser.DrlParser;
+import org.drools.drl.parser.DroolsParserException;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
 import org.drools.mvel.builder.MVELDialectConfiguration;
 import org.drools.mvel.compiler.Address;
 import org.drools.mvel.compiler.Cheese;
@@ -100,7 +99,6 @@ import org.kie.api.builder.KieModule;
 import org.kie.api.builder.ReleaseId;
 import org.kie.api.builder.Results;
 import org.kie.api.builder.model.KieModuleModel;
-import org.kie.internal.builder.conf.EvaluatorOption;
 import org.kie.api.conf.DeclarativeAgendaOption;
 import org.kie.api.definition.KiePackage;
 import org.kie.api.definition.rule.Rule;
@@ -126,6 +124,7 @@ import org.kie.api.runtime.rule.FactHandle;
 import org.kie.api.runtime.rule.Match;
 import org.kie.internal.builder.KnowledgeBuilder;
 import org.kie.internal.builder.KnowledgeBuilderFactory;
+import org.kie.internal.builder.conf.EvaluatorOption;
 import org.kie.internal.builder.conf.LanguageLevelOption;
 import org.kie.internal.event.rule.RuleEventListener;
 import org.kie.internal.event.rule.RuleEventManager;
@@ -136,6 +135,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static java.util.Arrays.asList;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.drools.mvel.compiler.TestUtil.assertDrlHasCompilationError;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -235,30 +235,6 @@ public class Misc2Test {
 
         assertEquals( 0, fired );
         ksession.dispose();
-    }
-
-    @Test
-    public void testClassNotFoundAfterDeserialization() throws Exception {
-        // kbase serialization is not supported. But leave it for standard-drl.
-        // JBRULES-3670
-        String drl =
-                "package completely.other.deal;\n" +
-                "\n" +
-                "declare Person\n" +
-                "   firstName : String\n" +
-                "   lastName : String\n" +
-                "end\n" +
-                "\n" +
-                "rule \"now use it B\"\n" +
-                "   when\n" +
-                "       Person( $christianName, $surname; )\n" +
-                "   then\n" +
-                "       insert( new Person( $christianName, null ) );\n" +
-                "end";
-
-        KieBase kbase1 = new KieHelper().addContent( drl, ResourceType.DRL ).build();
-        KieBase kbase2 = SerializationHelper.serializeObject( kbase1, ( (InternalKnowledgeBase) kbase1 ).getRootClassLoader() );
-        assertTrue( ReteComparator.areEqual( kbase1, kbase2 ) );
     }
 
     @Test
@@ -419,7 +395,7 @@ public class Misc2Test {
         final FactHandle mary = ksession.insert(mary33Years);
         final FactHandle elizabeth = ksession.insert(elizabeth35Years);
 
-        Assertions.assertThat(ksession.fireAllRules()).isEqualTo(3);
+        assertThat(ksession.fireAllRules()).isEqualTo(3);
     }
 
     private Address producePeopleInCity(final KieSession ksession, final String city, final int countOfPeople) {
@@ -475,9 +451,9 @@ public class Misc2Test {
         KieBaseEventListener listener = new DefaultKieBaseEventListener();
         kbase.addEventListener( listener );
         kbase.addEventListener( listener );
-        assertEquals( 1, ( (KnowledgeBaseImpl) kbase ).getKieBaseEventListeners().size() );
+        assertEquals( 1, kbase.getKieBaseEventListeners().size() );
         kbase.removeEventListener( listener );
-        assertEquals( 0, ( (KnowledgeBaseImpl) kbase ).getKieBaseEventListeners().size() );
+        assertEquals( 0, kbase.getKieBaseEventListeners().size() );
     }
 
     @Test
@@ -1859,14 +1835,14 @@ public class Misc2Test {
                 "when \n" +
                 "  $packs : java.util.Collection() \n" +
                 "then \n" +
-                "   ((org.drools.core.impl.InternalKnowledgeBase)drools.getKieRuntime().getKieBase()).addPackages( $packs );" +
+                "   ((org.drools.core.impl.RuleBase)drools.getKieRuntime().getKieBase()).addPackages( $packs );" +
                 "end \n" +
                 "" +
                 "rule \"Self-change\"\n" +
                 "when\n" +
                 "  String( this == \"go\" )\n" +
                 "then\n" +
-                "   ((org.drools.core.impl.InternalKnowledgeBase)drools.getKieRuntime().getKieBase()).removeRule( \"org.drools.mvel.integrationtests\", \"React\" ); \n" +
+                "   ((org.drools.core.impl.RuleBase)drools.getKieRuntime().getKieBase()).removeRule( \"org.drools.mvel.integrationtests\", \"React\" ); \n" +
                 "end\n" +
                 "\n" +
                 "\n" +
@@ -3377,15 +3353,8 @@ public class Misc2Test {
 
         Results results = kieBuilder.getResults();
         List<org.kie.api.builder.Message> errors = results.getMessages(org.kie.api.builder.Message.Level.ERROR);
-        assertTrue(errors.toString(), errors.isEmpty());
-
-        List<org.kie.api.builder.Message> warnings = results.getMessages(org.kie.api.builder.Message.Level.WARNING);
-        assertEquals( 2, warnings.size() );
-        for (org.kie.api.builder.Message warning : warnings) {
-            System.out.println( warning );
-        }
+        assertEquals( 2, errors.size() );
     }
-
 
     @Test
     public void testCollectAccumulate() {
@@ -6380,11 +6349,11 @@ public class Misc2Test {
         for ( Rule r : session.getKieBase().getKiePackage( "org.drools.test" ).getRules() ) {
             ( (RuleImpl) r ).setSalience( new Salience() {
                 @Override
-                public int getValue( KnowledgeHelper khelper, Rule rule, WorkingMemory workingMemory ) {
-                    if ( khelper == null ) {
+                public int getValue(Activation activation, Rule rule, ReteEvaluator reteEvaluator) {
+                    if ( activation == null ) {
                         return 0;
                     }
-                    InternalFactHandle h = (InternalFactHandle) khelper.getMatch().getFactHandles().get( 0 );
+                    InternalFactHandle h = (InternalFactHandle) activation.getFactHandles().get( 0 );
                     return ( (Person) h.getObject() ).getAge();
                 }
 
@@ -6601,8 +6570,8 @@ public class Misc2Test {
                      " System.out.println( \"Hello World\" ); " +
                      " end ";
 
-        KnowledgePackageImpl kPackage = new KnowledgePackageImpl( "com.testfacttemplate" );
-        FieldTemplate fieldTemplate = new FieldTemplateImpl( "status", 0, Integer.class );
+        InternalKnowledgePackage kPackage = CoreComponentFactory.get().createKnowledgePackage( "com.testfacttemplate" );
+        FieldTemplate fieldTemplate = new FieldTemplateImpl( "status", Integer.class );
         FactTemplate factTemplate = new FactTemplateImpl( kPackage, "TestFactTemplate", new FieldTemplate[]{fieldTemplate} );
 
         KnowledgeBuilder kBuilder = new KnowledgeBuilderImpl( kPackage );
@@ -7736,39 +7705,6 @@ public class Misc2Test {
     }
 
     @Test
-    public void testKieBaseSerialization() throws Exception {
-        // kbase serialization is not supported. But leave it for standard-drl
-        // DROOLS-944
-        String drl =
-                "import " + Container.class.getCanonicalName() + ";" +
-                "rule R1 when\n" +
-                "    Container($offer : objects[\"1-CZ26IQW\"] != null)\n" +
-                "then\n" +
-                "end\n" +
-                "\n" +
-                "rule R2 when\n" +
-                "    Container($offer : objects[\"1-CZ26IR8\"] != null)\n" +
-                "then\n" +
-                "end\n";
-
-        KieBase kbase1 = new KieHelper().addContent( drl, ResourceType.DRL ).build();
-        KieBase kbase2 = SerializationHelper.serializeObject( kbase1, ( (InternalKnowledgeBase) kbase1 ).getRootClassLoader() );
-        assertTrue( ReteComparator.areEqual( kbase1, kbase2 ) );
-    }
-
-    public static class Container {
-        private Map<String, Object> objects = new HashMap<>();
-
-        public Map<String, Object> getObjects() {
-            return objects;
-        }
-
-        public void setObjects( Map<String, Object> objects ) {
-            this.objects = objects;
-        }
-    }
-
-    @Test
     public void testPatternMatchingWithFakeImplicitCast() {
         // DROOLS-966
         String drl =
@@ -7871,7 +7807,7 @@ public class Misc2Test {
 
         KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("test", kieBaseTestConfiguration, drl);
 
-        Rete rete = ( (KnowledgeBaseImpl) kbase ).getRete();
+        Rete rete = ( (RuleBase) kbase ).getRete();
         LeftInputAdapterNode liaNode = null;
         for ( ObjectTypeNode otn : rete.getObjectTypeNodes() ) {
             Class<?> otnType = ( (ClassObjectType) otn.getObjectType() ).getClassType();
@@ -8212,33 +8148,6 @@ public class Misc2Test {
 
         kieSession.insert( 1 );
         assertEquals( 1, kieSession.fireAllRules() );
-    }
-
-    @Test
-    public void testCCEAfterDeserialization() throws Exception {
-     // kbase serialization is not supported. But leave it for standard-drl.
-        // DROOLS-1155
-        String drl =
-                "function boolean checkLength(int length) { return true; }\n" +
-                "rule R dialect \"mvel\" when\n" +
-                "    Boolean()" +
-                "    String( $length : length )\n" +
-                "    eval( checkLength($length) )\n" +
-                "    ( Integer( ) or eval( true ) )\n" +
-                "then\n" +
-                "end";
-
-        KieBase kbase1 = new KieHelper().addContent( drl, ResourceType.DRL ).build();
-        KieSession ksession1 = kbase1.newKieSession();
-        ksession1.insert( true );
-        ksession1.insert( "test" );
-        assertEquals(1, ksession1.fireAllRules());
-
-        KieBase kbase2 = SerializationHelper.serializeObject( kbase1, ( (InternalKnowledgeBase) kbase1 ).getRootClassLoader() );
-        KieSession ksession2 = kbase2.newKieSession();
-        ksession2.insert( true );
-        ksession2.insert( "test" );
-        assertEquals(1, ksession2.fireAllRules());
     }
 
     @Test

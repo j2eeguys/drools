@@ -28,30 +28,27 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 
 import org.drools.core.base.ClassObjectType;
 import org.drools.core.base.DroolsQuery;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.InternalWorkingMemory;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.phreak.ReactiveObject;
 import org.drools.core.rule.ContextEntry;
 import org.drools.core.rule.Declaration;
 import org.drools.core.rule.From;
 import org.drools.core.rule.MutableTypeConstraint;
-import org.drools.core.spi.AcceptsClassObjectType;
-import org.drools.core.spi.AlphaNodeFieldConstraint;
-import org.drools.core.spi.BetaNodeFieldConstraint;
-import org.drools.core.spi.Constraint;
-import org.drools.core.spi.DataProvider;
-import org.drools.core.spi.InternalReadAccessor;
-import org.drools.core.spi.ObjectType;
-import org.drools.core.spi.PatternExtractor;
-import org.drools.core.spi.PropagationContext;
-import org.drools.core.spi.Tuple;
-import org.drools.core.util.ClassUtils;
+import org.drools.core.base.AcceptsClassObjectType;
+import org.drools.core.rule.accessor.DataProvider;
+import org.drools.core.rule.accessor.ReadAccessor;
+import org.drools.core.base.ObjectType;
+import org.drools.core.rule.accessor.PatternExtractor;
+import org.drools.core.common.PropagationContext;
+import org.drools.core.reteoo.Tuple;
+import org.drools.util.ClassUtils;
 
-import static org.drools.core.util.ClassUtils.areNullSafeEquals;
-import static org.drools.core.util.ClassUtils.convertFromPrimitiveType;
+import static org.drools.util.ClassUtils.convertFromPrimitiveType;
 
 public class XpathConstraint extends MutableTypeConstraint {
 
@@ -126,7 +123,7 @@ public class XpathConstraint extends MutableTypeConstraint {
     }
 
     @Override
-    public boolean isAllowed(InternalFactHandle handle, InternalWorkingMemory workingMemory) {
+    public boolean isAllowed(InternalFactHandle handle, ReteEvaluator reteEvaluator) {
         throw new UnsupportedOperationException();
     }
 
@@ -161,7 +158,7 @@ public class XpathConstraint extends MutableTypeConstraint {
         this.declaration = declaration;
     }
 
-    public InternalReadAccessor getReadAccessor() {
+    public ReadAccessor getReadAccessor() {
         return new PatternExtractor( new ClassObjectType( getResultClass() ) );
     }
 
@@ -175,7 +172,7 @@ public class XpathConstraint extends MutableTypeConstraint {
     }
 
     private interface XpathEvaluator {
-        Iterable<?> evaluate(InternalWorkingMemory workingMemory, Tuple leftTuple, Object object);
+        Iterable<?> evaluate(ReteEvaluator reteEvaluator, Tuple leftTuple, Object object);
     }
 
     @Override
@@ -190,11 +187,11 @@ public class XpathConstraint extends MutableTypeConstraint {
             this.chunk = chunk;
         }
 
-        public Iterable<?> evaluate(InternalWorkingMemory workingMemory, Tuple leftTuple, Object object) {
-            return evaluateObject(workingMemory, leftTuple, chunk, new ArrayList<Object>(), object);
+        public Iterable<?> evaluate(ReteEvaluator reteEvaluator, Tuple leftTuple, Object object) {
+            return evaluateObject(reteEvaluator, leftTuple, chunk, new ArrayList<Object>(), object);
         }
 
-        private List<Object> evaluateObject(InternalWorkingMemory workingMemory, Tuple leftTuple, XpathChunk chunk, List<Object> list, Object object) {
+        private List<Object> evaluateObject(ReteEvaluator reteEvaluator, Tuple leftTuple, XpathChunk chunk, List<Object> list, Object object) {
             Object result = chunk.evaluate(object);
             if (!chunk.lazy && result instanceof ReactiveObject) {
                 ((ReactiveObject) result).addLeftTuple(leftTuple);
@@ -354,7 +351,7 @@ public class XpathConstraint extends MutableTypeConstraint {
 
         public Class<?> getReturnedClass() {
             if (returnedType != null) {
-                return returnedType.getClassType();
+                return ((ClassObjectType) returnedType).getClassType();
             }
             try {
                 Method accessor = classObjectType.getClassType().getMethod( field );
@@ -467,7 +464,7 @@ public class XpathConstraint extends MutableTypeConstraint {
                    iterate == other.iterate &&
                    lazy == other.lazy &&
                    array == other.array &&
-                   areNullSafeEquals(declaration, other.declaration);
+                   Objects.equals(declaration, other.declaration);
         }
 
         @Override
@@ -510,7 +507,7 @@ public class XpathConstraint extends MutableTypeConstraint {
         }
 
         @Override
-        public Iterator getResults(Tuple leftTuple, InternalWorkingMemory wm, PropagationContext ctx, Object providerContext) {
+        public Iterator getResults(Tuple leftTuple, ReteEvaluator reteEvaluator, PropagationContext ctx, Object providerContext) {
             InternalFactHandle fh = leftTuple.getFactHandle();
             Object obj = fh.getObject();
 
@@ -518,7 +515,7 @@ public class XpathConstraint extends MutableTypeConstraint {
                 obj = declaration.getValue(null, obj);
             }
 
-            return xpathEvaluator.evaluate(wm, leftTuple, obj).iterator();
+            return xpathEvaluator.evaluate(reteEvaluator, leftTuple, obj).iterator();
         }
 
         @Override
@@ -548,7 +545,7 @@ public class XpathConstraint extends MutableTypeConstraint {
             XpathDataProvider other = (XpathDataProvider) obj;
 
             return xpathEvaluator.equals( other.xpathEvaluator ) &&
-                   areNullSafeEquals(declaration, other.declaration);
+                   Objects.equals(declaration, other.declaration);
         }
 
         @Override

@@ -28,8 +28,9 @@ import org.drools.core.reteoo.builder.BuildContext;
 import org.drools.core.rule.ContextEntry;
 import org.drools.core.rule.IndexableConstraint;
 import org.drools.core.rule.MutableTypeConstraint;
-import org.drools.core.spi.BetaNodeFieldConstraint;
-import org.drools.core.spi.Tuple;
+import org.drools.core.rule.constraint.BetaNodeFieldConstraint;
+import org.drools.core.base.ObjectType;
+import org.drools.core.reteoo.Tuple;
 import org.drools.core.util.bitmask.BitMask;
 import org.drools.core.util.index.IndexUtil;
 import org.kie.internal.conf.IndexPrecedenceOption;
@@ -91,7 +92,7 @@ public class DefaultBetaConstraints
     }
 
     public void init(BuildContext context, short betaNodeType) {
-        RuleBaseConfiguration config = context.getKnowledgeBase().getConfiguration();
+        RuleBaseConfiguration config = context.getRuleBase().getConfiguration();
 
         if ( disableIndexing || (!config.isIndexLeftBetaMemory() && !config.isIndexRightBetaMemory()) ) {
             indexed = 0;
@@ -142,10 +143,10 @@ public class DefaultBetaConstraints
      * @see org.kie.common.BetaNodeConstraints#updateFromTuple(org.kie.reteoo.ReteTuple)
      */
     public void updateFromTuple(final ContextEntry[] context,
-                                final InternalWorkingMemory workingMemory,
+                                final ReteEvaluator reteEvaluator,
                                 final Tuple tuple) {
         for (ContextEntry aContext : context) {
-            aContext.updateFromTuple(workingMemory, tuple);
+            aContext.updateFromTuple(reteEvaluator, tuple);
         }
     }
 
@@ -153,10 +154,10 @@ public class DefaultBetaConstraints
      * @see org.kie.common.BetaNodeConstraints#updateFromFactHandle(org.kie.common.InternalFactHandle)
      */
     public void updateFromFactHandle(final ContextEntry[] context,
-                                     final InternalWorkingMemory workingMemory,
+                                     final ReteEvaluator reteEvaluator,
                                      final InternalFactHandle handle) {
         for (ContextEntry aContext : context) {
-            aContext.updateFromFactHandle(workingMemory, handle);
+            aContext.updateFromFactHandle(reteEvaluator, handle);
         }
     }
 
@@ -260,10 +261,10 @@ public class DefaultBetaConstraints
         throw new UnsupportedOperationException();
     }
 
-    public BitMask getListenedPropertyMask(Class modifiedClass, List<String> settableProperties) {
+    public BitMask getListenedPropertyMask(ObjectType modifiedType, List<String> settableProperties) {
         BitMask mask = getEmptyPropertyReactiveMask(settableProperties.size());
         for (BetaNodeFieldConstraint constraint : constraints) {
-            mask = mask.setAll(constraint.getListenedPropertyMask(modifiedClass, settableProperties));
+            mask = mask.setAll(constraint.getListenedPropertyMask(modifiedType, settableProperties));
         }
         return mask;
     }

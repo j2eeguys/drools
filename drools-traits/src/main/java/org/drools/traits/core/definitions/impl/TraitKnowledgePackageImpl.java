@@ -24,23 +24,25 @@ import java.io.ObjectOutput;
 import java.util.Map;
 import java.util.Set;
 
-import org.drools.core.base.ClassFieldAccessorStore;
+import org.drools.mvel.accessors.ClassFieldAccessorStore;
 import org.drools.core.common.DroolsObjectInputStream;
 import org.drools.core.common.DroolsObjectOutputStream;
 import org.drools.core.definitions.ResourceTypePackageRegistry;
-import org.drools.core.definitions.impl.KnowledgePackageImpl;
 import org.drools.core.definitions.rule.impl.RuleImpl;
-import org.drools.core.factmodel.traits.TraitRegistry;
+import org.drools.core.impl.RuleBase;
+import org.drools.core.reteoo.RuntimeComponentFactory;
 import org.drools.core.rule.DialectRuntimeRegistry;
 import org.drools.core.rule.Function;
 import org.drools.core.rule.ImportDeclaration;
 import org.drools.core.rule.WindowDeclaration;
+import org.drools.mvel.MVELKnowledgePackageImpl;
 import org.drools.traits.core.factmodel.TraitRegistryImpl;
+import org.drools.traits.core.reteoo.TraitRuntimeComponentFactory;
 import org.kie.api.runtime.rule.AccumulateFunction;
 
-public class TraitKnowledgePackageImpl extends KnowledgePackageImpl {
+public class TraitKnowledgePackageImpl extends MVELKnowledgePackageImpl {
 
-    private TraitRegistry traitRegistry;
+    private TraitRegistryImpl traitRegistry;
 
     private static final String[] implicitImports = new String[]{
             "org.kie.api.definition.rule.*",
@@ -48,8 +50,8 @@ public class TraitKnowledgePackageImpl extends KnowledgePackageImpl {
             "org.drools.core.factmodel.traits.Alias",
             "org.drools.core.factmodel.traits.Trait",
             "org.drools.core.factmodel.traits.Traitable",
-            "org.drools.core.beliefsystem.abductive.Abductive",
-            "org.drools.core.beliefsystem.abductive.Abducible"};
+            "org.drools.tms.beliefsystem.abductive.Abductive",
+            "org.drools.tms.beliefsystem.abductive.Abducible"};
 
     public TraitKnowledgePackageImpl() {
     }
@@ -58,15 +60,18 @@ public class TraitKnowledgePackageImpl extends KnowledgePackageImpl {
         super(name);
     }
 
-    public boolean hasTraitRegistry() {
-        return traitRegistry != null;
-    }
-
-    public TraitRegistry getTraitRegistry() {
+    public TraitRegistryImpl getTraitRegistry() {
         if (traitRegistry == null) {
             traitRegistry = new TraitRegistryImpl();
         }
         return traitRegistry;
+    }
+
+    @Override
+    public void mergeTraitRegistry(RuleBase knowledgeBase) {
+        if (traitRegistry != null) {
+            ((TraitRuntimeComponentFactory) RuntimeComponentFactory.get()).getTraitRegistry(knowledgeBase).merge(traitRegistry);
+        }
     }
 
     @Override
@@ -140,7 +145,7 @@ public class TraitKnowledgePackageImpl extends KnowledgePackageImpl {
         this.rules = (Map<String, RuleImpl>) in.readObject();
         this.entryPointsIds = (Set<String>) in.readObject();
         this.windowDeclarations = (Map<String, WindowDeclaration>) in.readObject();
-        this.traitRegistry = (TraitRegistry) in.readObject();
+        this.traitRegistry = (TraitRegistryImpl) in.readObject();
         this.resourceTypePackages = (ResourceTypePackageRegistry) in.readObject();
 
         in.setStore(null);

@@ -14,6 +14,18 @@
 
 package org.kie.memorycompiler.jdknative;
 
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.NestingKind;
+import javax.tools.Diagnostic;
+import javax.tools.DiagnosticCollector;
+import javax.tools.FileObject;
+import javax.tools.ForwardingJavaFileManager;
+import javax.tools.JavaCompiler;
+import javax.tools.JavaFileManager;
+import javax.tools.JavaFileObject;
+import javax.tools.SimpleJavaFileObject;
+import javax.tools.StandardJavaFileManager;
+import javax.tools.StandardLocation;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -36,48 +48,45 @@ import java.util.Map;
 import java.util.Set;
 import java.util.jar.JarEntry;
 
-import javax.lang.model.element.Modifier;
-import javax.lang.model.element.NestingKind;
-import javax.tools.Diagnostic;
-import javax.tools.DiagnosticCollector;
-import javax.tools.FileObject;
-import javax.tools.ForwardingJavaFileManager;
-import javax.tools.JavaFileManager;
-import javax.tools.JavaFileObject;
-import javax.tools.SimpleJavaFileObject;
-import javax.tools.StandardJavaFileManager;
-import javax.tools.StandardLocation;
-import javax.tools.ToolProvider;
 import org.kie.memorycompiler.AbstractJavaCompiler;
 import org.kie.memorycompiler.CompilationProblem;
 import org.kie.memorycompiler.CompilationResult;
 import org.kie.memorycompiler.JavaCompilerSettings;
 import org.kie.memorycompiler.KieMemoryCompilerException;
 import org.kie.memorycompiler.StoreClassLoader;
+import org.drools.util.PortablePath;
 import org.kie.memorycompiler.resources.ResourceReader;
 import org.kie.memorycompiler.resources.ResourceStore;
 
 public class NativeJavaCompiler extends AbstractJavaCompiler {
 
-    public JavaCompilerSettings createDefaultSettings() {
+    private JavaCompilerFinder javaCompilerFinder;
+
+	public JavaCompilerSettings createDefaultSettings() {
         return new JavaCompilerSettings();
     }
+    
+    public NativeJavaCompiler() {
+    	this(new NativeJavaCompilerFinder());
+    }
 
-    @Override
+    NativeJavaCompiler(JavaCompilerFinder javaCompilerFinder) {
+		this.javaCompilerFinder = javaCompilerFinder;
+	}
+
+	@Override
     public CompilationResult compile( String[] pResourcePaths,
                                       ResourceReader pReader,
                                       ResourceStore pStore,
                                       ClassLoader pClassLoader,
                                       JavaCompilerSettings pSettings) {
         DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<JavaFileObject>();
-        javax.tools.JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-        if (compiler == null) {
-            throw new KieMemoryCompilerException("Cannot find the System's Java compiler. Please use JDK instead of JRE or add drools-ecj dependency to use in memory Eclipse compiler");
-        }
+        JavaCompiler compiler = getJavaCompiler();
 
         try (StandardJavaFileManager jFileManager = compiler.getStandardFileManager(diagnostics, null, null)) {
             try {
                 jFileManager.setLocation( StandardLocation.CLASS_PATH, pSettings.getClasspathLocations() );
+                jFileManager.setLocation( StandardLocation.CLASS_OUTPUT, Collections.singletonList(new File("target/classes")) );
             } catch (IOException e) {
                 // ignore if cannot set the classpath
             }
@@ -85,7 +94,7 @@ public class NativeJavaCompiler extends AbstractJavaCompiler {
             try (MemoryFileManager fileManager = new MemoryFileManager( jFileManager, pClassLoader )) {
                 final List<JavaFileObject> units = new ArrayList<JavaFileObject>();
                 for (final String sourcePath : pResourcePaths) {
-                    units.add( new CompilationUnit( sourcePath, pReader ) );
+                    units.add( new CompilationUnit( PortablePath.of(sourcePath), pReader ) );
                 }
 
                 Iterable<String> options = new NativeJavaCompilerSettings( pSettings ).toOptionsList();
@@ -110,20 +119,38 @@ public class NativeJavaCompiler extends AbstractJavaCompiler {
         }
     }
 
+    private JavaCompiler getJavaCompiler() {
+        JavaCompiler compiler = null;
+        Throwable cause = null;
+        try {
+            compiler = javaCompilerFinder.getJavaCompiler();
+        } catch (Throwable ex) {
+            cause = ex;
+        }
+        if (compiler != null) {
+            return compiler;
+        }
+        String message = "Cannot find the System's Java compiler. " +
+                "Please use JDK instead of JRE or add drools-ecj dependency to use in memory Eclipse compiler";
+        if (cause == null) {
+            throw new KieMemoryCompilerException(message);
+        } else {
+            throw new KieMemoryCompilerException(message, cause);
+        }
+    }
+
     private static class CompilationUnit extends SimpleJavaFileObject {
 
         public static final Charset UTF8_CHARSET = Charset.forName("UTF-8");
 
         private final String content;
-        private final String name;
 
-        CompilationUnit(String name, String content) {
-            super(URI.create("memo:///" + name), Kind.SOURCE);
+        CompilationUnit(PortablePath path, String content) {
+            super(URI.create("memo:///" + path.asString()), Kind.SOURCE);
             this.content = content;
-            this.name = name;
         }
 
-        CompilationUnit(String name, ResourceReader pReader) {
+        CompilationUnit(PortablePath name, ResourceReader pReader) {
             this(name, new String(pReader.getBytes(name), UTF8_CHARSET));
         }
 
@@ -288,12 +315,6 @@ public class NativeJavaCompiler extends AbstractJavaCompiler {
             CompilationOutput compilationOutput = new CompilationOutput(name, kind);
             outputs.add(compilationOutput);
             return compilationOutput;
-        }
-
-        @Override
-        public boolean hasLocation(Location location) {
-            // we don't care about source and other location types - not needed for compilation
-            return location == StandardLocation.CLASS_PATH || location == StandardLocation.PLATFORM_CLASS_PATH;
         }
 
         @Override

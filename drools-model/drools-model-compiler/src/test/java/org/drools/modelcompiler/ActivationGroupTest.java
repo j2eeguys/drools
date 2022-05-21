@@ -20,7 +20,7 @@ package org.drools.modelcompiler;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.drools.core.command.runtime.rule.ClearActivationGroupCommand;
+import org.drools.commands.runtime.rule.ClearActivationGroupCommand;
 import org.junit.Test;
 import org.kie.api.KieServices;
 import org.kie.api.command.BatchExecutionCommand;
@@ -29,8 +29,8 @@ import org.kie.api.command.KieCommands;
 import org.kie.api.runtime.ExecutionResults;
 import org.kie.api.runtime.KieSession;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 
 public class ActivationGroupTest extends OnlyPatternTest {
 
@@ -90,7 +90,7 @@ public class ActivationGroupTest extends OnlyPatternTest {
         ExecutionResults result = ksession.execute(batchExecution);
 
         List<?> outcome = (List<?>) result.getValue(LIST_OUTPUT_NAME);
-        assertNotNull(outcome);
+        assertThat(outcome).isNotNull();
         assertEquals(1, outcome.size());
 
         assertEquals("Rule without activation group executed", outcome.get(0));

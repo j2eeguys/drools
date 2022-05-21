@@ -14,16 +14,18 @@
 
 package org.drools.core.base;
 
-import org.kie.api.internal.utils.ServiceRegistry;
+import org.drools.core.rule.accessor.ReadAccessor;
+import org.drools.core.rule.accessor.WriteAccessor;
+import org.kie.api.internal.utils.KieService;
 
 import static org.drools.core.base.CoreComponentsBuilder.throwExceptionForMissingMvel;
 
-public interface FieldAccessorFactory {
+public interface FieldAccessorFactory extends KieService {
     class Holder {
         private static final FieldAccessorFactory fieldFactory = getFactory();
 
         private static FieldAccessorFactory getFactory() {
-            FieldAccessorFactory instance = ServiceRegistry.getService( FieldAccessorFactory.class );
+            FieldAccessorFactory instance = KieService.load( FieldAccessorFactory.class );
             return instance != null ? instance : throwExceptionForMissingMvel();
         }
     }
@@ -32,6 +34,6 @@ public interface FieldAccessorFactory {
         return Holder.fieldFactory;
     }
 
-    BaseClassFieldReader getClassFieldReader(Class< ? > clazz, String fieldName, ClassFieldAccessorCache.CacheEntry cache);
-    BaseClassFieldWriter getClassFieldWriter(Class< ? > clazz, String fieldName, ClassFieldAccessorCache.CacheEntry cache);
+    ReadAccessor getClassFieldReader(Class< ? > clazz, String fieldName, ClassFieldAccessorCache.CacheEntry cache);
+    WriteAccessor getClassFieldWriter(Class< ? > clazz, String fieldName, ClassFieldAccessorCache.CacheEntry cache);
 }

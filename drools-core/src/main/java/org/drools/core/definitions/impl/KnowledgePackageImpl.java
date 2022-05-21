@@ -34,10 +34,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.drools.core.addon.ClassTypeResolver;
-import org.drools.core.addon.TypeResolver;
-import org.drools.core.base.ClassFieldAccessorCache;
-import org.drools.core.base.ClassFieldAccessorStore;
+import org.drools.util.ClassTypeResolver;
+import org.drools.util.TypeResolver;
 import org.drools.core.common.DroolsObjectInputStream;
 import org.drools.core.common.DroolsObjectOutputStream;
 import org.drools.core.definitions.InternalKnowledgePackage;
@@ -45,8 +43,8 @@ import org.drools.core.definitions.ProcessPackage;
 import org.drools.core.definitions.ResourceTypePackageRegistry;
 import org.drools.core.definitions.rule.impl.GlobalImpl;
 import org.drools.core.definitions.rule.impl.RuleImpl;
-import org.drools.core.factmodel.traits.TraitRegistry;
 import org.drools.core.facttemplates.FactTemplate;
+import org.drools.core.impl.RuleBase;
 import org.drools.core.rule.DialectRuntimeRegistry;
 import org.drools.core.rule.Function;
 import org.drools.core.rule.ImportDeclaration;
@@ -55,8 +53,9 @@ import org.drools.core.rule.JavaDialectRuntimeData;
 import org.drools.core.rule.TypeDeclaration;
 import org.drools.core.rule.WindowDeclaration;
 import org.drools.core.ruleunit.RuleUnitDescriptionLoader;
-import org.drools.core.util.ClassUtils;
-import org.drools.reflective.classloader.ProjectClassLoader;
+import org.drools.util.ClassUtils;
+import org.drools.core.util.CloneUtil;
+import org.drools.wiring.api.classloader.ProjectClassLoader;
 import org.kie.api.definition.process.Process;
 import org.kie.api.definition.rule.Global;
 import org.kie.api.definition.rule.Query;
@@ -76,8 +75,8 @@ public class KnowledgePackageImpl
     private static final String[] implicitImports = new String[]{
             "org.kie.api.definition.rule.*",
             "org.kie.api.definition.type.*",
-            "org.drools.core.beliefsystem.abductive.Abductive",
-            "org.drools.core.beliefsystem.abductive.Abducible"};
+            "org.drools.tms.beliefsystem.abductive.Abductive",
+            "org.drools.tms.beliefsystem.abductive.Abducible"};
 
     /**
      * Name of the pkg.
@@ -108,8 +107,6 @@ public class KnowledgePackageImpl
     protected Set<String> entryPointsIds;
 
     protected Map<String, WindowDeclaration> windowDeclarations;
-
-    protected ClassFieldAccessorStore classFieldAccessorStore;
 
     protected ResourceTypePackageRegistry resourceTypePackages;
 
@@ -152,7 +149,6 @@ public class KnowledgePackageImpl
         this.factTemplates = Collections.emptyMap();
         this.functions = Collections.emptyMap();
         this.dialectRuntimeRegistry = new DialectRuntimeRegistry();
-        this.classFieldAccessorStore = new ClassFieldAccessorStore();
         this.entryPointsIds = Collections.emptySet();
         this.windowDeclarations = Collections.emptyMap();
         this.resourceTypePackages = new ResourceTypePackageRegistry();
@@ -191,14 +187,6 @@ public class KnowledgePackageImpl
             list.add(typeDeclaration.getTypeClassDef());
         }
         return Collections.unmodifiableCollection(list);
-    }
-
-    public Map<String, FactType> getFactTypesMap() {
-        Map<String, FactType> types = new HashMap<>();
-        for (Map.Entry<String, TypeDeclaration> entry : typeDeclarations.entrySet()) {
-            types.put(entry.getKey(), entry.getValue().getTypeClassDef());
-        }
-        return types;
     }
 
     public Collection<Query> getQueries() {
@@ -246,7 +234,6 @@ public class KnowledgePackageImpl
 
         try {
             out.writeObject(this.name);
-            out.writeObject(this.classFieldAccessorStore);
             out.writeObject(this.dialectRuntimeRegistry);
             out.writeObject(this.typeDeclarations);
             out.writeObject(this.imports);
@@ -292,8 +279,6 @@ public class KnowledgePackageImpl
                         (byte[]) stream.readObject()));
 
         this.name = (String) in.readObject();
-        this.classFieldAccessorStore = (ClassFieldAccessorStore) in.readObject();
-        in.setStore(this.classFieldAccessorStore);
 
         this.dialectRuntimeRegistry = (DialectRuntimeRegistry) in.readObject();
         this.typeDeclarations = (Map) in.readObject();
@@ -309,8 +294,6 @@ public class KnowledgePackageImpl
         this.entryPointsIds = (Set<String>) in.readObject();
         this.windowDeclarations = (Map<String, WindowDeclaration>) in.readObject();
         this.resourceTypePackages = (ResourceTypePackageRegistry) in.readObject();
-
-        in.setStore(null);
 
         if (!isDroolsStream) {
             in.close();
@@ -337,10 +320,6 @@ public class KnowledgePackageImpl
 
     public DialectRuntimeRegistry getDialectRuntimeRegistry() {
         return this.dialectRuntimeRegistry;
-    }
-
-    public void setDialectRuntimeRegistry(DialectRuntimeRegistry dialectRuntimeRegistry) {
-        this.dialectRuntimeRegistry = dialectRuntimeRegistry;
     }
 
     public void addImport(final ImportDeclaration importDecl) {
@@ -371,7 +350,7 @@ public class KnowledgePackageImpl
         if (clazz == null) {
             return null;
         }
-        TypeDeclaration typeDeclaration = getTypeDeclaration(ClassUtils.getSimpleName(clazz));
+        TypeDeclaration typeDeclaration = getExactTypeDeclaration(clazz);
         if (typeDeclaration == null) {
             // check if clazz is resolved by any of the type declarations
             for (TypeDeclaration type : this.typeDeclarations.values()) {
@@ -382,6 +361,10 @@ public class KnowledgePackageImpl
             }
         }
         return typeDeclaration;
+    }
+
+    public TypeDeclaration getExactTypeDeclaration(Class<?> clazz) {
+        return getTypeDeclaration(ClassUtils.getSimpleName(clazz));
     }
 
     public TypeDeclaration getTypeDeclaration(String type) {
@@ -618,12 +601,19 @@ public class KnowledgePackageImpl
         }
     }
 
-    public ClassFieldAccessorStore getClassFieldAccessorStore() {
-        return classFieldAccessorStore;
-    }
-
-    public void setClassFieldAccessorCache(ClassFieldAccessorCache classFieldAccessorCache) {
-        this.classFieldAccessorStore.setClassFieldAccessorCache(classFieldAccessorCache);
+    public void wireTypeDeclarations() {
+        for (TypeDeclaration typeDeclaration : typeDeclarations.values()) {
+            Class<?> typeClass = null;
+            try {
+                typeClass = typeDeclaration.getTypeClass();
+                if (typeClass != null || !typeClass.isPrimitive()) {
+                    Class<?> cls = getPackageClassLoader().loadClass(typeClass.getName());
+                    typeDeclaration.setTypeClass(cls);
+                }
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException("Unable to load typeClass '" + typeClass.getName() + "'");
+            }
+        }
     }
 
     public Set<String> getEntryPointIds() {
@@ -645,7 +635,7 @@ public class KnowledgePackageImpl
         if (typeResolver != null && typeResolver.getClassLoader() == classLoader) {
             return;
         }
-        this.typeResolver = new ClassTypeResolver(new HashSet<String>(getImports().keySet()), classLoader, getName());
+        this.typeResolver = new ClassTypeResolver(new HashSet<>(getImports().keySet()), classLoader, getName());
         typeResolver.addImport(getName() + ".*");
         for (String implicitImport : getImplicitImports()) {
             typeResolver.addImplicitImport(implicitImport);
@@ -696,7 +686,7 @@ public class KnowledgePackageImpl
                 if (type.getTypeClassName() != null) {
                     // the type declaration might not have been built up to actual class, if an error was found first
                     // in this case, no accessor would have been wired
-                    classFieldAccessorStore.removeType(type);
+                    removeTypeFromStore(type);
                     dialect.remove(type.getTypeClassName());
                     if (typeResolver != null) {
                         typeResolver.registerClass( type.getTypeClassName(), null );
@@ -708,6 +698,8 @@ public class KnowledgePackageImpl
         }
         return typesToBeRemoved;
     }
+
+    protected void removeTypeFromStore(TypeDeclaration type) {}
 
     public List<RuleImpl> removeRulesGeneratedFromResource(Resource resource) {
         List<RuleImpl> rulesToBeRemoved = getRulesGeneratedFromResource(resource);
@@ -811,7 +803,7 @@ public class KnowledgePackageImpl
             }
         }
 
-        KnowledgePackageImpl clonedPkg = ClassUtils.deepClone(this, classLoader, cloningResources);
+        KnowledgePackageImpl clonedPkg = CloneUtil.deepClone(this, classLoader, cloningResources);
         clonedPkg.setClassLoader( classLoader );
 
         if (ruleUnitDescriptionLoader != null) {
@@ -824,14 +816,7 @@ public class KnowledgePackageImpl
     }
 
     @Override
-    public boolean hasTraitRegistry() {
-        return false;
-    }
-
-    @Override
-    public TraitRegistry getTraitRegistry() {
-        return null;
-    }
+    public void mergeTraitRegistry(RuleBase knowledgeBase) { }
 
     @Override
     public void addCloningResource(String key, Object resource) {

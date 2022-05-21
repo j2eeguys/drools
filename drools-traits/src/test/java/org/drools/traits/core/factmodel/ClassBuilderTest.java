@@ -27,17 +27,17 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 
 import org.drools.core.base.ClassFieldAccessorCache;
-import org.drools.core.base.ClassFieldAccessorStore;
-import org.drools.core.factmodel.ClassBuilder;
+import org.drools.mvel.accessors.ClassFieldAccessorStore;
+import org.drools.compiler.builder.impl.classbuilder.ClassBuilder;
 import org.drools.core.factmodel.ClassDefinition;
 import org.drools.core.factmodel.FieldDefinition;
 import org.drools.core.rule.JavaDialectRuntimeData;
-import org.drools.core.rule.JavaDialectRuntimeData.PackageClassLoader;
-import org.drools.reflective.classloader.ProjectClassLoader;
+import org.drools.wiring.dynamic.PackageClassLoader;
+import org.drools.wiring.api.classloader.ProjectClassLoader;
 import org.junit.Before;
 import org.junit.Test;
 
-import static org.drools.core.util.ClassUtils.convertClassToResourcePath;
+import static org.drools.util.ClassUtils.convertClassToResourcePath;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
@@ -56,7 +56,7 @@ public class ClassBuilderTest {
     }
 
     private Class build(ClassBuilder builder, ClassDefinition classDef) throws Exception {
-        classLoader = new PackageClassLoader(data, ProjectClassLoader.createProjectClassLoader());
+        classLoader = new PackageClassLoader(data.getStore(), ProjectClassLoader.createProjectClassLoader());
         byte[] d = builder.buildClass( classDef, classLoader);
                      
         data.write( convertClassToResourcePath(classDef.getClassName()), d );

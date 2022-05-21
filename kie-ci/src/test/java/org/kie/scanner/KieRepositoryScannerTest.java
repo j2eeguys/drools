@@ -18,25 +18,20 @@ package org.kie.scanner;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.maven.model.Dependency;
-import org.appformer.maven.integration.MavenRepository;
-import org.appformer.maven.integration.embedder.MavenEmbedderUtils;
 import org.drools.compiler.kie.builder.impl.InternalKieModule;
 import org.drools.compiler.kie.builder.impl.InternalKieScanner;
 import org.drools.compiler.kie.builder.impl.KieFileSystemImpl;
+import org.drools.compiler.kie.builder.impl.event.KieScannerStatusChangeEventImpl;
+import org.drools.compiler.kie.builder.impl.event.KieScannerUpdateResultsEventImpl;
 import org.drools.core.util.FileManager;
-import org.hamcrest.CoreMatchers;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 import org.kie.api.KieServices;
 import org.kie.api.builder.KieBuilder;
 import org.kie.api.builder.KieFileSystem;
@@ -50,47 +45,26 @@ import org.kie.api.event.kiescanner.KieScannerStatusChangeEvent;
 import org.kie.api.event.kiescanner.KieScannerUpdateResultsEvent;
 import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;
-import org.drools.compiler.kie.builder.impl.event.KieScannerStatusChangeEventImpl;
-import org.drools.compiler.kie.builder.impl.event.KieScannerUpdateResultsEventImpl;
+import org.kie.maven.integration.MavenRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static java.util.Arrays.asList;
-
-import static org.appformer.maven.integration.MavenRepository.getMavenRepository;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.kie.maven.integration.MavenRepository.getMavenRepository;
 import static org.kie.scanner.KieMavenRepository.getKieMavenRepository;
 
-
-@RunWith(Parameterized.class)
 public class KieRepositoryScannerTest extends AbstractKieCiTest {
     private static final Logger LOG = LoggerFactory.getLogger(KieRepositoryScannerTest.class);
-    
-    private final boolean useWiredComponentProvider;
 
     private FileManager fileManager;
 
-    @Parameterized.Parameters(name = "Manually wired component provider={0}")
-    public static Collection modes() {
-        Object[][] manuallyWiredProvider = new Object[][] {
-                { true },
-                { false }
-        };
-        return Arrays.asList(manuallyWiredProvider);
-    }
-
-    public KieRepositoryScannerTest( boolean useWiredComponentProvider) {
-        this.useWiredComponentProvider = useWiredComponentProvider;
-    }
-
     @Before
     public void setUp() throws Exception {
-        MavenEmbedderUtils.enforceWiredComponentProvider = useWiredComponentProvider;
         this.fileManager = new FileManager();
         this.fileManager.setUp();
         ReleaseId releaseId = KieServices.Factory.get().newReleaseId("org.kie", "scanner-test", "1.0-SNAPSHOT");
@@ -99,7 +73,6 @@ public class KieRepositoryScannerTest extends AbstractKieCiTest {
     @After
     public void tearDown() throws Exception {
         this.fileManager.tearDown();
-        MavenEmbedderUtils.enforceWiredComponentProvider = false;
     }
 
     private void resetFileManager() {
@@ -251,7 +224,7 @@ public class KieRepositoryScannerTest extends AbstractKieCiTest {
         
         // DROOLS-1051 following should not throw NPE because dependencies are not in scope of scanner
         KieScanner scanner = ks.newKieScanner(kieContainer);
-        assertNotNull(scanner);
+        assertThat(scanner).isNotNull();
     }
 
     @Test
@@ -349,8 +322,8 @@ public class KieRepositoryScannerTest extends AbstractKieCiTest {
         
         scanner.scanNow();
         // Because 1.0.2 does not exist, will perform a scan but will NOT update.
-        assertThat( events, CoreMatchers.hasItem( new KieScannerStatusChangeEventImpl(KieScanner.Status.SCANNING) ) );
-        assertThat( events, CoreMatchers.not( CoreMatchers.hasItem( new KieScannerStatusChangeEventImpl(KieScanner.Status.UPDATING) )) );
+        assertThat( events).contains(new KieScannerStatusChangeEventImpl(KieScanner.Status.SCANNING));
+        assertThat( events).doesNotContain(new KieScannerStatusChangeEventImpl(KieScanner.Status.UPDATING));
         events.clear();
         
         repository.installArtifact(releaseId1, kJar1, createKPom(fileManager, releaseId1));
@@ -377,8 +350,8 @@ public class KieRepositoryScannerTest extends AbstractKieCiTest {
         KieSession ksession2 = kieContainer.newKieSession("KSession1");
         checkKSession(ksession2, "rule2", "rule3");
         
-        assertThat( events, CoreMatchers.hasItem( new KieScannerStatusChangeEventImpl(KieScanner.Status.SCANNING) ) );
-        assertThat( events, CoreMatchers.hasItem( new KieScannerStatusChangeEventImpl(KieScanner.Status.UPDATING) ) );
+        assertThat( events).contains(new KieScannerStatusChangeEventImpl(KieScanner.Status.SCANNING));
+        assertThat( events).contains(new KieScannerStatusChangeEventImpl(KieScanner.Status.UPDATING));
         assertTrue( events.get(2) instanceof KieScannerUpdateResultsEventImpl );
         assertFalse( ((KieScannerUpdateResultsEventImpl)events.get(2)).getResults().hasMessages(Message.Level.ERROR) );
         events.clear();
@@ -424,8 +397,8 @@ public class KieRepositoryScannerTest extends AbstractKieCiTest {
         
         scanner.scanNow();
         // Because 1.0.2 does not exist, will perform a scan but will NOT update.
-        assertThat( events, CoreMatchers.hasItem( new KieScannerStatusChangeEventImpl(KieScanner.Status.SCANNING) ) );
-        assertThat( events, CoreMatchers.not( CoreMatchers.hasItem( new KieScannerStatusChangeEventImpl(KieScanner.Status.UPDATING) )) );
+        assertThat( events).contains(new KieScannerStatusChangeEventImpl(KieScanner.Status.SCANNING));
+        assertThat( events).doesNotContain(new KieScannerStatusChangeEventImpl(KieScanner.Status.UPDATING));
         events.clear();
         
         repository.installArtifact(releaseId1, kJar1, createKPom(fileManager, releaseId1));
@@ -470,8 +443,8 @@ public class KieRepositoryScannerTest extends AbstractKieCiTest {
 
         // there should be no update performed.
         
-        assertThat( events, CoreMatchers.hasItem( new KieScannerStatusChangeEventImpl(KieScanner.Status.SCANNING) ) );
-        assertThat( events, CoreMatchers.hasItem( new KieScannerStatusChangeEventImpl(KieScanner.Status.UPDATING) ) );
+        assertThat( events).contains(new KieScannerStatusChangeEventImpl(KieScanner.Status.SCANNING));
+        assertThat( events).contains(new KieScannerStatusChangeEventImpl(KieScanner.Status.UPDATING));
         assertTrue( events.get(2) instanceof KieScannerUpdateResultsEventImpl );
         assertTrue( ((KieScannerUpdateResultsEventImpl)events.get(2)).getResults().hasMessages(Message.Level.ERROR) );
         events.clear();

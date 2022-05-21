@@ -18,9 +18,10 @@ package org.drools.core.reteoo.builder;
 
 import org.drools.core.common.BetaConstraints;
 import org.drools.core.reteoo.AsyncSendNode;
+import org.drools.core.reteoo.CoreComponentFactory;
 import org.drools.core.rule.AsyncSend;
 import org.drools.core.rule.RuleConditionElement;
-import org.drools.core.spi.AlphaNodeFieldConstraint;
+import org.drools.core.rule.constraint.AlphaNodeFieldConstraint;
 
 public class AsyncSendBuilder implements ReteooComponentBuilder {
 
@@ -36,9 +37,9 @@ public class AsyncSendBuilder implements ReteooComponentBuilder {
                 context.getAlphaConstraints().toArray( new AlphaNodeFieldConstraint[context.getAlphaConstraints().size()] ) :
                 new AlphaNodeFieldConstraint[0];
 
-        NodeFactory nodeFactory = context.getComponentFactory().getNodeFactoryService();
+        NodeFactory nodeFactory = CoreComponentFactory.get().getNodeFactoryService();
         AsyncSendNode sendNode =
-                nodeFactory.buildAsyncSendNode( context.getNextId(),
+                nodeFactory.buildAsyncSendNode( context.getNextNodeId(),
                                                 send.getDataProvider(),
                                                 context.getTupleSource(),
                                                 alphaNodeFieldConstraints,

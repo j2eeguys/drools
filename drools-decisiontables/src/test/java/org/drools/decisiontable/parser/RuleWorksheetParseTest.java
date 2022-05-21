@@ -33,7 +33,11 @@ import org.drools.template.parser.DecisionTableParseException;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  *
@@ -47,12 +51,12 @@ public class RuleWorksheetParseTest {
     @Test
     public void testBasicWorkbookProperties() throws Exception {
 
-        final InputStream stream = RuleWorksheetParseTest.class.getResourceAsStream( "/data/BasicWorkbook.xls" );
+        final InputStream stream = RuleWorksheetParseTest.class.getResourceAsStream("/data/BasicWorkbook.drl.xls");
 
         final RuleSheetListener listener = getRuleSheetListener( stream );
 
         final CaseInsensitiveMap props = listener.getProperties();
-        assertNotNull( props );
+        assertThat(props).isNotNull();
         assertEquals( "data", props.getSingleProperty( "RuleSet" ) );
         assertEquals( "someMisc",  props.getSingleProperty( "misc" ) );
         /*
@@ -63,25 +67,25 @@ public class RuleWorksheetParseTest {
 
     @Test
     public void testComplexWorkbookProperties() throws Exception {
-        final InputStream stream = RuleWorksheetParseTest.class.getResourceAsStream( "/data/ComplexWorkbook.xls" );
+        final InputStream stream = RuleWorksheetParseTest.class.getResourceAsStream("/data/ComplexWorkbook.drl.xls");
         final RuleSheetListener listener = getRuleSheetListener( stream );
 
         final CaseInsensitiveMap props = listener.getProperties();
-        assertNotNull( props );
+        assertThat(props).isNotNull();
         final String ruleSetName = props.getSingleProperty( "RuleSet" );
         assertEquals( "data", ruleSetName );
     }
 
     @Test
     public void testWorkbookParse() throws Exception {
-        final InputStream stream = RuleWorksheetParseTest.class.getResourceAsStream( "/data/BasicWorkbook.xls" );
+        final InputStream stream = RuleWorksheetParseTest.class.getResourceAsStream("/data/BasicWorkbook.drl.xls");
         final RuleSheetListener listener = getRuleSheetListener( stream );
 
         final Package ruleset = listener.getRuleSet();
-        assertNotNull( ruleset );
+        assertThat(ruleset).isNotNull();
 
         final Rule firstRule = (Rule) ruleset.getRules().get( 0 );
-        assertNotNull( firstRule.getSalience() );
+        assertThat(firstRule.getSalience()).isNotNull();
         assertTrue( Integer.parseInt( firstRule.getSalience() ) > 0 );
 
         // System.out.println(ruleset.toXML());
@@ -105,7 +109,7 @@ public class RuleWorksheetParseTest {
                 cond.getSnippet() );
 
         Consequence cons = (Consequence) rule.getConsequences().get( 0 );
-        assertNotNull( cons );
+        assertThat(cons).isNotNull();
         assertEquals( "myObject.setIsValid(Y);", cons.getSnippet() );
 
         rule = (Rule) ruleset.getRules().get( 5 );
@@ -407,11 +411,11 @@ public class RuleWorksheetParseTest {
 
     @Test
     public void testQuoteEscapingEnabled() throws Exception {
-        final InputStream stream = RuleWorksheetParseTest.class.getResourceAsStream( "/data/QuoteEscapeEnabledWorkbook.xls" );
+        final InputStream stream = RuleWorksheetParseTest.class.getResourceAsStream("/data/QuoteEscapeEnabledWorkbook.drl.xls");
         final RuleSheetListener listener = getRuleSheetListener( stream );
 
         final Package ruleset = listener.getRuleSet();
-        assertNotNull( ruleset );
+        assertThat(ruleset).isNotNull();
         DRLOutput dout = new DRLOutput();
         ruleset.renderDRL(dout);
         String drl = dout.getDRL();
@@ -426,11 +430,11 @@ public class RuleWorksheetParseTest {
 
     @Test
     public void testQuoteEscapingDisabled() throws Exception {
-        final InputStream stream = RuleWorksheetParseTest.class.getResourceAsStream( "/data/QuoteEscapeDisabledWorkbook.xls" );
+        final InputStream stream = RuleWorksheetParseTest.class.getResourceAsStream("/data/QuoteEscapeDisabledWorkbook.drl.xls");
         final RuleSheetListener listener = getRuleSheetListener( stream );
 
         final Package ruleset = listener.getRuleSet();
-        assertNotNull( ruleset );
+        assertThat(ruleset).isNotNull();
         DRLOutput dout = new DRLOutput();
         ruleset.renderDRL(dout);
         String drl = dout.getDRL();
@@ -450,11 +454,11 @@ public class RuleWorksheetParseTest {
     @Test
     public void testSalienceRange() throws Exception {
         // DROOLS-1225
-        final InputStream stream = RuleWorksheetParseTest.class.getResourceAsStream( "/data/SalienceRangeWorkbook.xls" );
+        final InputStream stream = RuleWorksheetParseTest.class.getResourceAsStream("/data/SalienceRangeWorkbook.drl.xls");
         final RuleSheetListener listener = getRuleSheetListener( stream );
 
         final Package ruleset = listener.getRuleSet();
-        assertNotNull( ruleset );
+        assertThat(ruleset).isNotNull();
         DRLOutput dout = new DRLOutput();
         ruleset.renderDRL(dout);
         String drl = dout.getDRL();
@@ -471,7 +475,7 @@ public class RuleWorksheetParseTest {
     @Test
     public void testSalienceOutOfRange() throws Exception {
         // DROOLS-1225
-        final InputStream stream = RuleWorksheetParseTest.class.getResourceAsStream( "/data/SalienceOutOfRangeWorkbook.xls" );
+        final InputStream stream = RuleWorksheetParseTest.class.getResourceAsStream("/data/SalienceOutOfRangeWorkbook.drl.xls");
         try {
             final RuleSheetListener listener = getRuleSheetListener( stream );
             fail( "should have failed" );
@@ -499,7 +503,7 @@ public class RuleWorksheetParseTest {
     }
 
     private void doComplexWorksheetMissingConditions() throws IOException {
-        final InputStream stream = RuleWorksheetParseTest.class.getResourceAsStream( "/data/ComplexWorkbook.xls" );
+        final InputStream stream = RuleWorksheetParseTest.class.getResourceAsStream("/data/ComplexWorkbook.drl.xls");
         final RuleSheetListener listener = getRuleSheetListener( stream );
 
         final Package ruleset = listener.getRuleSet();
@@ -527,11 +531,11 @@ public class RuleWorksheetParseTest {
     @Test
     public void testNumericDisabled() throws Exception {
         // DROOLS-1378
-        final InputStream stream = RuleWorksheetParseTest.class.getResourceAsStream( "/data/NumericDisabled.xls" );
+        final InputStream stream = RuleWorksheetParseTest.class.getResourceAsStream("/data/NumericDisabled.drl.xls");
         final RuleSheetListener listener = getRuleSheetListener( stream );
 
         final Package ruleset = listener.getRuleSet();
-        assertNotNull( ruleset );
+        assertThat(ruleset).isNotNull();
         DRLOutput dout = new DRLOutput();
         ruleset.renderDRL( dout );
         String drl = dout.getDRL();

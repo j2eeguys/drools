@@ -16,31 +16,40 @@
 
 package org.drools.modelcompiler.facttemplate;
 
-import org.drools.core.definitions.impl.KnowledgePackageImpl;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+import org.drools.core.definitions.InternalKnowledgePackage;
 import org.drools.core.facttemplates.Fact;
 import org.drools.core.facttemplates.FactTemplate;
 import org.drools.core.facttemplates.FactTemplateImpl;
 import org.drools.core.facttemplates.FieldTemplate;
 import org.drools.core.facttemplates.FieldTemplateImpl;
+import org.drools.core.reteoo.CoreComponentFactory;
 import org.drools.model.Prototype;
 
 public class FactFactory {
+
+    private static final Map<Prototype, FactTemplate> factTemplateCache = new ConcurrentHashMap<>();
 
     public static Fact createMapBasedFact(FactTemplate factTemplate) {
         return new HashMapFactImpl( factTemplate );
     }
 
     public static Fact createMapBasedFact(Prototype prototype) {
-        return new HashMapFactImpl( prototypeToFactTemplate( prototype, new KnowledgePackageImpl( prototype.getPackage() ) ) );
+        return createMapBasedFact( prototypeToFactTemplate( prototype ) );
     }
 
-    public static FactTemplate prototypeToFactTemplate( Prototype prototype, KnowledgePackageImpl pkg ) {
-        FieldTemplate[] fieldTemplates = new FieldTemplate[prototype.getFields().length];
-        for (int i = 0; i < prototype.getFields().length; i++) {
-            fieldTemplates[i] = new FieldTemplateImpl( prototype.getFields()[i].getName(), i, prototype.getFields()[i].getType() );
+    public static FactTemplate prototypeToFactTemplate( Prototype prototype ) {
+        return factTemplateCache.computeIfAbsent(prototype, p -> prototypeToFactTemplate( p, CoreComponentFactory.get().createKnowledgePackage( p.getPackage() ) ) );
+    }
+
+    public static FactTemplate prototypeToFactTemplate( Prototype prototype, InternalKnowledgePackage pkg ) {
+        FieldTemplate[] fieldTemplates = new FieldTemplate[prototype.getFieldNames().size()];
+        int i = 0;
+        for (String fieldName : prototype.getFieldNames()) {
+            fieldTemplates[i++] = new FieldTemplateImpl( fieldName, prototype.getField(fieldName).getType() );
         }
         return new FactTemplateImpl( pkg, prototype.getName(), fieldTemplates );
     }
-
-
 }

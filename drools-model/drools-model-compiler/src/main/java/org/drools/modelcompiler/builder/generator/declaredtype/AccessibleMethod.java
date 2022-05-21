@@ -23,7 +23,6 @@ import java.util.stream.Stream;
 
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.expr.NameExpr;
-import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.stmt.SwitchEntry;
@@ -32,17 +31,17 @@ import org.drools.core.factmodel.AccessibleFact;
 import org.drools.modelcompiler.builder.generator.declaredtype.api.MethodDefinition;
 import org.drools.modelcompiler.builder.generator.declaredtype.api.MethodWithStringBody;
 
+import static com.github.javaparser.StaticJavaParser.parseStatement;
+import static com.github.javaparser.ast.NodeList.nodeList;
 import static java.lang.String.format;
 import static java.util.Arrays.stream;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Stream.concat;
 import static java.util.stream.Stream.empty;
 import static java.util.stream.Stream.of;
-
-import static com.github.javaparser.StaticJavaParser.parseStatement;
-import static com.github.javaparser.ast.NodeList.nodeList;
-import static org.drools.core.util.ClassUtils.getter2property;
-import static org.drools.core.util.ClassUtils.setter2property;
+import static org.drools.util.ClassUtils.getter2property;
+import static org.drools.util.ClassUtils.setter2property;
+import static org.drools.modelcompiler.builder.generator.DrlxParseUtil.toStringLiteral;
 
 public class AccessibleMethod {
 
@@ -185,7 +184,7 @@ public class AccessibleMethod {
     }
 
     private SwitchEntry switchEntry(String statement) {
-        return new SwitchEntry(nodeList(), SwitchEntry.Type.EXPRESSION, nodeList(parseStatement(statement)));
+        return new SwitchEntry(nodeList(), SwitchEntry.Type.STATEMENT_GROUP, nodeList(parseStatement(statement)));
     }
 
     private SwitchEntry stringSwitchExpression(String caseLabel, String... statements) {
@@ -193,7 +192,7 @@ public class AccessibleMethod {
         for (String statement : statements) {
             switchStatements.add(parseStatement(statement));
         }
-        return new SwitchEntry(nodeList(new StringLiteralExpr(caseLabel)), SwitchEntry.Type.EXPRESSION, switchStatements);
+        return new SwitchEntry(nodeList(toStringLiteral(caseLabel)), SwitchEntry.Type.STATEMENT_GROUP, switchStatements);
     }
 
     private boolean superClassIsAccessibleFact(Class<?> superClass) {

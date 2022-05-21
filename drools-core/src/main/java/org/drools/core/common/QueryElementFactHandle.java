@@ -28,7 +28,7 @@ import org.drools.core.factmodel.traits.TraitTypeEnum;
 import org.drools.core.reteoo.LeftTuple;
 import org.drools.core.reteoo.RightTuple;
 import org.drools.core.rule.EntryPointId;
-import org.drools.core.spi.Tuple;
+import org.drools.core.reteoo.Tuple;
 
 @XmlAccessorType(XmlAccessType.NONE)
 public class QueryElementFactHandle
@@ -103,7 +103,7 @@ public class QueryElementFactHandle
     }
 
     @Override
-    public WorkingMemoryEntryPoint getEntryPoint( InternalWorkingMemory wm ) {
+    public WorkingMemoryEntryPoint getEntryPoint( ReteEvaluator reteEvaluator ) {
         return null;
     }
 

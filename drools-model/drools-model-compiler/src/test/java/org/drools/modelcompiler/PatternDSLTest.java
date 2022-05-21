@@ -25,14 +25,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.math3.util.Pair;
-import org.assertj.core.api.Assertions;
 import org.drools.core.ClockType;
+import org.drools.core.base.ClassObjectType;
 import org.drools.core.base.accumulators.CollectSetAccumulateFunction;
 import org.drools.core.definitions.rule.impl.RuleImpl;
 import org.drools.core.rule.Accumulate;
 import org.drools.core.rule.Pattern;
-import org.drools.core.rule.QueryImpl;
-import org.drools.core.spi.Activation;
+import org.drools.core.definitions.rule.impl.QueryImpl;
+import org.drools.core.rule.consequence.Activation;
 import org.drools.model.DSL;
 import org.drools.model.Global;
 import org.drools.model.Index;
@@ -69,29 +69,28 @@ import org.kie.api.runtime.rule.FactHandle;
 import org.kie.api.runtime.rule.QueryResults;
 import org.kie.api.time.SessionPseudoClock;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.drools.model.DSL.accFunction;
+import static org.drools.model.DSL.accumulate;
+import static org.drools.model.DSL.after;
+import static org.drools.model.DSL.and;
+import static org.drools.model.DSL.declarationOf;
+import static org.drools.model.DSL.execute;
+import static org.drools.model.DSL.globalOf;
+import static org.drools.model.DSL.not;
+import static org.drools.model.DSL.on;
+import static org.drools.model.DSL.or;
+import static org.drools.model.DSL.reactiveFrom;
 import static org.drools.model.DSL.supply;
-import static org.drools.model.PatternDSL.accFunction;
-import static org.drools.model.PatternDSL.accumulate;
-import static org.drools.model.PatternDSL.after;
+import static org.drools.model.DSL.valueOf;
 import static org.drools.model.PatternDSL.alphaIndexedBy;
-import static org.drools.model.PatternDSL.and;
 import static org.drools.model.PatternDSL.betaIndexedBy;
-import static org.drools.model.PatternDSL.declarationOf;
-import static org.drools.model.PatternDSL.execute;
-import static org.drools.model.PatternDSL.globalOf;
-import static org.drools.model.PatternDSL.not;
-import static org.drools.model.PatternDSL.on;
-import static org.drools.model.PatternDSL.or;
 import static org.drools.model.PatternDSL.pattern;
 import static org.drools.model.PatternDSL.query;
 import static org.drools.model.PatternDSL.reactOn;
-import static org.drools.model.PatternDSL.reactiveFrom;
 import static org.drools.model.PatternDSL.rule;
-import static org.drools.model.PatternDSL.valueOf;
 import static org.drools.model.PatternDSL.when;
 import static org.drools.modelcompiler.BaseModelTest.getObjectsIntoList;
-import static org.hamcrest.CoreMatchers.hasItem;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
@@ -187,7 +186,7 @@ public class PatternDSLTest {
 
         ksession.fireAllRules();
         Collection<String> results = getObjectsIntoList(ksession, String.class);
-        Assertions.assertThat(results).containsExactlyInAnyOrder("Mario is older than Mark");
+        assertThat(results).containsExactlyInAnyOrder("Mario is older than Mark");
 
         ksession.delete(marioFH);
         ksession.fireAllRules();
@@ -197,7 +196,7 @@ public class PatternDSLTest {
 
         ksession.fireAllRules();
         results = getObjectsIntoList(ksession, String.class);
-        Assertions.assertThat(results).containsExactlyInAnyOrder("Mario is older than Mark", "Edson is older than Mark");
+        assertThat(results).containsExactlyInAnyOrder("Mario is older than Mark", "Edson is older than Mark");
     }
 
     @Test
@@ -352,7 +351,7 @@ public class PatternDSLTest {
         ksession.fireAllRules();
 
         Collection<Result> results = getObjectsIntoList(ksession, Result.class);
-        assertThat(results, hasItem(new Result(49)));
+        assertThat(results).contains(new Result(49));
     }
 
     @Test
@@ -629,13 +628,13 @@ public class PatternDSLTest {
         ksession.insert( bob );
         ksession.fireAllRules();
 
-        Assertions.assertThat(list).containsExactlyInAnyOrder("car", "ball");
+        assertThat(list).containsExactlyInAnyOrder("car", "ball");
 
         list.clear();
         debbie.setAge( 11 );
         ksession.fireAllRules();
 
-        Assertions.assertThat(list).containsExactlyInAnyOrder("doll");
+        assertThat(list).containsExactlyInAnyOrder("doll");
     }
 
     @Test
@@ -1020,7 +1019,7 @@ public class PatternDSLTest {
 
         // The expression must be merged up into the acc pattern
         Pattern p = (Pattern) rule.getLhs().getChildren().get(0);
-        assertSame( Object[].class, p.getObjectType().getClassType());
+        assertSame( Object[].class, ((ClassObjectType) p.getObjectType()).getClassType());
         LambdaConstraint l0 = (LambdaConstraint) p.getConstraints().get(0);
         assertSame(p1, ((Predicate1.Impl)l0.getEvaluator().getConstraint().getPredicate1()).getLambda());
 
@@ -1075,7 +1074,7 @@ public class PatternDSLTest {
 
         // Check correct result type and the filter was moved up
         Pattern    p1  = (Pattern) rule.getLhs().getChildren().get(0);
-        assertSame( Long.class, p1.getObjectType().getClassType());
+        assertSame( Long.class, ((ClassObjectType) p1.getObjectType()).getClassType());
         LambdaConstraint l0 = (LambdaConstraint) p1.getConstraints().get(0);
         assertSame(cp, ((Predicate1.Impl)l0.getEvaluator().getConstraint().getPredicate1()).getLambda());
 
@@ -1083,7 +1082,7 @@ public class PatternDSLTest {
         Accumulate acc = (Accumulate) p1.getSource();
         assertEquals(1, acc.getNestedElements().size());
         Pattern p2 = (Pattern) acc.getNestedElements().get(0);
-        assertSame( Integer.class, p2.getObjectType().getClassType());
+        assertSame( Integer.class, ((ClassObjectType) p2.getObjectType()).getClassType());
 
         KieSession ksession = kbase.newKieSession();
 

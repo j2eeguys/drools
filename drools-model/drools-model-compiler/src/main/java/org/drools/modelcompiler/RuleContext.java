@@ -16,26 +16,29 @@
 
 package org.drools.modelcompiler;
 
+import java.util.ArrayDeque;
 import java.util.Collection;
+import java.util.Deque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import org.drools.core.definitions.InternalKnowledgePackage;
-import org.drools.core.definitions.impl.KnowledgePackageImpl;
 import org.drools.core.definitions.rule.impl.RuleImpl;
 import org.drools.core.rule.Accumulate;
 import org.drools.core.rule.Declaration;
 import org.drools.core.rule.Pattern;
-import org.drools.core.spi.GlobalExtractor;
-import org.drools.core.spi.InternalReadAccessor;
-import org.drools.core.spi.ObjectType;
+import org.drools.core.rule.accessor.GlobalExtractor;
+import org.drools.core.rule.accessor.ReadAccessor;
+import org.drools.core.base.ObjectType;
 import org.drools.model.Global;
 import org.drools.model.Variable;
 
 public class RuleContext {
 
     private final KiePackagesBuilder builder;
-    private final KnowledgePackageImpl pkg;
+    private final InternalKnowledgePackage pkg;
     private final RuleImpl rule;
 
     private final Map<Variable, Declaration> declarations = new HashMap<>();
@@ -46,7 +49,9 @@ public class RuleContext {
     private int patternIndex = -1;
     private boolean needStreamMode = false;
 
-    public RuleContext( KiePackagesBuilder builder, KnowledgePackageImpl pkg, RuleImpl rule ) {
+    private Deque<Set<Variable>> variablesInOrCondition;
+
+    public RuleContext( KiePackagesBuilder builder, InternalKnowledgePackage pkg, RuleImpl rule ) {
         this.builder = builder;
         this.pkg = pkg;
         this.rule = rule;
@@ -59,7 +64,7 @@ public class RuleContext {
         return builder.getKiePackages();
     }
 
-    public KnowledgePackageImpl getPkg() {
+    public InternalKnowledgePackage getPkg() {
         return pkg;
     }
 
@@ -71,8 +76,24 @@ public class RuleContext {
         return ++patternIndex;
     }
 
+    void startOrCondition() {
+        if (variablesInOrCondition == null) {
+            variablesInOrCondition = new ArrayDeque<>();
+        }
+        variablesInOrCondition.addLast(new HashSet<>());
+    }
+
+    void endOrCondition() {
+        variablesInOrCondition.removeLast();
+    }
+
     void registerPattern( Variable variable, Pattern pattern ) {
-        declarations.computeIfAbsent(variable, k -> pattern.getDeclaration());
+        if (variablesInOrCondition != null && !variablesInOrCondition.isEmpty() && !variablesInOrCondition.getLast().add(variable)) {
+            // allow to overwrite varibles that have been defined in a different or branch
+            declarations.put(variable, pattern.getDeclaration());
+        } else {
+            declarations.computeIfAbsent(variable, k -> pattern.getDeclaration());
+        }
     }
 
     Pattern getPattern( Variable variable ) {
@@ -93,7 +114,7 @@ public class RuleContext {
         } else {
             Global global = (( Global ) variable);
             ObjectType objectType = builder.getObjectType( global );
-            InternalReadAccessor globalExtractor = new GlobalExtractor( global.getName(), objectType );
+            ReadAccessor globalExtractor = new GlobalExtractor( global.getName(), objectType );
             return new Declaration( global.getName(), globalExtractor, new Pattern( 0, objectType ) );
         }
     }

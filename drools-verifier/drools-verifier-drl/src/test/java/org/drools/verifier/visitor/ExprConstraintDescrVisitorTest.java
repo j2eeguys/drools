@@ -15,16 +15,24 @@
 
 package org.drools.verifier.visitor;
 
-import org.drools.core.base.evaluators.Operator;
-import org.drools.compiler.lang.descr.PackageDescr;
+import java.util.Collection;
+
+import org.drools.drl.ast.descr.PackageDescr;
+import org.drools.drl.parser.impl.Operator;
 import org.drools.verifier.TestBase;
-import org.drools.verifier.components.*;
+import org.drools.verifier.components.Eval;
+import org.drools.verifier.components.Field;
+import org.drools.verifier.components.NumberRestriction;
+import org.drools.verifier.components.Restriction;
+import org.drools.verifier.components.StringRestriction;
+import org.drools.verifier.components.VariableRestriction;
+import org.drools.verifier.components.VerifierComponentType;
 import org.drools.verifier.data.VerifierComponent;
 import org.junit.Test;
 
-import java.util.Collection;
-
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 public class ExprConstraintDescrVisitorTest extends TestBase {
 
@@ -33,7 +41,7 @@ public class ExprConstraintDescrVisitorTest extends TestBase {
 
         PackageDescr packageDescr = getPackageDescr(getClass().getResourceAsStream("ExprConstraintDescr1.drl"));
 
-        assertNotNull(packageDescr);
+        assertThat(packageDescr).isNotNull();
 
         packageDescrVisitor.visitPackageDescr(packageDescr);
 
@@ -44,16 +52,16 @@ public class ExprConstraintDescrVisitorTest extends TestBase {
         assertEquals(3, allFields.size());
 
         for (Field field : allFields) {
-            assertNotNull(field.getFieldType());
+            assertThat(field.getFieldType()).isNotNull();
         }
 
         assertContainsField("name");
         assertContainsField("lastName");
         assertContainsField("age");
 
-        assertContainsStringRestriction(Operator.EQUAL, "toni");
-        assertContainsStringRestriction(Operator.NOT_EQUAL, "Lake");
-        assertContainsNumberRestriction(Operator.GREATER, 20);
+        assertContainsStringRestriction(Operator.BuiltInOperator.EQUAL.getOperator(), "toni");
+        assertContainsStringRestriction(Operator.BuiltInOperator.NOT_EQUAL.getOperator(), "Lake");
+        assertContainsNumberRestriction(Operator.BuiltInOperator.GREATER.getOperator(), 20);
         assertContainsEval("eval( true )");
     }
 
@@ -62,7 +70,7 @@ public class ExprConstraintDescrVisitorTest extends TestBase {
 
         PackageDescr packageDescr = getPackageDescr(getClass().getResourceAsStream("ExprConstraintDescr2.drl"));
 
-        assertNotNull(packageDescr);
+        assertThat(packageDescr).isNotNull();
 
         packageDescrVisitor.visitPackageDescr(packageDescr);
 
@@ -74,8 +82,8 @@ public class ExprConstraintDescrVisitorTest extends TestBase {
 
         assertContainsField("age");
 
-        assertContainsNumberRestriction(Operator.GREATER, 0);
-        assertContainsNumberRestriction(Operator.LESS, 100);
+        assertContainsNumberRestriction(Operator.BuiltInOperator.GREATER.getOperator(), 0);
+        assertContainsNumberRestriction(Operator.BuiltInOperator.LESS.getOperator(), 100);
     }
 
     @Test
@@ -83,7 +91,7 @@ public class ExprConstraintDescrVisitorTest extends TestBase {
 
         PackageDescr packageDescr = getPackageDescr(getClass().getResourceAsStream("ExprConstraintDescr3.drl"));
 
-        assertNotNull(packageDescr);
+        assertThat(packageDescr).isNotNull();
 
         packageDescrVisitor.visitPackageDescr(packageDescr);
 
@@ -95,7 +103,7 @@ public class ExprConstraintDescrVisitorTest extends TestBase {
         assertContainsField("age");
         assertContainsVariable("Test 1", "var");
 
-        assertContainsVariableRestriction(Operator.EQUAL, "var");
+        assertContainsVariableRestriction(Operator.BuiltInOperator.EQUAL.getOperator(), "var");
     }
 
     private void assertContainsEval(String eval) {

@@ -21,7 +21,7 @@ import java.util.Collection;
 import java.util.List;
 
 import org.drools.core.ClockType;
-import org.drools.core.impl.KnowledgeBaseFactory;
+import org.drools.core.impl.RuleBaseFactory;
 import org.drools.mvel.compiler.StockTick;
 import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
 import org.drools.testcoverage.common.util.KieBaseUtil;
@@ -51,8 +51,7 @@ public class LengthSlidingWindowTest {
 
     @Parameterized.Parameters(name = "KieBase type={0}")
     public static Collection<Object[]> getParameters() {
-     // TODO: EM failed with some tests. File JIRAs
-        return TestParametersUtil.getKieBaseStreamConfigurations(false);
+        return TestParametersUtil.getKieBaseStreamConfigurations(true);
     }
 
     @Test
@@ -108,7 +107,7 @@ public class LengthSlidingWindowTest {
     }
 
     private void checkPrice( String drl, double expectedPrice ) {
-        KieSessionConfiguration sessionConfig = KnowledgeBaseFactory.newKnowledgeSessionConfiguration();
+        KieSessionConfiguration sessionConfig = RuleBaseFactory.newKnowledgeSessionConfiguration();
         sessionConfig.setOption( ClockTypeOption.get( ClockType.PSEUDO_CLOCK.getId() ) );
 
         KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("test", kieBaseTestConfiguration, drl);

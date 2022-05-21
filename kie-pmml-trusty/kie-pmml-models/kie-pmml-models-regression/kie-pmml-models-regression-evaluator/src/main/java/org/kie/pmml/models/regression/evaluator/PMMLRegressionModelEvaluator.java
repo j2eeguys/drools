@@ -17,15 +17,16 @@ package org.kie.pmml.models.regression.evaluator;
 
 import java.util.Map;
 
-import org.drools.core.util.StringUtils;
+import org.drools.util.StringUtils;
 import org.kie.api.KieBase;
 import org.kie.api.pmml.PMML4Result;
-import org.kie.pmml.api.exceptions.KiePMMLInternalException;
 import org.kie.pmml.api.enums.PMML_MODEL;
-import org.kie.pmml.evaluator.api.exceptions.KiePMMLModelException;
+import org.kie.pmml.api.exceptions.KiePMMLInternalException;
 import org.kie.pmml.api.runtime.PMMLContext;
+import org.kie.pmml.evaluator.api.exceptions.KiePMMLModelException;
 import org.kie.pmml.evaluator.core.executor.PMMLModelEvaluator;
-import org.kie.pmml.models.regression.model.KiePMMLRegressionClassificationTable;
+import org.kie.pmml.models.regression.model.AbstractKiePMMLTable;
+import org.kie.pmml.models.regression.model.KiePMMLClassificationTable;
 import org.kie.pmml.models.regression.model.KiePMMLRegressionModel;
 import org.kie.pmml.models.regression.model.KiePMMLRegressionTable;
 
@@ -56,11 +57,10 @@ public class PMMLRegressionModelEvaluator implements PMMLModelEvaluator<KiePMMLR
         String targetField = model.getTargetField();
         final Map<String, Object> requestData =
                 getUnwrappedParametersMap(pmmlContext.getRequestData().getMappedRequestParams());
-        Object result = model.evaluate(knowledgeBase, requestData);
+        Object result = model.evaluate(knowledgeBase, requestData, pmmlContext);
         toReturn.addResultVariable(targetField, result);
         toReturn.setResultObjectName(targetField);
         toReturn.setResultCode(OK.getName());
-        model.getOutputFieldsMap().forEach(toReturn::addResultVariable);
         return toReturn;
     }
 
@@ -68,12 +68,14 @@ public class PMMLRegressionModelEvaluator implements PMMLModelEvaluator<KiePMMLR
         if (toValidate.getRegressionTable() == null) {
             throw new KiePMMLModelException("At least one RegressionTable required");
         }
-        final KiePMMLRegressionTable regressionTable = toValidate.getRegressionTable();
+        final AbstractKiePMMLTable regressionTable = toValidate.getRegressionTable();
 
-        if (regressionTable instanceof KiePMMLRegressionClassificationTable) {
-            validateClassification((KiePMMLRegressionClassificationTable) regressionTable);
+        if (regressionTable instanceof KiePMMLClassificationTable) {
+            validateClassification((KiePMMLClassificationTable) regressionTable);
+        } else if (regressionTable instanceof KiePMMLRegressionTable) {
+            validateRegression((KiePMMLRegressionTable) regressionTable);
         } else {
-            validateRegression(regressionTable);
+            throw new KiePMMLInternalException("Unexpected regressionTable " + regressionTable);
         }
     }
 
@@ -84,7 +86,7 @@ public class PMMLRegressionModelEvaluator implements PMMLModelEvaluator<KiePMMLR
         }
     }
 
-    private void validateClassification(KiePMMLRegressionClassificationTable toValidate) {
+    private void validateClassification(KiePMMLClassificationTable toValidate) {
         switch (toValidate.getOpType()) {
             case CATEGORICAL:
                 validateClassificationCategorical(toValidate);
@@ -97,7 +99,7 @@ public class PMMLRegressionModelEvaluator implements PMMLModelEvaluator<KiePMMLR
         }
     }
 
-    private void validateClassificationCategorical(KiePMMLRegressionClassificationTable toValidate) {
+    private void validateClassificationCategorical(KiePMMLClassificationTable toValidate) {
         if (toValidate.isBinary()) {
             validateClassificationCategoricalBinary(toValidate);
         } else {
@@ -105,7 +107,7 @@ public class PMMLRegressionModelEvaluator implements PMMLModelEvaluator<KiePMMLR
         }
     }
 
-    private void validateClassificationCategoricalBinary(KiePMMLRegressionClassificationTable toValidate) {
+    private void validateClassificationCategoricalBinary(KiePMMLClassificationTable toValidate) {
         switch (toValidate.getRegressionNormalizationMethod()) {
             case LOGIT:
             case PROBIT:
@@ -124,7 +126,7 @@ public class PMMLRegressionModelEvaluator implements PMMLModelEvaluator<KiePMMLR
         }
     }
 
-    private void validateClassificationCategoricalNotBinary(KiePMMLRegressionClassificationTable toValidate) {
+    private void validateClassificationCategoricalNotBinary(KiePMMLClassificationTable toValidate) {
         switch (toValidate.getRegressionNormalizationMethod()) {
             case SOFTMAX:
             case SIMPLEMAX:
@@ -140,7 +142,7 @@ public class PMMLRegressionModelEvaluator implements PMMLModelEvaluator<KiePMMLR
         }
     }
 
-    private void validateClassificationOrdinal(KiePMMLRegressionClassificationTable toValidate) {
+    private void validateClassificationOrdinal(KiePMMLClassificationTable toValidate) {
         switch (toValidate.getRegressionNormalizationMethod()) {
             case LOGIT:
             case PROBIT:

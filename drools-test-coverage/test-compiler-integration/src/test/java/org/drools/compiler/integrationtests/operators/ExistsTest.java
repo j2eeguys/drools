@@ -204,4 +204,85 @@ public class ExistsTest {
             ksession.dispose();
         }
     }
+
+    @Test
+    public void testExistsWithOrAndSubnetwork() {
+        // DROOLS-6550
+        final String drl =
+            "package org.drools.compiler.integrationtests.operators;\n" +
+            "global java.util.List list \n" +
+            "rule \"Rule Result\" salience 100 when\n" +
+            "        exists (\n" +
+            "            String()\n" +
+            "            or ( Integer() and Long() )\n" +
+            "        )\n" +
+            "    then\n" +
+            "        list.add(\"ok\");\n" +
+            "end\n" +
+            "\n" +
+            "rule Init when\n" +
+            "then\n" +
+            "    insert(\"test\");\n" +
+            "end\n";
+
+        final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("exists-test",
+                                                                         kieBaseTestConfiguration,
+                                                                         drl);
+        final KieSession ksession = kbase.newKieSession();
+        try {
+            final List list = new ArrayList();
+            ksession.setGlobal("list", list);
+
+            ksession.fireAllRules();
+
+            assertEquals(1, list.size());
+            assertEquals("ok", list.get(0));
+        } finally {
+            ksession.dispose();
+        }
+    }
+
+    @Test
+    public void testSharedExistsWithNot() {
+        // DROOLS-6710
+        final String drl =
+            "package org.drools.compiler.integrationtests.operators;\n" +
+            "global java.util.List list \n" +
+            "rule R1 when\n" +
+            "        exists\n" +
+            "        (\n" +
+            "           String(this == \"A\")\n" +
+            "           and String(this == \"B\")\n" +
+            "        )\n" +
+            "    then\n" +
+            "        list.add(\"NOT OK\");\n" +
+            "end\n" +
+            "\n" +
+            "rule R2 when\n" +
+            "        exists\n" +
+            "        (\n" +
+            "           String(this == \"A\")\n" +
+            "           and not String(this == \"B\")\n" +
+            "        )\n" +
+            "    then\n" +
+            "        list.add(\"OK\");\n" +
+            "end\n";
+
+        final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("exists-test",
+                                                                         kieBaseTestConfiguration,
+                                                                         drl);
+        final KieSession ksession = kbase.newKieSession();
+        try {
+            final List list = new ArrayList();
+            ksession.setGlobal("list", list);
+
+            ksession.insert("A");
+            ksession.fireAllRules();
+
+            assertEquals(1, list.size());
+            assertEquals("OK", list.get(0));
+        } finally {
+            ksession.dispose();
+        }
+    }
 }

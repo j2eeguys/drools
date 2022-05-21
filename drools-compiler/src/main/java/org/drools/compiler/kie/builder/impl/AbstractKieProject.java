@@ -28,7 +28,7 @@ import org.drools.compiler.builder.impl.KnowledgeBuilderImpl;
 import org.drools.compiler.kproject.models.KieBaseModelImpl;
 import org.drools.compiler.kproject.models.KieModuleModelImpl;
 import org.drools.compiler.kproject.models.KieSessionModelImpl;
-import org.drools.core.util.StringUtils;
+import org.drools.util.StringUtils;
 import org.kie.api.builder.Message;
 import org.kie.api.builder.model.KieBaseModel;
 import org.kie.api.builder.model.KieModuleModel;
@@ -230,7 +230,7 @@ public abstract class AbstractKieProject implements KieProject {
             if (includeModule == null) {
                 String text = "Unable to build KieBase, could not find include: " + include;
                 log.error(text);
-                buildContext.getMessages().addMessage( Message.Level.ERROR, KieModuleModelImpl.KMODULE_SRC_PATH, text ).setKieBaseName( kBaseModel.getName() );
+                buildContext.getMessages().addMessage( Message.Level.ERROR, KieModuleModelImpl.KMODULE_SRC_PATH.asString(), text ).setKieBaseName( kBaseModel.getName() );
                 allIncludesAreValid = false;
                 continue;
             }
@@ -327,7 +327,7 @@ public abstract class AbstractKieProject implements KieProject {
         }
     }
 
-    protected KnowledgeBuilderConfigurationImpl getBuilderConfiguration( KieBaseModelImpl kBaseModel, InternalKieModule kModule ) {
+    protected KnowledgeBuilderConfigurationImpl getBuilderConfiguration( KieBaseModel kBaseModel, InternalKieModule kModule ) {
         return (KnowledgeBuilderConfigurationImpl) kModule.createBuilderConfiguration(kBaseModel, getClassLoader());
     }
 

@@ -16,9 +16,6 @@
 
 package org.drools.core.reteoo;
 
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,9 +24,11 @@ import org.drools.core.common.InternalFactHandle;
 import org.drools.core.common.InternalWorkingMemory;
 import org.drools.core.common.Memory;
 import org.drools.core.common.MemoryFactory;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.common.UpdateContext;
 import org.drools.core.reteoo.builder.BuildContext;
-import org.drools.core.spi.PropagationContext;
+import org.drools.core.base.ObjectType;
+import org.drools.core.common.PropagationContext;
 import org.drools.core.util.AbstractBaseLinkedListNode;
 import org.drools.core.util.bitmask.BitMask;
 import org.kie.api.definition.rule.Rule;
@@ -82,32 +81,13 @@ public class RightInputAdapterNode extends ObjectSource
                                  final BuildContext context) {
         super( id,
                context.getPartitionId(),
-               context.getKnowledgeBase().getConfiguration().isMultithreadEvaluation() );
+               context.getRuleBase().getConfiguration().isMultithreadEvaluation() );
         this.tupleSource = source;
         this.tupleMemoryEnabled = context.isTupleMemoryEnabled();
         this.startTupleSource = startTupleSource;
 
         hashcode = calculateHashCode();
         initMemoryId( context );
-    }
-
-    public void readExternal(ObjectInput in) throws IOException,
-                                            ClassNotFoundException {
-        super.readExternal( in );
-        tupleMemoryEnabled = in.readBoolean();
-        previousTupleSinkNode = (LeftTupleSinkNode) in.readObject();
-        nextTupleSinkNode = (LeftTupleSinkNode) in.readObject();
-        startTupleSource = ( LeftTupleSource ) in.readObject();
-        pathEndNodes = ( PathEndNode[] ) in.readObject();
-    }
-
-    public void writeExternal(ObjectOutput out) throws IOException {
-        super.writeExternal( out );
-        out.writeBoolean( tupleMemoryEnabled );
-        out.writeObject( previousTupleSinkNode );
-        out.writeObject( nextTupleSinkNode );
-        out.writeObject( startTupleSource );
-        out.writeObject( pathEndNodes );
     }
 
     @Override
@@ -152,10 +132,10 @@ public class RightInputAdapterNode extends ObjectSource
     /**
      * Creates and return the node memory
      */    
-    public RiaNodeMemory createMemory(final RuleBaseConfiguration config, InternalWorkingMemory wm) {
+    public RiaNodeMemory createMemory(final RuleBaseConfiguration config, ReteEvaluator reteEvaluator) {
         RiaNodeMemory rianMem = new RiaNodeMemory();
 
-        RiaPathMemory pmem = new RiaPathMemory(this, wm);
+        RiaPathMemory pmem = new RiaPathMemory(this, reteEvaluator);
         PathMemSpec pathMemSpec = getPathMemSpec();
         pmem.setAllLinkedMaskTest( pathMemSpec.allLinkedTestMask );
         pmem.setSegmentMemories( new SegmentMemory[pathMemSpec.smemCount] );
@@ -308,7 +288,7 @@ public class RightInputAdapterNode extends ObjectSource
     }      
     
     @Override
-    public BitMask calculateDeclaredMask(Class modifiedClass, List<String> settableProperties) {
+    public BitMask calculateDeclaredMask(ObjectType modifiedType, List<String> settableProperties) {
         throw new UnsupportedOperationException();
     }
 
@@ -348,7 +328,7 @@ public class RightInputAdapterNode extends ObjectSource
     }
 
     @Override
-    public void updateSink(ObjectSink sink, PropagationContext context, InternalWorkingMemory workingMemory) {
+    public void updateSink(ObjectSink sink, PropagationContext context, InternalWorkingMemory wm) {
         throw new UnsupportedOperationException();
     }
 

@@ -29,12 +29,16 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.kie.api.KieBase;
+import org.kie.api.KieServices;
+import org.kie.api.runtime.Environment;
 import org.kie.api.runtime.KieSession;
+import org.kie.api.runtime.KieSessionConfiguration;
+import org.kie.api.runtime.conf.DirectFiringOption;
 import org.kie.api.runtime.rule.AgendaFilter;
 import org.mockito.ArgumentCaptor;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -89,6 +93,28 @@ public class AgendaFilterTest {
 
         final ArgumentCaptor<org.kie.api.event.rule.AfterMatchFiredEvent> arg = ArgumentCaptor.forClass(org.kie.api.event.rule.AfterMatchFiredEvent.class);
         verify(ael).afterMatchFired(arg.capture());
-        assertThat(arg.getValue().getMatch().getRule().getName(), is(expectedMatchingRuleName));
+        assertThat(arg.getValue().getMatch().getRule().getName()).isEqualTo(expectedMatchingRuleName);
+    }
+
+    @Test
+    public void testDirectFiringIgnoresAgendaFilter() {
+        // DROOLS-6510
+        String str =
+                "rule R when\n" +
+                "  String() \n" +
+                "then\n" +
+                "  throw new IllegalStateException();\n" +
+                "end";
+        try {
+            KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("test", kieBaseTestConfiguration, str);
+            KieSessionConfiguration config = KieServices.get().newKieSessionConfiguration();
+            config.setOption(DirectFiringOption.YES);
+            Environment environment = KieServices.get().newEnvironment();
+            KieSession ksession = kbase.newKieSession(config, environment);
+            ksession.insert("Lukas");
+            assertEquals(0, ksession.fireAllRules(match -> false));
+        } catch (Throwable ex) {
+            fail("Should not have thrown.", ex);
+        }
     }
 }

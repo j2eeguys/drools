@@ -22,17 +22,19 @@ import org.drools.core.RuleBaseConfiguration;
 import org.drools.core.base.TraitHelper;
 import org.drools.core.common.ClassAwareObjectStore;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.NamedEntryPoint;
+import org.drools.core.common.InternalWorkingMemoryActions;
+import org.drools.kiesession.entrypoints.NamedEntryPoint;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.definitions.rule.impl.RuleImpl;
-import org.drools.core.factmodel.traits.TraitProxy;
+import org.drools.traits.core.factmodel.TraitProxy;
 import org.drools.core.factmodel.traits.TraitableBean;
-import org.drools.core.impl.StatefulKnowledgeSessionImpl;
 import org.drools.core.reteoo.EntryPointNode;
-import org.drools.core.reteoo.KieComponentFactory;
+import org.drools.core.reteoo.RuntimeComponentFactory;
 import org.drools.core.reteoo.TerminalNode;
 import org.drools.core.rule.EntryPointId;
-import org.drools.core.spi.Activation;
-import org.drools.core.spi.PropagationContext;
+import org.drools.core.rule.consequence.Activation;
+import org.drools.core.common.PropagationContext;
+import org.drools.traits.core.base.TraitHelperImpl;
 
 public class TraitNamedEntryPoint extends NamedEntryPoint {
 
@@ -40,29 +42,27 @@ public class TraitNamedEntryPoint extends NamedEntryPoint {
 
     public TraitNamedEntryPoint(EntryPointId entryPoint,
                                 EntryPointNode entryPointNode,
-                                StatefulKnowledgeSessionImpl wm,
-                                KieComponentFactory componentFactory) {
+                                ReteEvaluator reteEvaluator) {
         this(entryPoint,
              entryPointNode,
-             wm,
-             new ReentrantLock(), componentFactory);
+             reteEvaluator,
+             new ReentrantLock());
     }
 
     public TraitNamedEntryPoint(EntryPointId entryPoint,
                                 EntryPointNode entryPointNode,
-                                StatefulKnowledgeSessionImpl wm,
-                                ReentrantLock lock,
-                                KieComponentFactory componentFactory) {
+                                ReteEvaluator reteEvaluator,
+                                ReentrantLock lock) {
         this.entryPoint = entryPoint;
         this.entryPointNode = entryPointNode;
-        this.wm = wm;
-        this.kBase = this.wm.getKnowledgeBase();
+        this.reteEvaluator = reteEvaluator;
+        this.ruleBase = this.reteEvaluator.getKnowledgeBase();
         this.lock = lock;
-        this.handleFactory = this.wm.getFactHandleFactory();
-        this.pctxFactory = kBase.getConfiguration().getComponentFactory().getPropagationContextFactory();
-        boolean isEqualityBehaviour = RuleBaseConfiguration.AssertBehaviour.EQUALITY.equals(this.kBase.getConfiguration().getAssertBehaviour());
+        this.handleFactory = this.reteEvaluator.getFactHandleFactory();
+        this.pctxFactory = RuntimeComponentFactory.get().getPropagationContextFactory();
+        boolean isEqualityBehaviour = RuleBaseConfiguration.AssertBehaviour.EQUALITY.equals(this.ruleBase.getConfiguration().getAssertBehaviour());
         this.objectStore = new ClassAwareObjectStore(isEqualityBehaviour, this.lock);
-        this.traitHelper = componentFactory.createTraitHelper(wm, this);
+        this.traitHelper = new TraitHelperImpl((InternalWorkingMemoryActions) reteEvaluator, this);
     }
 
     @Override
